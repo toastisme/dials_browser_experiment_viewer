@@ -3,16 +3,18 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 class ExperimentViewer{
 	constructor(exptJSON){
-		this.setup();
 		this.panelData = this.getDetectorPanels(exptJSON);
-		console.log(this.panelData);
 		this.addDetectorPanel();
 		this.addSample();
+		this.setup();
 		window.renderer.setAnimationLoop(this.animate);
 	}
 
 	setup(){
-		window.renderer.setClearColor(ExperimentViewer.colors["background"]);
+		window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
+		for (var i = 0; i < this.panelData.length; i++){
+			this.addDetectorPanelOutline(this.panelData[i]);
+		}
 	}
 
 	static isDIALSExpt(fileString){
@@ -38,6 +40,34 @@ class ExperimentViewer{
 
 	getDetectorPanels(exptJSON){
 		return exptJSON["detector"][0]["panels"]
+	}
+
+	getPanelCorners(panelData){
+		var pxSize = new THREE.Vector2(panelData["pixel_size"][0], panelData["pixel_size"][1]);
+		var pxs = new THREE.Vector2(panelData["image_size"][0], panelData["image_size"][1]);
+		var panelSize = new THREE.Vector2(pxSize.x*pxs.x, pxSize.y*pxs.y);
+		var fa = new THREE.Vector3(panelData["fast_axis"][0], panelData["fast_axis"][1], panelData["fast_axis"][2]).multiplyScalar(panelSize.x/1000.);
+		var sa = new THREE.Vector3(panelData["slow_axis"][0], panelData["slow_axis"][1], panelData["slow_axis"][2]).multiplyScalar(panelSize.y/1000.);
+		var o = new THREE.Vector3(panelData["origin"][0], panelData["origin"][1], panelData["origin"][2]).multiplyScalar(1/1000.);
+
+		// Corners
+		var c1 = o.clone();
+		var c2 = o.clone().add(fa);
+		var c3 = o.clone().add(fa).add(sa);
+		var c4 = o.clone().add(sa);
+		return [c1, c2, c3, c4];
+	}
+
+	addDetectorPanelOutline(panelData){
+
+		var corners = this.getPanelCorners(panelData);
+		corners.push(corners[0]);
+
+		const material = new THREE.LineBasicMaterial( { color: ExperimentViewer.colors()["panel"] } );
+		const geometry = new THREE.BufferGeometry().setFromPoints( corners );
+		const line = new THREE.Line( geometry, material );
+		window.scene.add( line );
+
 	}
 
 	addDetectorPanel() {
@@ -97,7 +127,7 @@ class ExperimentViewer{
 window.renderer = new THREE.WebGLRenderer();
 window.renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(window.renderer.domElement);
-window.renderer.setClearColor(ExperimentViewer.colors["background"]);
+window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
 
 window.scene = new THREE.Scene();
 window.camera = new THREE.PerspectiveCamera(
@@ -137,12 +167,10 @@ window.addEventListener("dragstart", (event) => {
 
 window.addEventListener("dragover", (event) => {
   event.preventDefault();
-  console.log("dragover");
 });
 
 window.addEventListener('drop', function(event) {
 
-	console.log("dropped");
 	var reader = new FileReader();
 	reader.onloadend = function() {
 		if (ExperimentViewer.isDIALSExpt(this.result)){
