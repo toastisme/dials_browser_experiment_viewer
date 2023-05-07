@@ -64,21 +64,18 @@ class ExperimentViewer{
 	addDetectorPanelOutline(panelData){
 
 		var corners = this.getPanelCorners(panelData);
-		//corners.push(corners[0]);
+		corners.push(corners[0]);
 
 		const planeGeometry = new THREE.PlaneGeometry(192, 192);
-		const planeMaterial = new THREE.MeshBasicMaterial({ color: ExperimentViewer.colors()["panel"],
-															wireframe : false });
-		const material = new THREE.MeshPhongMaterial({
+		const planeMaterial = new THREE.MeshPhongMaterial({
 			color : ExperimentViewer.colors()["panel"],
-			opacity: 0.5,
+			opacity: 0.0,
 			transparent: true,
 		});
 		const plane = new THREE.Mesh(planeGeometry, planeMaterial);
 		plane.name = panelData["name"];
 
 		window.scene.add(plane);
-		console.log("before", plane.geometry.attributes.position.array);
 		var count = 0;
 		var idxs = [1,2,0,3]
 		for (var i = 0; i < 12; i+=3){
@@ -87,7 +84,11 @@ class ExperimentViewer{
 			plane.geometry.attributes.position.array[i+2] = corners[idxs[count]].z;
 			count++;
 		}
-		console.log("after", plane.geometry.attributes.position.array);
+
+		const lineMaterial = new THREE.LineBasicMaterial( { color: ExperimentViewer.colors()["panel"] } );
+		const lineGeometry = new THREE.BufferGeometry().setFromPoints( corners );
+		const line = new THREE.Line( lineGeometry, lineMaterial );
+		window.scene.add( line );
 
 	}
 
