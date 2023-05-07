@@ -3,12 +3,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry';
+import gsap from "gsap";
 
 class ExperimentViewer{
 	constructor(exptJSON){
 		this.panelData = this.getDetectorPanels(exptJSON);
-		//this.addDetectorPanel();
-		//this.addSample();
 		this.setup();
 		window.renderer.setAnimationLoop(this.animate);
 	}
@@ -49,9 +48,9 @@ class ExperimentViewer{
 		var pxSize = new THREE.Vector2(panelData["pixel_size"][0], panelData["pixel_size"][1]);
 		var pxs = new THREE.Vector2(panelData["image_size"][0], panelData["image_size"][1]);
 		var panelSize = new THREE.Vector2(pxSize.x*pxs.x, pxSize.y*pxs.y);
-		var fa = new THREE.Vector3(panelData["fast_axis"][0], panelData["fast_axis"][1], panelData["fast_axis"][2]).multiplyScalar(panelSize.x/1.);
-		var sa = new THREE.Vector3(panelData["slow_axis"][0], panelData["slow_axis"][1], panelData["slow_axis"][2]).multiplyScalar(panelSize.y/1.);
-		var o = new THREE.Vector3(panelData["origin"][0], panelData["origin"][1], panelData["origin"][2]).multiplyScalar(1/1.);
+		var fa = new THREE.Vector3(panelData["fast_axis"][0], panelData["fast_axis"][1], panelData["fast_axis"][2]).multiplyScalar(panelSize.x);
+		var sa = new THREE.Vector3(panelData["slow_axis"][0], panelData["slow_axis"][1], panelData["slow_axis"][2]).multiplyScalar(panelSize.y);
+		var o = new THREE.Vector3(panelData["origin"][0], panelData["origin"][1], panelData["origin"][2]);
 
 		// Corners
 		var c1 = o.clone();
@@ -92,14 +91,6 @@ class ExperimentViewer{
 
 	}
 
-	addDetectorPanel() {
-		const planeGeometry = new THREE.PlaneGeometry(30, 30);
-		const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
-		const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-		plane.name = "panel";
-		window.scene.add(plane);
-	}
-
 	addSample() {
 		const sphereGeometry = new THREE.SphereGeometry(4);
 		const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000FF, wireframe: true });
@@ -134,8 +125,51 @@ class ExperimentViewer{
 		if (intersects.length > 0) {
 			ExperimentViewer.displayName(intersects[0].object.name);
 			//console.log(intersects[0].point);
+			/*
+			if (window.viewer){
+				console.log(
+					window.viewer.getPanelPosition(intersects[0].point, intersects[0].object.name)
+				);
+			}
+			*/
 			ExperimentViewer.highlightObject();
 		}
+	}
+
+	getPanelPosition(globalPos, panelName){
+		for (var i = 0; i < this.panelData.length; i++){
+			if (this.panelData[i]["name"] == panelName){
+				var origin = new THREE.Vector3(
+					this.panelData[i]["origin"][0], 
+					this.panelData[i]["origin"][1], 
+					this.panelData[i]["origin"][2]
+				);
+				var panelPos = origin.sub(globalPos);
+				return panelPos;
+			}
+		}
+	}
+
+	static getClickedPanelPos(){
+		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+		const intersects = rayCaster.intersectObjects(window.scene.children);
+		if (intersects.length > 0) {
+			console.log(intersects[0]);
+			return intersects[0].point;
+		}
+
+	}
+
+	static rotateToPos(pos){
+		gsap.to( window.camera.position, {
+			duration: 1,
+			x: -pos.x,
+			y: -pos.y,
+			z: -pos.z, 
+			onUpdate: function() {
+				window.camera.lookAt( pos );
+			}
+		} );
 	}
 
 	animate() {
@@ -168,7 +202,6 @@ window.controls.maxDistance = 30;
 window.controls.enablePan = false;
 window.controls.enableDamping = true;
 window.controls.dampingFactor = 0.1;
-window.camera.position.z = -5;
 window.controls.update();
 
 // Events
@@ -204,5 +237,10 @@ window.addEventListener('drop', function(event) {
 
 	reader.readAsText(event.dataTransfer.files[0]);    
 	event.preventDefault();
+});
+
+window.addEventListener('dblclick', function(event){
+	var pos = ExperimentViewer.getClickedPanelPos();
+	ExperimentViewer.rotateToPos(pos);
 });
 
