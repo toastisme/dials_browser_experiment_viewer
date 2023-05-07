@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry';
 
 class ExperimentViewer{
 	constructor(exptJSON){
 		this.panelData = this.getDetectorPanels(exptJSON);
-		this.addDetectorPanel();
-		this.addSample();
+		//this.addDetectorPanel();
+		//this.addSample();
 		this.setup();
 		window.renderer.setAnimationLoop(this.animate);
 	}
@@ -46,9 +49,9 @@ class ExperimentViewer{
 		var pxSize = new THREE.Vector2(panelData["pixel_size"][0], panelData["pixel_size"][1]);
 		var pxs = new THREE.Vector2(panelData["image_size"][0], panelData["image_size"][1]);
 		var panelSize = new THREE.Vector2(pxSize.x*pxs.x, pxSize.y*pxs.y);
-		var fa = new THREE.Vector3(panelData["fast_axis"][0], panelData["fast_axis"][1], panelData["fast_axis"][2]).multiplyScalar(panelSize.x/1000.);
-		var sa = new THREE.Vector3(panelData["slow_axis"][0], panelData["slow_axis"][1], panelData["slow_axis"][2]).multiplyScalar(panelSize.y/1000.);
-		var o = new THREE.Vector3(panelData["origin"][0], panelData["origin"][1], panelData["origin"][2]).multiplyScalar(1/1000.);
+		var fa = new THREE.Vector3(panelData["fast_axis"][0], panelData["fast_axis"][1], panelData["fast_axis"][2]).multiplyScalar(panelSize.x/1.);
+		var sa = new THREE.Vector3(panelData["slow_axis"][0], panelData["slow_axis"][1], panelData["slow_axis"][2]).multiplyScalar(panelSize.y/1.);
+		var o = new THREE.Vector3(panelData["origin"][0], panelData["origin"][1], panelData["origin"][2]).multiplyScalar(1/1.);
 
 		// Corners
 		var c1 = o.clone();
@@ -61,12 +64,30 @@ class ExperimentViewer{
 	addDetectorPanelOutline(panelData){
 
 		var corners = this.getPanelCorners(panelData);
-		corners.push(corners[0]);
+		//corners.push(corners[0]);
 
-		const material = new THREE.LineBasicMaterial( { color: ExperimentViewer.colors()["panel"] } );
-		const geometry = new THREE.BufferGeometry().setFromPoints( corners );
-		const line = new THREE.Line( geometry, material );
-		window.scene.add( line );
+		const planeGeometry = new THREE.PlaneGeometry(192, 192);
+		const planeMaterial = new THREE.MeshBasicMaterial({ color: ExperimentViewer.colors()["panel"],
+															wireframe : false });
+		const material = new THREE.MeshPhongMaterial({
+			color : ExperimentViewer.colors()["panel"],
+			opacity: 0.5,
+			transparent: true,
+		});
+		const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+		plane.name = panelData["name"];
+
+		window.scene.add(plane);
+		console.log("before", plane.geometry.attributes.position.array);
+		var count = 0;
+		var idxs = [1,2,0,3]
+		for (var i = 0; i < 12; i+=3){
+			plane.geometry.attributes.position.array[i] = corners[idxs[count]].x;
+			plane.geometry.attributes.position.array[i+1] = corners[idxs[count]].y;
+			plane.geometry.attributes.position.array[i+2] = corners[idxs[count]].z;
+			count++;
+		}
+		console.log("after", plane.geometry.attributes.position.array);
 
 	}
 
@@ -111,6 +132,7 @@ class ExperimentViewer{
 		const intersects = rayCaster.intersectObjects(window.scene.children);
 		if (intersects.length > 0) {
 			ExperimentViewer.displayName(intersects[0].object.name);
+			//console.log(intersects[0].point);
 			ExperimentViewer.highlightObject();
 		}
 	}
