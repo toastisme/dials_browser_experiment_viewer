@@ -4,6 +4,7 @@ import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry';
 import gsap from "gsap";
+import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 
 class ExperimentViewer{
 	constructor(exptJSON){
@@ -84,10 +85,14 @@ class ExperimentViewer{
 			count++;
 		}
 
-		const lineMaterial = new THREE.LineBasicMaterial( { color: ExperimentViewer.colors()["panel"] } );
-		const lineGeometry = new THREE.BufferGeometry().setFromPoints( corners );
-		const line = new THREE.Line( lineGeometry, lineMaterial );
-		window.scene.add( line );
+		const line = new MeshLine();
+		line.setPoints(corners);
+		const material = new MeshLineMaterial({
+			lineWidth:5,
+			color: ExperimentViewer.colors()["panel"]
+		});
+		const mesh = new THREE.Mesh(line, material);
+		window.scene.add(mesh);
 
 	}
 
