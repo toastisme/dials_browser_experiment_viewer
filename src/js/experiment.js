@@ -7,17 +7,21 @@ import gsap from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 
 class ExperimentViewer{
-	constructor(exptJSON){
-		this.panelData = this.getDetectorPanels(exptJSON);
+	constructor(){
 		this.setup();
 		window.renderer.setAnimationLoop(this.animate);
 	}
 
-	setup(){
-		window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
+	addExperiment(exptJSON){
+		this.panelData = this.getDetectorPanels(exptJSON);
 		for (var i = 0; i < this.panelData.length; i++){
 			this.addDetectorPanelOutline(this.panelData[i]);
 		}
+	}
+
+	setup(){
+		window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
+		this.setCameraToDefaultPosition();
 	}
 
 	static isDIALSExpt(fileString){
@@ -36,8 +40,8 @@ class ExperimentViewer{
 
 	static cameraPositions(){
 		return {
-			"default" : new THREE.Vector3(-10, 30, 30),
-			"centre" : new THREE.Vector3(-10, 30, 30)
+			"default" : new THREE.Vector3(0, 0, -1000),
+			"centre" : new THREE.Vector3(0, 0, 0)
 		};
 	}
 
@@ -105,15 +109,16 @@ class ExperimentViewer{
 	}
 
 	setCameraSmooth(position) {
-		window.camera.position = position;
+		ExperimentViewer.rotateToPos(position);
+		window.controls.update();
 	}
 
 	setCameraToDefaultPosition() {
-		this.setCameraSmooth(ExperimentViewer.cameraPositions["default"]);
+		this.setCameraSmooth(ExperimentViewer.cameraPositions()["default"]);
 	}
 
 	setCameraToCentrePosition() {
-		this.setCameraSmooth(ExperimentViewer.cameraPositions["centre"]);
+		this.setCameraSmooth(ExperimentViewer.cameraPositions()["centre"]);
 	}
 
 	static displayName(name){
@@ -189,21 +194,20 @@ class ExperimentViewer{
 window.renderer = new THREE.WebGLRenderer();
 window.renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(window.renderer.domElement);
-window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
 
 window.scene = new THREE.Scene();
 window.camera = new THREE.PerspectiveCamera(
 	45,
 	window.innerWidth / window.innerHeight,
 	0.0001,
-	1000
+	1000000
 );
 window.renderer.render(window.scene, window.camera);
 window.rayCaster = new THREE.Raycaster();
 
 // Controls
 window.controls = new OrbitControls(window.camera, window.renderer.domElement);
-window.controls.maxDistance = 30;
+window.controls.maxDistance = 3000;
 window.controls.enablePan = false;
 window.controls.enableDamping = true;
 window.controls.dampingFactor = 0.1;
@@ -236,7 +240,7 @@ window.addEventListener('drop', function(event) {
 	reader.onloadend = function() {
 		if (ExperimentViewer.isDIALSExpt(this.result)){
 			var data = JSON.parse(this.result);
-			window.viewer = new ExperimentViewer(data);
+			window.viewer.addExperiment(data);
 		}
 	};
 
@@ -248,4 +252,12 @@ window.addEventListener('dblclick', function(event){
 	var pos = ExperimentViewer.getClickedPanelPos();
 	ExperimentViewer.rotateToPos(pos);
 });
+
+window.addEventListener('mousedown', function(event){
+	if (event.button == 2) { 
+		ExperimentViewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
+	}
+});
+
+window.viewer = new ExperimentViewer();
 
