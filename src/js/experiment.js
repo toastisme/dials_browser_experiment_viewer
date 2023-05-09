@@ -13,15 +13,19 @@ class ExperimentViewer{
 	}
 
 	addExperiment(exptJSON){
+		this.exptJSON = exptJSON;
 		this.panelData = this.getDetectorPanels(exptJSON);
 		for (var i = 0; i < this.panelData.length; i++){
 			this.addDetectorPanelOutline(this.panelData[i]);
 		}
+		this.beamData = this.getBeam(exptJSON);
+		this.addBeam(this.beamData);
+		this.setCameraToDefaultPosition();
+
 	}
 
 	setup(){
 		window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
-		this.setCameraToDefaultPosition();
 	}
 
 	static isDIALSExpt(fileString){
@@ -40,13 +44,17 @@ class ExperimentViewer{
 
 	static cameraPositions(){
 		return {
-			"default" : new THREE.Vector3(0, 0, -1000),
+			"default" : new THREE.Vector3(-1000, 0, 0),
 			"centre" : new THREE.Vector3(0, 0, 0)
 		};
 	}
 
 	getDetectorPanels(exptJSON){
-		return exptJSON["detector"][0]["panels"]
+		return exptJSON["detector"][0]["panels"];
+	}
+
+	getBeam(exptJSON){
+		return exptJSON["beam"][0];
 	}
 
 	getPanelCorners(panelData){
@@ -92,11 +100,50 @@ class ExperimentViewer{
 		const line = new MeshLine();
 		line.setPoints(corners);
 		const material = new MeshLineMaterial({
-			lineWidth:5,
-			color: ExperimentViewer.colors()["panel"]
+			lineWidth:7,
+			color: ExperimentViewer.colors()["panel"],
+			fog:true
 		});
 		const mesh = new THREE.Mesh(line, material);
 		window.scene.add(mesh);
+
+	}
+
+	addBeam(beamData){
+		var beam_length = 2000.;
+		var bd = new THREE.Vector3(beamData["direction"][0], beamData["direction"][1], beamData["direction"][2]);
+
+		var incidentVertices = []
+		incidentVertices.push(
+			new THREE.Vector3(bd.x * -beam_length, bd.y * -beam_length, bd.z * -beam_length),
+		);
+		incidentVertices.push(new THREE.Vector3(0,0,0));
+		const incidentLine = new MeshLine();
+		incidentLine.setPoints(incidentVertices);
+		const incidentMaterial = new MeshLineMaterial({
+			lineWidth:5,
+			color: ExperimentViewer.colors()["beam"],
+			fog: true
+		});
+		const incidentMesh = new THREE.Mesh(incidentLine, incidentMaterial);
+		window.scene.add(incidentMesh);
+
+		var outgoingVertices = []
+		outgoingVertices.push(new THREE.Vector3(0,0,0));
+		outgoingVertices.push(
+			new THREE.Vector3(bd.x * beam_length, bd.y * beam_length, bd.z * beam_length)
+		);
+		const outgoingLine = new MeshLine();
+		outgoingLine.setPoints(outgoingVertices);
+		const outgoingMaterial = new MeshLineMaterial({
+			lineWidth:5,
+			color: ExperimentViewer.colors()["beam"],
+			transparent: true,
+			opacity: .25,
+			fog: true
+		});
+		const outgoingMesh = new THREE.Mesh(outgoingLine, outgoingMaterial);
+		window.scene.add(outgoingMesh);
 
 	}
 
@@ -195,12 +242,13 @@ window.renderer = new THREE.WebGLRenderer();
 window.renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(window.renderer.domElement);
 
-window.scene = new THREE.Scene();
+window.scene = new THREE.Scene()
+window.scene.fog = new THREE.Fog(ExperimentViewer.colors()["background"], 500, 3000);
 window.camera = new THREE.PerspectiveCamera(
 	45,
 	window.innerWidth / window.innerHeight,
 	0.0001,
-	1000000
+	10000
 );
 window.renderer.render(window.scene, window.camera);
 window.rayCaster = new THREE.Raycaster();
