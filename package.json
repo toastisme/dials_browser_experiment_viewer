@@ -10,8 +10,22 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@msgpack/msgpack": "^3.0.0-beta2",
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.3",
+    "fs": "^0.0.1-security",
     "gsap": "^3.11.5",
+    "msgpack-lite": "^0.1.26",
+    "msgpack5": "^6.0.2",
+    "msgpackr": "^1.9.1",
     "three": "^0.152.2",
     "three.meshline": "^1.4.0"
+  },
+  "devDependencies": {
+    "assert": "^2.0.0",
+    "buffer": "^5.7.1",
+    "events": "^3.3.0",
+    "process": "^0.11.10",
+    "util": "^0.12.5"
   }
 }
