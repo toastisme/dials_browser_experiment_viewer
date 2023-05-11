@@ -205,6 +205,10 @@ class ExperimentViewer{
 		window.renderer.setAnimationLoop(this.animate);
 	}
 
+	hasExperiment(){
+		return (this.expt.hasExptJSON());
+	}
+
 	addExperiment = async (file) => {
 		await this.expt.parseExperiment(file);
 		for (var i = 0; i < this.expt.getNumDetectorPanels(); i++){
@@ -307,6 +311,13 @@ class ExperimentViewer{
 		};
 	}
 
+	static text(){
+		return {
+			"default" : "To view an experiment drag .expt and .refl files into the browser",
+			"defaultWithExpt" : null 
+		}
+	}
+
 	addDetectorPanelOutline(idx){
 
 		var corners = this.expt.getDetectorPanelCorners(idx);
@@ -402,8 +413,17 @@ class ExperimentViewer{
 		this.setCameraSmooth(ExperimentViewer.cameraPositions()["centre"]);
 	}
 
-	static displayName(name){
+	static displayText(name){
 		tooltip.textContent = name;
+	}
+
+	static displayDefaultText(){
+		if (window.viewer.hasExperiment()){
+			ExperimentViewer.displayText(ExperimentViewer.text()["defaultWithExpt"]);
+		}
+		else{
+			ExperimentViewer.displayText(ExperimentViewer.text()["default"]);
+		}
 	}
 
 	static highlightObject(obj){
@@ -414,7 +434,7 @@ class ExperimentViewer{
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
 		if (intersects.length > 0) {
-			ExperimentViewer.displayName(intersects[0].object.name);
+			ExperimentViewer.displayText(intersects[0].object.name);
 			//console.log(intersects[0].point);
 			/*
 			if (window.viewer){
@@ -426,7 +446,7 @@ class ExperimentViewer{
 			ExperimentViewer.highlightObject();
 		}
 		else{
-			ExperimentViewer.displayName(null);
+			ExperimentViewer.displayDefaultText();
 		}
 	}
 
@@ -472,9 +492,6 @@ class ExperimentViewer{
 		window.renderer.render(window.scene, window.camera);
 	}
 
-	tooltip(text){
-		this.tooltip.innerHTML = text;
-	}
 }
 
 window.viewer = new ExperimentViewer(new ExptParser(), new ReflParser());
