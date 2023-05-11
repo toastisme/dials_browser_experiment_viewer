@@ -89,6 +89,7 @@ class ReflParser{
 
 	constructor(){
 		this.refl = null;
+		this.reflData = {};
 	}
 
 	parseReflectionTable = (file) => {
@@ -104,17 +105,30 @@ class ReflParser{
 				resolve(reader.result);
 				const decoded = decode(Buffer.from(reader.result));
 				this.refl = decoded[2]["data"];
+				this.loadReflectionData();
 			};
 			reader.readAsArrayBuffer(file);    
 		});
 	};
 
-	get_reflection_table_buffer(reflection_table, column_name){
-		return buffer = reflection_table[2]["data"][column_name][1][1];
+	getColumnBuffer(column_name){
+		return this.refl[column_name][1][1];
 	}
 
-	get_double_array(reflection_table, column_name){
-		const buffer = get_reflection_table_buffer(reflection_table, column_name);
+	getUint32Array(column_name){
+		const buffer = this.getColumnBuffer(column_name);
+		const arr = new Uint32Array(buffer.length/8);
+		let count = 0;
+		for (let i = 0; i < buffer.length; i+=8) {
+			arr[count] = buffer.readUInt32LE(i);
+			count++;
+		}
+		return arr;
+
+	}
+
+	getDoubleArray(column_name){
+		const buffer = this.getColumnBuffer(column_name);
 		const arr = new Float64Array(buffer.length/8);
 		let count = 0;
 		for (let i = 0; i < buffer.length; i+=8) {
@@ -124,12 +138,12 @@ class ReflParser{
 		return arr;
 	};
 
-	get_vec3_double_array(reflection_table, column_name){
-		const buffer = get_reflection_table_buffer(reflection_table, column_name);
+	getVec3DoubleArray(column_name){
+		const buffer = this.getColumnBuffer(column_name);
 		const arr = new Array(buffer.length/(8*3));
 		let count = 0;
 		for (let i = 0; i < buffer.length; i+=24){
-			vec = new Float64Array(3);
+			const vec = new Float64Array(3);
 			vec[0] = buffer.readDoubleLE(i);
 			vec[1] = buffer.readDoubleLE(i+8);
 			vec[2] = buffer.readDoubleLE(i+16);
@@ -138,14 +152,55 @@ class ReflParser{
 		}
 		return arr;
 	}
+
+	getVec6Uint32Array(column_name){
+		const buffer = this.getColumnBuffer(column_name);
+		const arr = new Array(buffer.length/(8*3));
+		let count = 0;
+		for (let i = 0; i < buffer.length; i+=24){
+			const vec = new Uint32Array(6);
+			vec[0] = buffer.readUInt32LE(i);
+			vec[1] = buffer.readUInt32LE(i+4);
+			vec[2] = buffer.readUInt32LE(i+8);
+			vec[3] = buffer.readUInt32LE(i+12);
+			vec[4] = buffer.readUInt32LE(i+16);
+			vec[5] = buffer.readUInt32LE(i+20);
+			arr[count] = vec;
+			count++;
+		}
+		return arr;
+	}
+
+	getPanelNumbers(){
+		return this.getUint32Array("panel");
+	}
+
+	getXYZObs(){
+		return this.getVec3DoubleArray("xyzobs.px.value");
+	}
+
+	getXYZCal(){
+		return this.getVec3DoubleArray("xyzcal.px");
+	}
+
+	getBoundingBoxes(){
+		return this.getVec6Uint32Array("bbox");
+	}
+
+	loadReflectionData(){
+
+		const panelNums = this.getPanelNumbers();
+		const xyzObs = this.getXYZObs();
+		const bboxes = this.getBoundingBoxes();
+	}
 }
 
 
 class ExperimentViewer{
-	constructor(){
+	constructor(exptParser, reflParser){
 		this.setupScene();
-		this.expt = new ExptParser();
-		this.refl = new ReflParser();
+		this.expt = exptParser;
+		this.refl = reflParser;
 		this.tooltip = window.document.getElementById("tooltip");
 		window.renderer.setAnimationLoop(this.animate);
 	}
@@ -422,5 +477,5 @@ class ExperimentViewer{
 	}
 }
 
-window.viewer = new ExperimentViewer();
+window.viewer = new ExperimentViewer(new ExptParser(), new ReflParser());
 
