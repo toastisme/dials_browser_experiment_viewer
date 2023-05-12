@@ -92,7 +92,9 @@ class ExptParser{
 	}
 
 	getPanelDataByName(name){
-		return this.getPanelDataByIdx(this.NameIdxMap[name]);
+		const idx = this.NameIdxMap[name];
+		const data = this.getPanelDataByIdx(idx);
+		return data;
 	}
 
 	getPanelDataByIdx(idx){
@@ -534,7 +536,9 @@ class ExperimentViewer{
 			color: ExperimentViewer.colors()["beam"],
 			fog: true
 		});
+		incidentLine.geometry.frustumCulled = false;
 		const incidentMesh = new THREE.Mesh(incidentLine, incidentMaterial);
+		incidentMesh.geometry.frustumCulled = false;
 		window.scene.add(incidentMesh);
 
 		var outgoingVertices = []
@@ -551,7 +555,9 @@ class ExperimentViewer{
 			opacity: .25,
 			fog: true
 		});
+		outgoingLine.geometry.frustumCulled = false;
 		const outgoingMesh = new THREE.Mesh(outgoingLine, outgoingMaterial);
+		outgoingMesh.geometry.frustumCulled = false;
 		window.scene.add(outgoingMesh);
 
 	}
@@ -599,9 +605,11 @@ class ExperimentViewer{
 		const intersects = rayCaster.intersectObjects(window.scene.children);
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
-			ExperimentViewer.displayText(name + " (" + window.viewer.getPanelPosition(intersects[0].point, name) + ")");
 			if (name in window.viewer.panelMeshes){
-				ExperimentViewer.highlightObject(window.viewer.panelMeshes[name]);
+				ExperimentViewer.displayText(name + " (" + window.viewer.getPanelPosition(intersects[0].point, name) + ")");
+				if (name in window.viewer.panelMeshes){
+					ExperimentViewer.highlightObject(window.viewer.panelMeshes[name]);
+				}
 			}
 		}
 		else{
