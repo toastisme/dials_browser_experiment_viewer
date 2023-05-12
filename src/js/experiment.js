@@ -521,12 +521,15 @@ class ExperimentViewer{
 	}
 
 	addBeam(){
-		var beam_length = 2000.;
+		var beamLength = 2000.;
 		var bd = this.expt.getBeamDirection();;
 
 		var incidentVertices = []
 		incidentVertices.push(
-			new THREE.Vector3(bd.x * -beam_length, bd.y * -beam_length, bd.z * -beam_length),
+			new THREE.Vector3(bd.x * -beamLength, bd.y * -beamLength, bd.z * -beamLength),
+		);
+		incidentVertices.push(
+			new THREE.Vector3(bd.x * -beamLength*.5, bd.y * -beamLength*.5, bd.z * -beamLength*.5),
 		);
 		incidentVertices.push(new THREE.Vector3(0,0,0));
 		const incidentLine = new MeshLine();
@@ -544,7 +547,10 @@ class ExperimentViewer{
 		var outgoingVertices = []
 		outgoingVertices.push(new THREE.Vector3(0,0,0));
 		outgoingVertices.push(
-			new THREE.Vector3(bd.x * beam_length, bd.y * beam_length, bd.z * beam_length)
+			new THREE.Vector3(bd.x * beamLength*.5, bd.y * beamLength*.5, bd.z * beamLength*.5)
+		);
+		outgoingVertices.push(
+			new THREE.Vector3(bd.x * beamLength, bd.y * beamLength, bd.z * beamLength)
 		);
 		const outgoingLine = new MeshLine();
 		outgoingLine.setPoints(outgoingVertices);
@@ -553,7 +559,7 @@ class ExperimentViewer{
 			color: ExperimentViewer.colors()["beam"],
 			transparent: true,
 			opacity: .25,
-			fog: true
+			fog: true,
 		});
 		outgoingLine.geometry.frustumCulled = false;
 		const outgoingMesh = new THREE.Mesh(outgoingLine, outgoingMaterial);
