@@ -31,6 +31,7 @@ class ExptParser{
 
 	constructor(){
 		this.exptJSON = null;
+		this.panelCentroids = {};
 	}
 
 	hasExptJSON(){
@@ -58,11 +59,27 @@ class ExptParser{
 				resolve(reader.result);
 				if (ExptParser.isDIALSExpt(file, reader.result)){
 					this.exptJSON = JSON.parse(reader.result);
+					this.loadPanelCentroids();
 				}
 			};
 			reader.readAsText(file);    
 		});
 	};
+
+	loadPanelCentroids(){
+		for (var i = 0; i < this.getNumDetectorPanels(); i++){
+			const data = this.getPanelDataByIdx(i);
+			const name = this.getDetectorPanelName(i);
+			const centroid = data["origin"];
+			centroid.add(data["fastAxis"].multiplyScalar(.5));
+			centroid.add(data["slowAxis"].multiplyScalar(.5));
+			this.panelCentroids[name] = centroid;
+		}
+	}
+
+	getPanelCentroid(name){
+		return this.panelCentroids[name];
+	}
 
 	getDetectorPanelData(){
 		return this.exptJSON["detector"][0]["panels"];
@@ -114,19 +131,14 @@ class ExptParser{
 	}
 
 	getDetectorPanelCorners(idx){
-		const panelData = this.getDetectorPanelData()[idx];
-		var pxSize = new THREE.Vector2(panelData["pixel_size"][0], panelData["pixel_size"][1]);
-		var pxs = new THREE.Vector2(panelData["image_size"][0], panelData["image_size"][1]);
-		var panelSize = new THREE.Vector2(pxSize.x*pxs.x, pxSize.y*pxs.y);
-		var fa = new THREE.Vector3(panelData["fast_axis"][0], panelData["fast_axis"][1], panelData["fast_axis"][2]).multiplyScalar(panelSize.x);
-		var sa = new THREE.Vector3(panelData["slow_axis"][0], panelData["slow_axis"][1], panelData["slow_axis"][2]).multiplyScalar(panelSize.y);
-		var o = new THREE.Vector3(panelData["origin"][0], panelData["origin"][1], panelData["origin"][2]);
+
+		const vecs = this.getPanelDataByIdx(idx);
 
 		// Corners
-		var c1 = o.clone();
-		var c2 = o.clone().add(fa);
-		var c3 = o.clone().add(fa).add(sa);
-		var c4 = o.clone().add(sa);
+		var c1 = vecs["origin"].clone();
+		var c2 = vecs["origin"].clone().add(vecs["fastAxis"]);
+		var c3 = vecs["origin"].clone().add(vecs["fastAxis"]).add(vecs["slowAxis"]);
+		var c4 = vecs["origin"].clone().add(vecs["slowAxis"]);
 		return [c1, c2, c3, c4];
 	}
 
@@ -337,8 +349,11 @@ class ExperimentViewer{
 		});
 
 		window.addEventListener('dblclick', function(event){
-			var pos = ExperimentViewer.getClickedPanelPos();
-			ExperimentViewer.rotateToPos(pos);
+			var pos = ExperimentViewer.getClickedPanelCentroid();
+			console.log(pos);
+			if (pos){
+				ExperimentViewer.rotateToPos(pos);
+			}
 		});
 
 		window.addEventListener('mousedown', function(event){
@@ -604,12 +619,24 @@ class ExperimentViewer{
 		}
 	}
 
+	getPanelCentroid(panelName){
+		return this.expt.getPanelCentroid(panelName);
+	}
+
 	static getClickedPanelPos(){
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
 		if (intersects.length > 0) {
-			console.log(intersects[0]);
 			return intersects[0].point;
+		}
+
+	}
+
+	static getClickedPanelCentroid(){
+		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+		const intersects = rayCaster.intersectObjects(window.scene.children);
+		if (intersects.length > 0) {
+			return window.viewer.getPanelCentroid(intersects[0].object.name);
 		}
 
 	}
