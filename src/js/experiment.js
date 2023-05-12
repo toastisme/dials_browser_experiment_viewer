@@ -291,6 +291,10 @@ class ExperimentViewer{
 		this.tooltip = window.document.getElementById("tooltip");
 		this.panelMeshes = {};
 		this.reflMeshes = {};
+
+		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
+		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
+
 		window.renderer.setAnimationLoop(this.animate);
 	}
 
@@ -356,7 +360,6 @@ class ExperimentViewer{
 
 		window.addEventListener('dblclick', function(event){
 			var pos = ExperimentViewer.getClickedPanelCentroid();
-			console.log(pos);
 			if (pos){
 				ExperimentViewer.rotateToPos(pos);
 			}
@@ -588,7 +591,7 @@ class ExperimentViewer{
 	}
 
 	static highlightObject(obj){
-
+		obj.material.color = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 	}
 
 	static updateGUIInfo() {
@@ -597,7 +600,9 @@ class ExperimentViewer{
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
 			ExperimentViewer.displayText(name + " (" + window.viewer.getPanelPosition(intersects[0].point, name) + ")");
-			ExperimentViewer.highlightObject();
+			if (name in window.viewer.panelMeshes){
+				ExperimentViewer.highlightObject(window.viewer.panelMeshes[name]);
+			}
 		}
 		else{
 			ExperimentViewer.displayDefaultText();
@@ -618,6 +623,12 @@ class ExperimentViewer{
 
 	getPanelCentroid(panelName){
 		return this.expt.getPanelCentroid(panelName);
+	}
+
+	resetPanelColors(){
+		for (var i in this.panelMeshes){
+			this.panelMeshes[i].material.color = this.panelColor;
+		}
 	}
 
 	static getClickedPanelPos(){
@@ -651,6 +662,7 @@ class ExperimentViewer{
 	}
 
 	animate() {
+		window.viewer.resetPanelColors();
 		ExperimentViewer.updateGUIInfo();
 		window.controls.update();
 		window.renderer.render(window.scene, window.camera);
