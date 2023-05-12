@@ -31,6 +31,7 @@ class ExptParser{
 
 	constructor(){
 		this.exptJSON = null;
+		this.NameIdxMap = {};
 		this.panelCentroids = {};
 	}
 
@@ -59,17 +60,18 @@ class ExptParser{
 				resolve(reader.result);
 				if (ExptParser.isDIALSExpt(file, reader.result)){
 					this.exptJSON = JSON.parse(reader.result);
-					this.loadPanelCentroids();
+					this.loadPanelData();
 				}
 			};
 			reader.readAsText(file);    
 		});
 	};
 
-	loadPanelCentroids(){
+	loadPanelData(){
 		for (var i = 0; i < this.getNumDetectorPanels(); i++){
 			const data = this.getPanelDataByIdx(i);
 			const name = this.getDetectorPanelName(i);
+			this.NameIdxMap[name] = i;
 			const centroid = data["origin"];
 			centroid.add(data["fastAxis"].multiplyScalar(.5));
 			centroid.add(data["slowAxis"].multiplyScalar(.5));
@@ -87,6 +89,10 @@ class ExptParser{
 
 	getBeamData(){
 		return this.exptJSON["beam"][0];
+	}
+
+	getPanelDataByName(name){
+		return this.getPanelDataByIdx(this.NameIdxMap[name]);
 	}
 
 	getPanelDataByIdx(idx){
@@ -589,15 +595,8 @@ class ExperimentViewer{
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
 		if (intersects.length > 0) {
-			ExperimentViewer.displayText(intersects[0].object.name);
-			//console.log(intersects[0].point);
-			/*
-			if (window.viewer){
-				console.log(
-					window.viewer.getPanelPosition(intersects[0].point, intersects[0].object.name)
-				);
-			}
-			*/
+			const name = intersects[0].object.name;
+			ExperimentViewer.displayText(name + " (" + window.viewer.getPanelPosition(intersects[0].point, name) + ")");
 			ExperimentViewer.highlightObject();
 		}
 		else{
@@ -606,17 +605,15 @@ class ExperimentViewer{
 	}
 
 	getPanelPosition(globalPos, panelName){
-		for (var i = 0; i < this.panelData.length; i++){
-			if (this.panelData[i]["name"] == panelName){
-				var origin = new THREE.Vector3(
-					this.panelData[i]["origin"][0], 
-					this.panelData[i]["origin"][1], 
-					this.panelData[i]["origin"][2]
-				);
-				var panelPos = origin.sub(globalPos);
-				return panelPos;
-			}
-		}
+
+		const data = this.expt.getPanelDataByName(panelName);
+		const pos = data["origin"].sub(globalPos);
+		const fa = data["fastAxis"].normalize();
+		const sa = data["slowAxis"].normalize();
+		const panelX = (pos.x * fa.x + pos.y * fa.y + pos.z * fa.z) / data["pxSize"].x;  
+		const panelY = (pos.x * sa.x + pos.y * sa.y + pos.z * sa.z) / data["pxSize"].y;  
+		return ~~-panelX + ", " + ~~-panelY;
+
 	}
 
 	getPanelCentroid(panelName){
