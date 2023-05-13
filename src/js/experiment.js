@@ -293,6 +293,7 @@ class ExperimentViewer{
 		this.tooltip = window.document.getElementById("tooltip");
 		this.panelMeshes = {};
 		this.reflMeshes = {};
+		this.beamMeshes = {};
 
 		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
@@ -537,11 +538,12 @@ class ExperimentViewer{
 		const incidentMaterial = new MeshLineMaterial({
 			lineWidth:5,
 			color: ExperimentViewer.colors()["beam"],
-			fog: true
+			fog: true,
+			transparent: true,
+			opacity: 0.
 		});
-		incidentLine.geometry.frustumCulled = false;
 		const incidentMesh = new THREE.Mesh(incidentLine, incidentMaterial);
-		incidentMesh.geometry.frustumCulled = false;
+		this.beamMeshes["incident"] = incidentMesh;
 		window.scene.add(incidentMesh);
 
 		var outgoingVertices = []
@@ -561,11 +563,9 @@ class ExperimentViewer{
 			opacity: .25,
 			fog: true,
 		});
-		outgoingLine.geometry.frustumCulled = false;
 		const outgoingMesh = new THREE.Mesh(outgoingLine, outgoingMaterial);
-		outgoingMesh.geometry.frustumCulled = false;
+		this.beamMeshes["outgoing"] = outgoingMesh;
 		window.scene.add(outgoingMesh);
-
 	}
 
 	addSample() {
@@ -645,6 +645,20 @@ class ExperimentViewer{
 		}
 	}
 
+	updateBeamOpacity(){
+		if (!this.hasExperiment()){
+			return;
+		}
+		const minCameraDistance = 55000;
+		const maxCameraDistance = 1000000;
+		const cameraPos = window.camera.position;
+		const cameraDistance = Math.pow(cameraPos.x, 2) + Math.pow(cameraPos.y, 2) + Math.pow(cameraPos.z, 2);
+	 	var beamOpacity = ((cameraDistance - minCameraDistance) / (maxCameraDistance - minCameraDistance));
+		beamOpacity = Math.min(1., Math.max(beamOpacity, 0.))
+		this.beamMeshes["incident"].material.opacity = beamOpacity;
+		this.beamMeshes["outgoing"].material.opacity = beamOpacity*.25;
+	}
+
 	static getClickedPanelPos(){
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
@@ -677,6 +691,7 @@ class ExperimentViewer{
 
 	animate() {
 		window.viewer.resetPanelColors();
+		window.viewer.updateBeamOpacity();
 		ExperimentViewer.updateGUIInfo();
 		window.controls.update();
 		window.renderer.render(window.scene, window.camera);
