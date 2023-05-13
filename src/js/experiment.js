@@ -4,29 +4,6 @@ import gsap from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import {decode} from "msgpack-lite";
 
-function vertexShader() {
-    return `
-        attribute float size;
-        attribute vec4 color;
-        varying vec4 vColor;
-        void main() {
-            vColor = color;
-            vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
-            gl_PointSize = size * ( 250.0 / -mvPosition.z );
-            gl_Position = projectionMatrix * mvPosition;
-        }
-    `
-}
-
-function fragmentShader() {
-    return `
-        varying vec4 vColor;
-            void main() {
-                gl_FragColor = vec4( vColor );
-            }
-    `
-}
-
 class ExptParser{
 
 	constructor(){
@@ -291,9 +268,11 @@ class ExperimentViewer{
 		this.expt = exptParser;
 		this.refl = reflParser;
 		this.tooltip = window.document.getElementById("tooltip");
+		this.help = window.document.getElementById("help");
 		this.panelMeshes = {};
 		this.reflMeshes = {};
 		this.beamMeshes = {};
+		this.textMesh = null;
 
 		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
@@ -307,6 +286,7 @@ class ExperimentViewer{
 		window.renderer.setSize(window.innerWidth, window.innerHeight);
 		document.body.appendChild(window.renderer.domElement);
 		tooltip = window.document.getElementById("tooltip")
+		help = window.document.getElementById("help")
 		window.scene = new THREE.Scene()
 		window.scene.fog = new THREE.Fog(ExperimentViewer.colors()["background"], 500, 3000);
 		window.camera = new THREE.PerspectiveCamera(
@@ -373,6 +353,12 @@ class ExperimentViewer{
 				ExperimentViewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
 			}
 		});
+		window.addEventListener('keydown', function(event){
+			if (event.key === "h"){
+				window.viewer.toggleHelp();
+			}
+		});
+
 	}
 
 	static colors(){
@@ -396,13 +382,23 @@ class ExperimentViewer{
 
 	static text(){
 		return {
-			"default" : "To view an experiment drag .expt and .refl files into the browser",
-			"defaultWithExpt" : null 
+			"default" : "To view an experiment, drag .expt and .refl files into the browser",
+			"defaultWithExpt" : null, 
+			"help" :   ['<b>controls:</b>',
+						'H                 = toggle help',
+						'left click        = navigate',
+						'double left click = focus on panel',
+						'right click       = reset view',
+						'mouse wheel       = zoom'].join('\n')
 		}
 	}
 
 	static sizes(){
 		return {"reflection" : 5};
+	}
+
+	toggleHelp(){
+		this.help.style.display = this.help.style.display  === 'block' ? 'none' : 'block';
 	}
 
 	hasExperiment(){
@@ -417,6 +413,7 @@ class ExperimentViewer{
 		}
 		this.addBeam();
 		this.setCameraToDefaultPosition();
+		this.toggleHelp();
 	}
 
 	hasReflectionTable(){
@@ -576,6 +573,26 @@ class ExperimentViewer{
 		window.scene.add(sphere);
 	}
 
+	addTextCanvas(){
+		const canvas = document.createElement('canvas')
+		const context = canvas.getContext('2d')
+		context.fillStyle = 'green'
+		context.font = '60px sans-serif'
+		context.fillText('Hello World!', 0, 60)
+		// canvas contents are used for a texture
+		const texture = new THREE.Texture(canvas)
+		texture.needsUpdate = true
+		var material = new THREE.MeshBasicMaterial({
+		map: texture,
+		side: THREE.DoubleSide,
+		})
+		material.transparent = true
+		var mesh = new THREE.Mesh(new THREE.PlaneGeometry(50, 10), material)
+		this.textMesh = mesh;
+		window.scene.add(mesh);
+
+	}
+
 	setCameraSmooth(position) {
 		ExperimentViewer.rotateToPos(position);
 		window.controls.update();
@@ -589,13 +606,22 @@ class ExperimentViewer{
 		this.setCameraSmooth(ExperimentViewer.cameraPositions()["centre"]);
 	}
 
-	static displayText(name){
-		tooltip.textContent = name;
+	static displayText(text){
+		ExperimentViewer.showText();
+		tooltip.textContent = text;
+	}
+
+	static hideText(){
+		tooltip.style.display = "none";
+	}
+
+	static showText(){
+		tooltip.style.display = "block";
 	}
 
 	static displayDefaultText(){
 		if (window.viewer.hasExperiment()){
-			ExperimentViewer.displayText(ExperimentViewer.text()["defaultWithExpt"]);
+			ExperimentViewer.hideText();
 		}
 		else{
 			ExperimentViewer.displayText(ExperimentViewer.text()["default"]);
