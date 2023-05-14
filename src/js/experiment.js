@@ -127,6 +127,7 @@ class ExptParser{
 		return [c1, c2, c3, c4];
 	}
 
+
 }
 
 class ReflParser{
@@ -292,7 +293,7 @@ class ExperimentViewer{
 		window.camera = new THREE.PerspectiveCamera(
 			45,
 			window.innerWidth / window.innerHeight,
-			0.0001,
+			.00001,
 			10000
 		);
 		window.renderer.render(window.scene, window.camera);
@@ -444,22 +445,53 @@ class ExperimentViewer{
 
 	addReflectionsForPanel(panelReflections, panelData){
 
+		function mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor=[1,1]){
+			const pos = pOrigin.clone();
+			pos.add(fa.clone().normalize().multiplyScalar(point[0] * scaleFactor[0]));
+			pos.add(sa.clone().normalize().multiplyScalar(point[1] * scaleFactor[1]));
+			return pos;
+		}
+
+		function mapPxPointToGlobal(point, pOrigin, fa, sa){
+			const pos = pOrigin.clone();
+			pos.add(fa.clone().multiplyScalar(point[0]));
+			pos.add(sa.clone().multiplyScalar(point[1]));
+			return pos;
+		}
+
 		const fa = panelData["fastAxis"];
 		const sa = panelData["slowAxis"];
 		const pOrigin = panelData["origin"];
+		const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
 		const positions = new Array();
         const sizes = new Array()
 		const size = ExperimentViewer.sizes()["reflection"];
 
 		for (var i = 0; i < panelReflections.length; i++){
 			const xyz = panelReflections[i]["xyzObs"];
-			const pos = pOrigin.clone();
-			pos.add(fa.clone().normalize().multiplyScalar(xyz[0]));
-			pos.add(sa.clone().normalize().multiplyScalar(xyz[1]));
+			const pos = mapPointToGlobal(xyz, pOrigin, fa, sa);
 			positions.push(pos.x);
 			positions.push(pos.y);
 			positions.push(pos.z);
 			sizes.push(size);
+
+			// bbox corners
+			const bbox = panelReflections[i]["bbox"];
+			const c1 = mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
+			const c2 = mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
+			const c3 = mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
+			const c4 = mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
+			const corners = [c1, c2, c3, c4, c1];
+			const line = new MeshLine();
+			line.setPoints(corners);
+			const material = new MeshLineMaterial({
+				lineWidth:1,
+				color: ExperimentViewer.colors()["reflection"],
+				fog:true
+			});
+			const mesh = new THREE.Mesh(line, material);
+			window.scene.add(mesh);
+
 		}
 		const reflGeometry = new THREE.BufferGeometry();
 		reflGeometry.setAttribute(
