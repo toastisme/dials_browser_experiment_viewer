@@ -14,7 +14,10 @@
 		<b>left click</b> = navigate <br>
 		<b>double left click</b> = focus on panel <br>
 		<b>right click</b> = reset view <br>
-		<b>mouse wheel</b> = zoom
+		<b>mouse wheel</b> = zoom<br>
+		<b>Show reflections:</b> <input type="checkbox" id="toggleRefl", checked=false, onclick="toggleReflections()", disabled=true><br>
+		<b>Observed:</b> <input type="radio" id="observedRefl", onclick="showObserved()", checked=false, disabled=true><br>
+		<b>Calculated:</b> <input type="radio" id="calculatedRefl", onclick="showCalculated()", disabled=true>
 	 </footer>
 		<style>
 		#tooltip {
@@ -51,5 +54,33 @@
 		}
 		</style>
 	<script src="./js/experiment.js" type="module"></script>
+	<script>
+	function toggleReflections(){
+		var toggleRefl = document.getElementById("toggleRefl");
+		var observedRefl = document.getElementById("observedRefl");
+		var calculatedRefl = document.getElementById("calculatedRefl");
+		if (toggleRefl.checked){
+			observedRefl.disabled = false;
+			calculatedRefl.disabled = false;
+			showObserved();
+		}
+		else{
+			observedRefl.disabled = true;
+			calculatedRefl.disabled = true;
+		}
+		window.viewer.showReflections(toggleRefl.checked);
+		window.viewer.updateReflectionsControls();
+
+	}
+	function showObserved() {
+	var calculatedRefl = document.getElementById("calculatedRefl");
+	calculatedRefl.checked = false;
+
+	}
+	function showCalculated() {
+	var observedRefl = document.getElementById("observedRefl");
+	observedRefl.checked = false;
+	}
+	</script>
 </body>
 </html>
