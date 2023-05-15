@@ -331,6 +331,7 @@ class ExperimentViewer{
 		this.relfMeshesCal = [];
 		this.bboxMeshes = [];
 		this.beamMeshes = {};
+		this.sampleMesh = null;
 		this.textMesh = null;
 
 		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
@@ -436,11 +437,11 @@ class ExperimentViewer{
 		return {
 			"background": 0x222222,
 			"sample" : 0xfdf6e3,
-			"beam" : 0xdff0e4,
-			"reflection" : 0x00bc8c,
-			"bbox" : 0xe74c3c,
+			"reflection" : 0xe74c3c,
 			"panel" : 0x119dff,
-			"highlight" : 0xFFFFFF
+			"highlight" : 0xFFFFFF,
+			"beam" : 0xFFFFFF,
+			"bbox" : 0xFFFFFF
 		};
 	}
 
@@ -496,6 +497,7 @@ class ExperimentViewer{
 			this.addDetectorPanelOutline(i);
 		}
 		this.addBeam();
+		this.addSample();
 		this.setCameraToDefaultPosition();
 		this.shoeSidebar();
 	}
@@ -745,31 +747,14 @@ class ExperimentViewer{
 	}
 
 	addSample() {
-		const sphereGeometry = new THREE.SphereGeometry(4);
-		const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000FF, wireframe: true });
+		const sphereGeometry = new THREE.SphereGeometry(5);
+		const sphereMaterial = new THREE.MeshBasicMaterial(
+			{ color: ExperimentViewer.colors()["sample"], 
+			transparent: true });
 		const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
 		sphere.name = "sample";
+		this.sampleMesh = sphere;
 		window.scene.add(sphere);
-	}
-
-	addTextCanvas(){
-		const canvas = document.createElement('canvas')
-		const context = canvas.getContext('2d')
-		context.fillStyle = 'green'
-		context.font = '60px sans-serif'
-		context.fillText('Hello World!', 0, 60)
-		// canvas contents are used for a texture
-		const texture = new THREE.Texture(canvas)
-		texture.needsUpdate = true
-		var material = new THREE.MeshBasicMaterial({
-		map: texture,
-		side: THREE.DoubleSide,
-		})
-		material.transparent = true
-		var mesh = new THREE.Mesh(new THREE.PlaneGeometry(50, 10), material)
-		this.textMesh = mesh;
-		window.scene.add(mesh);
-
 	}
 
 	setCameraSmooth(position) {
@@ -850,7 +835,7 @@ class ExperimentViewer{
 		}
 	}
 
-	updateBeamOpacity(){
+	updateBeamAndSampleOpacity(){
 		if (!this.hasExperiment()){
 			return;
 		}
@@ -858,10 +843,11 @@ class ExperimentViewer{
 		const maxCameraDistance = 1000000;
 		const cameraPos = window.camera.position;
 		const cameraDistance = Math.pow(cameraPos.x, 2) + Math.pow(cameraPos.y, 2) + Math.pow(cameraPos.z, 2);
-	 	var beamOpacity = ((cameraDistance - minCameraDistance) / (maxCameraDistance - minCameraDistance));
-		beamOpacity = Math.min(1., Math.max(beamOpacity, 0.))
-		this.beamMeshes["incident"].material.opacity = beamOpacity;
-		this.beamMeshes["outgoing"].material.opacity = beamOpacity*.25;
+	 	var opacity = ((cameraDistance - minCameraDistance) / (maxCameraDistance - minCameraDistance));
+		opacity = Math.min(1., Math.max(opacity, 0.))
+		this.beamMeshes["incident"].material.opacity = opacity;
+		this.beamMeshes["outgoing"].material.opacity = opacity*.25;
+		this.sampleMesh.material.opacity = opacity;
 	}
 
 	getClickedPanelPos(){
@@ -896,7 +882,7 @@ class ExperimentViewer{
 
 	animate() {
 		window.viewer.resetPanelColors();
-		window.viewer.updateBeamOpacity();
+		window.viewer.updateBeamAndSampleOpacity();
 		window.viewer.updateGUIInfo();
 		window.controls.update();
 		window.renderer.render(window.scene, window.camera);
