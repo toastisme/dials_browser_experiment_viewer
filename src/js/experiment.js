@@ -367,15 +367,15 @@ class ExperimentViewer{
 		});
 
 		window.addEventListener('dblclick', function(event){
-			var pos = ExperimentViewer.getClickedPanelCentroid();
+			var pos = window.viewer.getClickedPanelCentroid();
 			if (pos){
-				ExperimentViewer.rotateToPos(pos);
+				window.viewer.rotateToPos(pos);
 			}
 		});
 
 		window.addEventListener('mousedown', function(event){
 			if (event.button == 2) { 
-				ExperimentViewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
+				window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
 			}
 		});
 		window.addEventListener('keydown', function(event){
@@ -672,7 +672,7 @@ class ExperimentViewer{
 	}
 
 	setCameraSmooth(position) {
-		ExperimentViewer.rotateToPos(position);
+		this.rotateToPos(position);
 		window.controls.update();
 	}
 
@@ -684,46 +684,46 @@ class ExperimentViewer{
 		this.setCameraSmooth(ExperimentViewer.cameraPositions()["centre"]);
 	}
 
-	static displayText(text){
-		ExperimentViewer.showText();
-		tooltip.textContent = text;
+	displayText(text){
+		this.showText();
+		this.tooltip.textContent = text;
 	}
 
-	static hideText(){
-		tooltip.style.display = "none";
+	hideText(){
+		this.tooltip.style.display = "none";
 	}
 
-	static showText(){
-		tooltip.style.display = "block";
+	showText(){
+		this.tooltip.style.display = "block";
 	}
 
-	static displayDefaultText(){
-		if (window.viewer.hasExperiment()){
-			ExperimentViewer.hideText();
+	displayDefaultText(){
+		if (this.hasExperiment()){
+			this.hideText();
 		}
 		else{
-			ExperimentViewer.displayText(ExperimentViewer.text()["default"]);
+			this.displayText(ExperimentViewer.text()["default"]);
 		}
 	}
 
-	static highlightObject(obj){
+	highlightObject(obj){
 		obj.material.color = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 	}
 
-	static updateGUIInfo() {
+	updateGUIInfo() {
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
-			if (name in window.viewer.panelMeshes){
-				ExperimentViewer.displayText(name + " (" + window.viewer.getPanelPosition(intersects[0].point, name) + ")");
-				if (name in window.viewer.panelMeshes){
-					ExperimentViewer.highlightObject(window.viewer.panelMeshes[name]);
+			if (name in this.panelMeshes){
+				this.displayText(name + " (" + this.getPanelPosition(intersects[0].point, name) + ")");
+				if (name in this.panelMeshes){
+					this.highlightObject(this.panelMeshes[name]);
 				}
 			}
 		}
 		else{
-			ExperimentViewer.displayDefaultText();
+			this.displayDefaultText();
 		}
 	}
 
@@ -763,7 +763,7 @@ class ExperimentViewer{
 		this.beamMeshes["outgoing"].material.opacity = beamOpacity*.25;
 	}
 
-	static getClickedPanelPos(){
+	getClickedPanelPos(){
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
 		if (intersects.length > 0) {
@@ -772,7 +772,7 @@ class ExperimentViewer{
 
 	}
 
-	static getClickedPanelCentroid(){
+	getClickedPanelCentroid(){
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
 		if (intersects.length > 0) {
@@ -781,7 +781,7 @@ class ExperimentViewer{
 
 	}
 
-	static rotateToPos(pos){
+	rotateToPos(pos){
 		gsap.to( window.camera.position, {
 			duration: 1,
 			x: -pos.x,
@@ -796,7 +796,7 @@ class ExperimentViewer{
 	animate() {
 		window.viewer.resetPanelColors();
 		window.viewer.updateBeamOpacity();
-		ExperimentViewer.updateGUIInfo();
+		window.viewer.updateGUIInfo();
 		window.controls.update();
 		window.renderer.render(window.scene, window.camera);
 	}
