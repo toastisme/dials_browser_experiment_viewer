@@ -59,15 +59,6 @@
 		var toggleRefl = document.getElementById("toggleRefl");
 		var observedRefl = document.getElementById("observedRefl");
 		var calculatedRefl = document.getElementById("calculatedRefl");
-		if (toggleRefl.checked){
-			observedRefl.disabled = false;
-			calculatedRefl.disabled = false;
-			showObserved();
-		}
-		else{
-			observedRefl.disabled = true;
-			calculatedRefl.disabled = true;
-		}
 		window.viewer.showReflections(toggleRefl.checked);
 		window.viewer.updateReflectionsControls();
 
