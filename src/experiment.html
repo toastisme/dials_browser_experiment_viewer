@@ -7,20 +7,25 @@
 	<title>Experiment</title>
 </head>
 <body>
-	<header id="tooltip"> </header>
-	<footer id="help"> 
-		<b>controls</b><br>
-		<b>H</b>          = toggle help <br>
+	<header id="headerText"> </header>
+	<footer id="sidebar"> 
+		<b>s</b>          = toggle sidebar <br>
 		<b>left click</b> = navigate <br>
 		<b>double left click</b> = focus on panel <br>
 		<b>right click</b> = reset view <br>
 		<b>mouse wheel</b> = zoom<br>
-		<b>Show reflections:</b> <input type="checkbox" id="toggleRefl", checked=false, onclick="toggleReflections()", disabled=true><br>
-		<b>Observed:</b> <input type="radio" id="observedRefl", onclick="showObserved()", checked=false, disabled=true><br>
-		<b>Calculated:</b> <input type="radio" id="calculatedRefl", onclick="showCalculated()", disabled=true>
+		--------------------------------------------------<br>
+		<b>observed reflections:</b> <input type="checkbox" 
+		id="observedReflections", checked=false, 
+		onclick="showObservedReflections()", disabled=true>
+		<b>calculated reflections:</b> <input type="checkbox" 
+		id="calculatedReflections", checked=false, 
+		onclick="showCalculatedReflections()", disabled=true>
+		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes", 
+		checked=false, onclick="showBoundingBoxes()", disabled=true>
 	 </footer>
 		<style>
-		#tooltip {
+		#headerText {
 			font-size: 16px;
 			font-family: Tahoma, Verdana, sans-serif;
 			color: #ddd;
@@ -35,7 +40,7 @@
 			z-index: 9;
 			white-space: pre-line;
 		}
-		#help {
+		#sidebar {
 			display: none;
 			font-family: Tahoma, Verdana, sans-serif;
 			font-size: 16px;
@@ -55,22 +60,20 @@
 		</style>
 	<script src="./js/experiment.js" type="module"></script>
 	<script>
-	function toggleReflections(){
-		var toggleRefl = document.getElementById("toggleRefl");
-		var observedRefl = document.getElementById("observedRefl");
-		var calculatedRefl = document.getElementById("calculatedRefl");
-		window.viewer.showReflections(toggleRefl.checked);
-		window.viewer.updateReflectionsControls();
-
+	function showObservedReflections(){
+		window.viewer.showObservedReflections(
+			document.getElementById("observedReflections").checked
+		);
 	}
-	function showObserved() {
-	var calculatedRefl = document.getElementById("calculatedRefl");
-	calculatedRefl.checked = false;
-
+	function showCalculatedReflections(){
+		window.viewer.showCalculatedReflections(
+			document.getElementById("calculatedReflections").checked
+		);
 	}
-	function showCalculated() {
-	var observedRefl = document.getElementById("observedRefl");
-	observedRefl.checked = false;
+	function showBoundingBoxes(){
+		window.viewer.showBoundingBoxes(
+			document.getElementById("boundingBoxes").checked
+		);
 	}
 	</script>
 </body>

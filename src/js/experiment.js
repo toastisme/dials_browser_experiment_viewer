@@ -165,6 +165,18 @@ class ReflParser{
 		return true;
 	}
 
+	hasBboxData(){
+		if (!this.hasReflTable()){
+			return false;
+		}
+		for (var i in this.reflData){
+			if (!("bbox" in this.reflData[i][0])){
+				return false;
+			}
+		}
+		return true;
+	}
+
 	parseReflectionTable = (file) => {
 		const reader = new FileReader();
 
@@ -183,6 +195,10 @@ class ReflParser{
 			reader.readAsArrayBuffer(file);    
 		});
 	};
+
+	containsColumn(column_name){
+		return (column_name in this.refl);
+	}
 
 	getColumnBuffer(column_name){
 		return this.refl[column_name][1][1];
@@ -252,8 +268,16 @@ class ReflParser{
 		return this.getVec3DoubleArray("xyzobs.mm.value");
 	}
 
+	containsXYZObs(){
+		return this.containsColumn("xyzobs.mm.value");
+	}
+
 	getXYZCal(){
-		return this.getVec3DoubleArray("xyzcal.px");
+		return this.getVec3DoubleArray("xyzcal.mm");
+	}
+
+	containsXYZCal(){
+		return this.containsColumn("xyzcal.mm");
 	}
 
 	getBoundingBoxes(){
@@ -262,8 +286,16 @@ class ReflParser{
 
 	loadReflectionData(){
 		const panelNums = this.getPanelNumbers();
-		const xyzObs = this.getXYZObs();
-		const bboxes = this.getBoundingBoxes();
+		var xyzObs;
+		var xyzCal;
+		var bboxes;
+		if (this.containsXYZObs()){
+			xyzObs = this.getXYZObs();
+		}
+		if (this.containsXYZCal()){
+			xyzCal = this.getXYZCal();
+		}	
+		bboxes = this.getBoundingBoxes();
 
 		for (var i = 0; i < panelNums.length; i++){
 			const panel = panelNums[i];
@@ -292,10 +324,12 @@ class ExperimentViewer{
 		this.expt = exptParser;
 		this.refl = reflParser;
 		this.setupScene();
-		this.tooltip = window.document.getElementById("tooltip");
-		this.help = window.document.getElementById("help");
+		this.headerText = window.document.getElementById("headerText");
+		this.sidebar = window.document.getElementById("sidebar");
 		this.panelMeshes = {};
-		this.reflMeshes = [];
+		this.relfMeshesObs = [];
+		this.relfMeshesCal = [];
+		this.bboxMeshes = [];
 		this.beamMeshes = {};
 		this.textMesh = null;
 
@@ -306,12 +340,21 @@ class ExperimentViewer{
 	}
 
 	setupScene(){
+
+		/**
+		 * Sets the renderer, camera, controls
+		 */
+
+		// Renderer
 		window.renderer = new THREE.WebGLRenderer();
 		window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
 		window.renderer.setSize(window.innerWidth, window.innerHeight);
 		document.body.appendChild(window.renderer.domElement);
-		tooltip = window.document.getElementById("tooltip")
-		help = window.document.getElementById("help")
+
+		// Two elements used to write text to the screen
+		headerText = window.document.getElementById("headerText")
+		sidebar = window.document.getElementById("sidebar")
+
 		window.scene = new THREE.Scene()
 		window.scene.fog = new THREE.Fog(ExperimentViewer.colors()["background"], 500, 3000);
 		window.camera = new THREE.PerspectiveCamera(
@@ -321,7 +364,7 @@ class ExperimentViewer{
 			10000
 		);
 		window.renderer.render(window.scene, window.camera);
-		window.rayCaster = new THREE.Raycaster();
+		window.rayCaster = new THREE.Raycaster(); // used for all raycasting
 
 		// Controls
 		window.controls = new OrbitControls(window.camera, window.renderer.domElement);
@@ -379,12 +422,13 @@ class ExperimentViewer{
 			}
 		});
 		window.addEventListener('keydown', function(event){
-			if (event.key === "h"){
-				window.viewer.toggleHelp();
+			if (event.key === "s"){
+				window.viewer.toggleSidebar();
 			}
 		});
 
-		this.updateReflectionsControls();
+		this.updateReflectionCheckboxStatus();
+		this.setDefaultReflectionsDisplay();
 
 	}
 
@@ -414,22 +458,31 @@ class ExperimentViewer{
 		}
 	}
 
-	static sizes(){
-		return {"reflection" : 5};
-	}
-
-	toggleHelp(){
-		this.help.style.display = this.help.style.display  === 'block' ? 'none' : 'block';
+	toggleSidebar(){
+		this.sidebar.style.display = this.sidebar.style.display  === 'block' ? 'none' : 'block';
 	}
 	
-	showHelp(){
-		this.help.style.display = 'block';
+	shoeSidebar(){
+		this.sidebar.style.display = 'block';
 	}
 
-	showReflections(val){
-		for (var i = 0; i < this.reflMeshes.length; i++){
-			this.reflMeshes[i].visible = val;
+	showObservedReflections(val){
+		for (var i = 0; i < this.relfMeshesObs.length; i++){
+			this.relfMeshesObs[i].visible = val;
 		}
+	}
+
+	showCalculatedReflections(val){
+		for (var i = 0; i < this.relfMeshesCal.length; i++){
+			this.relfMeshesCal[i].visible = val;
+		}
+	}
+
+	showBoundingBoxes(val){
+		for (var i = 0; i < this.bboxMeshes.length; i++){
+			this.bboxMeshes[i].visible = val;
+		}
+
 	}
 
 	hasExperiment(){
@@ -444,7 +497,7 @@ class ExperimentViewer{
 		}
 		this.addBeam();
 		this.setCameraToDefaultPosition();
-		this.showHelp();
+		this.shoeSidebar();
 	}
 
 	hasReflectionTable(){
@@ -470,8 +523,8 @@ class ExperimentViewer{
 			const panelData = this.expt.getPanelDataByIdx(i);
 			this.addReflectionsForPanel(panelReflections, panelData);
 		}
-		this.updateReflectionsControls();
-
+		this.updateReflectionCheckboxStatus();
+		this.setDefaultReflectionsDisplay();
 	}
 
 	addReflectionsForPanel(panelReflections, panelData){
@@ -481,6 +534,21 @@ class ExperimentViewer{
 			pos.add(fa.clone().normalize().multiplyScalar(point[0] * scaleFactor[0]));
 			pos.add(sa.clone().normalize().multiplyScalar(point[1] * scaleFactor[1]));
 			return pos;
+		}
+
+		function getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize){
+			const centre = mapPointToGlobal(xyz, pOrigin, fa, sa);
+			const left = mapPointToGlobal([xyz[0] - pxSize[0], xyz[1]], pOrigin, fa, sa);
+			const right = mapPointToGlobal([xyz[0] + pxSize[0], xyz[1]], pOrigin, fa, sa);
+			const top = mapPointToGlobal([xyz[0], xyz[1] - pxSize[1]], pOrigin, fa, sa);
+			const bottom = mapPointToGlobal([xyz[0], xyz[1] + pxSize[1]], pOrigin, fa, sa);
+			const line1 = new MeshLine();
+			line1.setPoints([left, centre, right]);
+			const line2 = new MeshLine();
+			line2.setPoints([top, centre, bottom]);
+			const line1Mesh = new THREE.Mesh(line1, reflMaterial);
+			const line2Mesh = new THREE.Mesh(line2, reflMaterial);
+			return [line1Mesh, line2Mesh];
 		}
 
 		const fa = panelData["fastAxis"];
@@ -500,27 +568,33 @@ class ExperimentViewer{
 			fog:true
 		});
 
+		var xyz;
+		var crossLines;
+
 		for (var i = 0; i < panelReflections.length; i++){
-			const xyz = panelReflections[i]["xyzObs"];
 
-			// reflection cross
-			const centre = mapPointToGlobal(xyz, pOrigin, fa, sa);
-			const left = mapPointToGlobal([xyz[0] - pxSize[0], xyz[1]], pOrigin, fa, sa);
-			const right = mapPointToGlobal([xyz[0] + pxSize[0], xyz[1]], pOrigin, fa, sa);
-			const top = mapPointToGlobal([xyz[0], xyz[1] - pxSize[1]], pOrigin, fa, sa);
-			const bottom = mapPointToGlobal([xyz[0], xyz[1] + pxSize[1]], pOrigin, fa, sa);
-			const line1 = new MeshLine();
-			line1.setPoints([left, centre, right]);
-			const line2 = new MeshLine();
-			line2.setPoints([top, centre, bottom]);
-			const line1Mesh = new THREE.Mesh(line1, reflMaterial);
-			window.scene.add(line1Mesh);
-			const line2Mesh = new THREE.Mesh(line2, reflMaterial);
-			window.scene.add(line2Mesh);
-			this.reflMeshes.push(line1Mesh);
-			this.reflMeshes.push(line2Mesh);
+			if ("xyzObs" in panelReflections[i]){
+				xyz = panelReflections[i]["xyzObs"];
 
-			// bbox corners
+				// reflection cross
+				crossLines = getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize);
+				this.relfMeshesObs.push(crossLines[0]);
+				this.relfMeshesObs.push(crossLines[1]);
+				window.scene.add(crossLines[0]);
+				window.scene.add(crossLines[1]);
+			}
+			if ("xyzCal" in panelReflections[i]){
+				xyz = panelReflections[i]["xyzCal"];
+
+				// reflection cross
+				crossLines = getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize);
+				this.relfMeshesCal.push(crossLines[0]);
+				this.relfMeshesCal.push(crossLines[1]);
+				window.scene.add(crossLines[0]);
+				window.scene.add(crossLines[1]);
+			}
+
+			// bbox
 			const bbox = panelReflections[i]["bbox"];
 			const c1 = mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
 			const c2 = mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
@@ -530,33 +604,60 @@ class ExperimentViewer{
 			const line = new MeshLine();
 			line.setPoints(corners);
 			const mesh = new THREE.Mesh(line, bboxMaterial);
-			this.reflMeshes.push(mesh);
+			this.bboxMeshes.push(mesh);
 			window.scene.add(mesh);
 		}
 	}
 
-	updateReflectionsControls(){
-		const toggleRefl = document.getElementById("toggleRefl");
-		const observedRefl = document.getElementById("observedRefl");
-		const calculatedRefl = document.getElementById("calculatedRefl");
-		if (this.hasReflectionTable()){
-			toggleRefl.disabled = false;
+	setDefaultReflectionsDisplay(){
+
+		/**
+		 * If both observed and calculated reflections are available,
+		 * show observed by default.
+		 */
+
+		const observed = document.getElementById("observedReflections");
+		const calculated = document.getElementById("calculatedReflections");
+		const bboxes = document.getElementById("boundingBoxes");
+		if (!this.hasReflectionTable()){
+			observed.checked = false;
+			calculated.checked = false;
+			bboxes.checked = false;
+			return;
 		}
-		else{
-			toggleRefl.disabled = true;
+
+		if (this.relfMeshesObs.length > 0){
+			this.showObservedReflections(true);
+			observed.checked = true;
+			this.showCalculatedReflections(false);
+			calculated.checked = false;
+			this.showBoundingBoxes(true);
+			bboxes.checked = true;
 		}
-		if (this.refl.hasXyzObsData()){
-			observedRefl.disabled = false;
+		else if (this.relfMeshesCal.length > 0){
+			this.showCalculatedReflections(true);
+			calculated.checked = true;
+			this.showBoundingBoxes(true);
+			bboxes.checked = true;
+			observed.checked = false;
 		}
-		else{
-			observedRefl.disabled = true;
+
+	}
+
+	updateReflectionCheckboxStatus(){
+		const observed = document.getElementById("observedReflections");
+		const calculated = document.getElementById("calculatedReflections");
+		const bboxes = document.getElementById("boundingBoxes");
+		if (!this.hasReflectionTable()){
+			observed.disabled = true;
+			calculated.disabled = true;
+			bboxes.disabled = true;
+			return;
 		}
-		if (this.refl.hasXyzCalData()){
-			calculatedRefl.disabled = false;
-		}
-		else{
-			calculatedRefl.disabled = true;
-		}
+		observed.disabled = !this.refl.hasXyzObsData();
+		calculated.disabled = !this.refl.hasXyzCalData();
+		bboxes.disabled = !this.refl.hasBboxData();
+
 	}
 
 	addDetectorPanelOutline(idx){
@@ -686,15 +787,15 @@ class ExperimentViewer{
 
 	displayText(text){
 		this.showText();
-		this.tooltip.textContent = text;
+		this.headerText.textContent = text;
 	}
 
 	hideText(){
-		this.tooltip.style.display = "none";
+		this.headerText.style.display = "none";
 	}
 
 	showText(){
-		this.tooltip.style.display = "block";
+		this.headerText.style.display = "block";
 	}
 
 	displayDefaultText(){
