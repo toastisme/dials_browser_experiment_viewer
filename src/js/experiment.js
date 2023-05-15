@@ -10,6 +10,7 @@ class ExptParser{
 		this.exptJSON = null;
 		this.nameIdxMap = {};
 		this.panelCentroids = {};
+		this.filename = null;
 	}
 
 	hasExptJSON(){
@@ -28,6 +29,7 @@ class ExptParser{
 		this.exptJSON = null;
 		this.nameIdxMap = {};
 		this.panelCentroids = {};
+		this.filename = null;
 	}
 
 	parseExperiment = (file) => {
@@ -44,6 +46,7 @@ class ExptParser{
 				if (ExptParser.isDIALSExpt(file, reader.result)){
 					this.exptJSON = JSON.parse(reader.result);
 					this.loadPanelData();
+					this.filename = file.name;
 				}
 			};
 			reader.readAsText(file);    
@@ -141,6 +144,7 @@ class ReflParser{
 	constructor(){
 		this.refl = null;
 		this.reflData = {};
+		this.filename = null;
 	}
 
 	hasReflTable(){
@@ -150,6 +154,7 @@ class ReflParser{
 	clearReflectionTable(){
 		this.refl = null;
 		this.reflData = {};
+		this.filename = null;
 	}
 
 	hasXyzObsData(){
@@ -204,6 +209,7 @@ class ReflParser{
 				this.loadReflectionData();
 			};
 			reader.readAsArrayBuffer(file);    
+			this.filename = file.name;
 		});
 	};
 
@@ -336,6 +342,7 @@ class ExperimentViewer{
 		this.refl = reflParser;
 		this.setupScene();
 		this.headerText = window.document.getElementById("headerText");
+		this.footerText = window.document.getElementById("footerText");
 		this.sidebar = window.document.getElementById("sidebar");
 		this.panelMeshes = {};
 		this.reflMeshesObs = [];
@@ -508,12 +515,12 @@ class ExperimentViewer{
 		}
 		this.panelMeshes = {};
 
-		this.beamMeshes = {};
 		for (const i in this.beamMeshes){
 			window.scene.remove(this.beamMeshes[i]);
 			this.beamMeshes[i].geometry.dispose();
 			this.beamMeshes[i].material.dispose();
 		}
+		this.beamMeshes = {};
 		if (this.sampleMesh){
 			window.scene.remove(this.sampleMesh);
 			this.sampleMesh.geometry.dispose();
@@ -536,6 +543,13 @@ class ExperimentViewer{
 		this.addSample();
 		this.setCameraToDefaultPosition();
 		this.showSidebar();
+		this.addRemoveExperimentButton();
+	}
+
+	addRemoveExperimentButton(){
+		const exptButton = document.getElementById("exptButton");
+		exptButton.style.display = "inline";
+		exptButton.innerHTML = "<b>"+this.expt.filename  + ' <i class="fa fa-trash"></i>' ;
 	}
 
 	hasReflectionTable(){
@@ -571,6 +585,16 @@ class ExperimentViewer{
 		this.clearReflectionTable();
 		await this.refl.parseReflectionTable(file);
 		this.addReflections();
+		if(this.hasReflectionTable()){
+			this.addRemoveReflectionTableButton();
+		}
+	}
+
+	addRemoveReflectionTableButton(){
+		const reflButton = document.getElementById("reflButton");
+		reflButton.style.display = "inline";
+		reflButton.innerHTML = "<b>"+this.refl.filename  + ' <i class="fa fa-trash"></i>' ;
+
 	}
 
 	addReflections(){
@@ -580,6 +604,7 @@ class ExperimentViewer{
 		}
 		if (!this.hasExperiment()){
 			console.warn("Tried to add reflections but no experiment has been loaded");
+			this.clearReflectionTable();
 			return;
 		}
 		for (var i = 0; i < this.expt.getNumDetectorPanels(); i++){
@@ -627,7 +652,7 @@ class ExperimentViewer{
 		});
 
 		const bboxMaterial = new MeshLineMaterial({
-			lineWidth:1,
+			lineWidth:1.75,
 			color: ExperimentViewer.colors()["bbox"],
 			fog:true
 		});
@@ -832,25 +857,38 @@ class ExperimentViewer{
 		this.setCameraSmooth(ExperimentViewer.cameraPositions()["centre"]);
 	}
 
-	displayText(text){
-		this.showText();
-		this.headerText.textContent = text;
+	displayHeaderText(text){
+		this.showHeaderText();
+		this.headerText.innerHTML = text;
 	}
 
-	hideText(){
+	hideHeaderText(){
 		this.headerText.style.display = "none";
 	}
 
-	showText(){
+	showHeaderText(){
 		this.headerText.style.display = "block";
 	}
 
-	displayDefaultText(){
+	displayFooterText(text){
+		this.showFooterText();
+		this.footerText.textContent = text;
+	}
+
+	hideFooterText(){
+		this.footerText.style.display = "none";
+	}
+
+	showFooterText(){
+		this.footerText.style.display = "block";
+	}
+
+	displayDefaultHeaderText(){
 		if (this.hasExperiment()){
-			this.hideText();
+			this.hideHeaderText();
 		}
 		else{
-			this.displayText(ExperimentViewer.text()["default"]);
+			this.displayHeaderText(ExperimentViewer.text()["default"]);
 		}
 	}
 
@@ -864,14 +902,14 @@ class ExperimentViewer{
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
 			if (name in this.panelMeshes){
-				this.displayText(name + " (" + this.getPanelPosition(intersects[0].point, name) + ")");
+				this.displayHeaderText(name + " (" + this.getPanelPosition(intersects[0].point, name) + ")");
 				if (name in this.panelMeshes){
 					this.highlightObject(this.panelMeshes[name]);
 				}
 			}
 		}
 		else{
-			this.displayDefaultText();
+			this.displayDefaultHeaderText();
 		}
 	}
 
