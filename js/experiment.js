@@ -282,19 +282,19 @@ class ReflParser{
 	}
 
 	getXYZObs(){
-		return this.getVec3DoubleArray("xyzobs.mm.value");
+		return this.getVec3DoubleArray("xyzobs.px.value");
 	}
 
 	containsXYZObs(){
-		return this.containsColumn("xyzobs.mm.value");
+		return this.containsColumn("xyzobs.px.value");
 	}
 
 	getXYZCal(){
-		return this.getVec3DoubleArray("xyzcal.mm");
+		return this.getVec3DoubleArray("xyzcal.px");
 	}
 
 	containsXYZCal(){
-		return this.containsColumn("xyzcal.mm");
+		return this.containsColumn("xyzcal.px");
 	}
 
 	getBoundingBoxes(){
@@ -653,11 +653,11 @@ class ExperimentViewer{
 		}
 
 		function getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize){
-			const centre = mapPointToGlobal(xyz, pOrigin, fa, sa);
-			const left = mapPointToGlobal([xyz[0] - pxSize[0], xyz[1]], pOrigin, fa, sa);
-			const right = mapPointToGlobal([xyz[0] + pxSize[0], xyz[1]], pOrigin, fa, sa);
-			const top = mapPointToGlobal([xyz[0], xyz[1] - pxSize[1]], pOrigin, fa, sa);
-			const bottom = mapPointToGlobal([xyz[0], xyz[1] + pxSize[1]], pOrigin, fa, sa);
+			const centre = mapPointToGlobal(xyz, pOrigin, fa, sa, pxSize);
+			const left = mapPointToGlobal([xyz[0] - pxSize[0], xyz[1]], pOrigin, fa, sa, pxSize);
+			const right = mapPointToGlobal([xyz[0] + pxSize[0], xyz[1]], pOrigin, fa, sa, pxSize);
+			const top = mapPointToGlobal([xyz[0], xyz[1] - pxSize[1]], pOrigin, fa, sa, pxSize);
+			const bottom = mapPointToGlobal([xyz[0], xyz[1] + pxSize[1]], pOrigin, fa, sa, pxSize);
 			const line1 = new meshline.MeshLine();
 			line1.setPoints([left, centre, right]);
 			const line2 = new meshline.MeshLine();
