@@ -1,6 +1,6 @@
 import * as THREE from "https://threejs.org/build/three.module.js";
 import * as controls from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
-//import * as gsap from "https://cdn.jsdelivr.net/npm/gsap@3.11/dist/gsap.min.js";
+import * as gsap from "https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js";
 import * as meshline from './THREE.MeshLine.js';
 import * as msgpack from "https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js";
 
@@ -997,7 +997,6 @@ class ExperimentViewer{
 
 	rotateToPos(pos){
 		window.camera.lookAt(pos);
-		/*
 		gsap.to( window.camera.position, {
 			duration: 1,
 			x: -pos.x,
@@ -1007,7 +1006,6 @@ class ExperimentViewer{
 				window.camera.lookAt( pos );
 			}
 		} );
-		*/
 	}
 
 	animate() {
