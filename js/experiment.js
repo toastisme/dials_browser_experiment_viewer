@@ -1,8 +1,8 @@
 import * as THREE from "https://unpkg.com/three@0.127.0/build/three.module.js";
 import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 import * as gsap from "https://cdn.jsdelivr.net/npm/gsap@3.11/dist/gsap.min.js";
-import { MeshLine, MeshLineMaterial, MeshLineRaycast } from './THREE.MeshLine.js';
-import {decode} from "https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js";
+import * as meshline from './THREE.MeshLine.js';
+import * as msgpack from "https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js";
 
 class ExptParser{
 
@@ -204,7 +204,7 @@ class ReflParser{
 
 			reader.onloadend = () => {
 				resolve(reader.result);
-				const decoded = decode(Buffer.from(reader.result));
+				const decoded = msgpack.decode(Buffer.from(reader.result));
 				this.refl = decoded[2]["data"];
 				this.loadReflectionData();
 			};
@@ -658,9 +658,9 @@ class ExperimentViewer{
 			const right = mapPointToGlobal([xyz[0] + pxSize[0], xyz[1]], pOrigin, fa, sa);
 			const top = mapPointToGlobal([xyz[0], xyz[1] - pxSize[1]], pOrigin, fa, sa);
 			const bottom = mapPointToGlobal([xyz[0], xyz[1] + pxSize[1]], pOrigin, fa, sa);
-			const line1 = new MeshLine();
+			const line1 = new meshline.MeshLine();
 			line1.setPoints([left, centre, right]);
-			const line2 = new MeshLine();
+			const line2 = new meshline.MeshLine();
 			line2.setPoints([top, centre, bottom]);
 			const line1Mesh = new THREE.Mesh(line1, reflMaterial);
 			const line2Mesh = new THREE.Mesh(line2, reflMaterial);
@@ -672,13 +672,13 @@ class ExperimentViewer{
 		const pOrigin = panelData["origin"];
 		const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
 
-		const reflMaterial = new MeshLineMaterial({
+		const reflMaterial = new meshline.MeshLineMaterial({
 			lineWidth:1,
 			color: ExperimentViewer.colors()["reflection"],
 			fog:true
 		});
 
-		const bboxMaterial = new MeshLineMaterial({
+		const bboxMaterial = new meshline.MeshLineMaterial({
 			lineWidth:1.75,
 			color: ExperimentViewer.colors()["bbox"],
 			fog:true
@@ -717,7 +717,7 @@ class ExperimentViewer{
 			const c3 = mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
 			const c4 = mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
 			const corners = [c1, c2, c3, c4, c1];
-			const line = new MeshLine();
+			const line = new meshline.MeshLine();
 			line.setPoints(corners);
 			const mesh = new THREE.Mesh(line, bboxMaterial);
 			this.bboxMeshes.push(mesh);
@@ -800,9 +800,9 @@ class ExperimentViewer{
 			count++;
 		}
 
-		const line = new MeshLine();
+		const line = new meshline.MeshLine();
 		line.setPoints(corners);
-		const material = new MeshLineMaterial({
+		const material = new meshline.MeshLineMaterial({
 			lineWidth:7,
 			color: ExperimentViewer.colors()["panel"],
 			fog:true
@@ -825,9 +825,9 @@ class ExperimentViewer{
 			new THREE.Vector3(bd.x * -beamLength*.5, bd.y * -beamLength*.5, bd.z * -beamLength*.5),
 		);
 		incidentVertices.push(new THREE.Vector3(0,0,0));
-		const incidentLine = new MeshLine();
+		const incidentLine = new meshline.MeshLine();
 		incidentLine.setPoints(incidentVertices);
-		const incidentMaterial = new MeshLineMaterial({
+		const incidentMaterial = new meshline.MeshLineMaterial({
 			lineWidth:5,
 			color: ExperimentViewer.colors()["beam"],
 			fog: true,
@@ -846,9 +846,9 @@ class ExperimentViewer{
 		outgoingVertices.push(
 			new THREE.Vector3(bd.x * beamLength, bd.y * beamLength, bd.z * beamLength)
 		);
-		const outgoingLine = new MeshLine();
+		const outgoingLine = new meshline.MeshLine();
 		outgoingLine.setPoints(outgoingVertices);
-		const outgoingMaterial = new MeshLineMaterial({
+		const outgoingMaterial = new meshline.MeshLineMaterial({
 			lineWidth:5,
 			color: ExperimentViewer.colors()["beam"],
 			transparent: true,
