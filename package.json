@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "gh-pages -d src"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,7 @@
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",
     "fs": "^0.0.1-security",
+    "gh-pages": "^5.0.0",
     "gsap": "^3.11.5",
     "msgpack-lite": "^0.1.26",
     "msgpack5": "^6.0.2",
