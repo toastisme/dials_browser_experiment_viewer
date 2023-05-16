@@ -557,11 +557,9 @@ function hmrAccept(bundle, id) {
 }
 
 },{}],"alic9":[function(require,module,exports) {
-var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 var _three = require("three");
 var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js");
 var _gsap = require("gsap");
-var _gsapDefault = parcelHelpers.interopDefault(_gsap);
 var _threeMeshline = require("three.meshline");
 var _msgpackLite = require("msgpack-lite");
 var Buffer = require("b77b4ffcd5b824c7").Buffer;
@@ -1381,7 +1379,7 @@ class ExperimentViewer {
         if (intersects.length > 0) return window.viewer.getPanelCentroid(intersects[0].object.name);
     }
     rotateToPos(pos) {
-        (0, _gsapDefault.default).to(window.camera.position, {
+        (0, _gsap.gsap).to(window.camera.position, {
             duration: 1,
             x: -pos.x,
             y: -pos.y,
@@ -1401,7 +1399,7 @@ class ExperimentViewer {
 }
 window.viewer = new ExperimentViewer(new ExptParser(), new ReflParser());
 
-},{"b77b4ffcd5b824c7":"fCgem","three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","gsap":"fPSuC","three.meshline":"4n0f9","msgpack-lite":"c7cpm","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8"}],"fCgem":[function(require,module,exports) {
+},{"b77b4ffcd5b824c7":"fCgem","three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","gsap":"fPSuC","three.meshline":"4n0f9","msgpack-lite":"c7cpm"}],"fCgem":[function(require,module,exports) {
 /*!
  * The buffer module from node.js, for the browser.
  *
