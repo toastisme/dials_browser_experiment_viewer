@@ -806,6 +806,7 @@ class ReflParser {
         if (this.containsXYZObs()) xyzObs = this.getXYZObs();
         if (this.containsXYZCal()) xyzCal = this.getXYZCal();
         bboxes = this.getBoundingBoxes();
+        console.log(this.refl);
         for(var i = 0; i < panelNums.length; i++){
             const panel = panelNums[i];
             const refl = {

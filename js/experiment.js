@@ -1,4 +1,4 @@
-import * as THREE from "https://unpkg.com/three@0.127.0/build/three.module.js";
+import * as THREE from "https://threejs.org/build/three.module.js";
 import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 //import * as gsap from "https://cdn.jsdelivr.net/npm/gsap@3.11/dist/gsap.min.js";
 import * as meshline from './THREE.MeshLine.js';
