@@ -351,6 +351,13 @@ class ExperimentViewer{
 		this.beamMeshes = {};
 		this.sampleMesh = null;
 
+		this.closeExptButton = document.getElementById("closeExpt");
+		this.closeReflButton = document.getElementById("closeRefl");
+		this.observedReflsCheckbox = document.getElementById("observedReflections");
+		this.calculatedReflsCheckbox = document.getElementById("calculatedReflections");
+		this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
+
+
 		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
 
@@ -484,21 +491,30 @@ class ExperimentViewer{
 		this.sidebar.style.display = 'block';
 	}
 
-	showObservedReflections(val){
+	updateObservedReflections(val=null){
+		if (val){
+			this.observedReflsCheckbox.checked = val;
+		}
 		for (var i = 0; i < this.reflMeshesObs.length; i++){
-			this.reflMeshesObs[i].visible = val;
+			this.reflMeshesObs[i].visible = this.observedReflsCheckbox.checked;
 		}
 	}
 
-	showCalculatedReflections(val){
+	updateCalculatedReflections(val=null){
+		if (val){
+			this.calculatedReflsCheckbox.checked = val;
+		}
 		for (var i = 0; i < this.reflMeshesCal.length; i++){
-			this.reflMeshesCal[i].visible = val;
+			this.reflMeshesCal[i].visible = this.calculatedReflsCheckbox.checked;
 		}
 	}
 
-	showBoundingBoxes(val){
+	updateBoundingBoxes(val=null){
+		if (val){
+			this.boundingBoxesCheckbox.checked = val;
+		}
 		for (var i = 0; i < this.bboxMeshes.length; i++){
-			this.bboxMeshes[i].visible = val;
+			this.bboxMeshes[i].visible = this.boundingBoxesCheckbox.checked;
 		}
 	}
 
@@ -529,6 +545,9 @@ class ExperimentViewer{
 		}
 
 		this.expt.clearExperiment();
+		this.hideCloseExptButton();
+
+		this.clearReflectionTable();
 	}
 
 	addExperiment = async (file) => {
@@ -543,13 +562,17 @@ class ExperimentViewer{
 		this.addSample();
 		this.setCameraToDefaultPosition();
 		this.showSidebar();
-		this.addRemoveExperimentButton();
+		this.showCloseExptButton();
+
 	}
 
-	addRemoveExperimentButton(){
-		const exptButton = document.getElementById("exptButton");
-		exptButton.style.display = "inline";
-		exptButton.innerHTML = "<b>"+this.expt.filename  + ' <i class="fa fa-trash"></i>' ;
+	showCloseExptButton(){
+		this.closeExptButton.style.display = "inline";
+		this.closeExptButton.innerHTML = "<b>"+this.expt.filename  + ' <i class="fa fa-trash"></i>' ;
+	}
+
+	hideCloseExptButton(){
+		this.closeExptButton.style.display = "none";
 	}
 
 	hasReflectionTable(){
@@ -578,7 +601,18 @@ class ExperimentViewer{
 		this.refl.clearReflectionTable();
 		this.updateReflectionCheckboxStatus();
 		this.setDefaultReflectionsDisplay();
+		this.hideCloseReflButton();
 
+	}
+
+	showCloseReflButton(){
+		this.closeReflButton.style.display = "inline";
+		this.closeReflButton.innerHTML = "<b>"+this.refl.filename  + ' <i class="fa fa-trash"></i>' ;
+
+	}
+
+	hideCloseReflButton(){
+		this.closeReflButton.style.display = "none";
 	}
 
 	addReflectionTable = async (file) => {
@@ -586,15 +620,8 @@ class ExperimentViewer{
 		await this.refl.parseReflectionTable(file);
 		this.addReflections();
 		if(this.hasReflectionTable()){
-			this.addRemoveReflectionTableButton();
+			this.showCloseReflButton();
 		}
-	}
-
-	addRemoveReflectionTableButton(){
-		const reflButton = document.getElementById("reflButton");
-		reflButton.style.display = "inline";
-		reflButton.innerHTML = "<b>"+this.refl.filename  + ' <i class="fa fa-trash"></i>' ;
-
 	}
 
 	addReflections(){
@@ -716,11 +743,11 @@ class ExperimentViewer{
 		}
 
 		if (this.reflMeshesObs.length > 0){
-			this.showObservedReflections(true);
+			this.updateObservedReflections(true);
 			observed.checked = true;
-			this.showCalculatedReflections(false);
+			this.updateCalculatedReflections(false);
 			calculated.checked = false;
-			this.showBoundingBoxes(true);
+			this.updateBoundingBoxes(true);
 			bboxes.checked = true;
 		}
 		else if (this.reflMeshesCal.length > 0){

@@ -23,16 +23,16 @@
 		--------------------------------------------------<br>
 		<b>observed reflections:</b> <input type="checkbox" 
 		id="observedReflections", checked=false, 
-		onclick="showObservedReflections()", disabled=true>
+		onclick="window.viewer.updateObservedReflections()", disabled=true>
 		<b>calculated reflections:</b> <input type="checkbox" 
 		id="calculatedReflections", checked=false, 
-		onclick="showCalculatedReflections()", disabled=true>
+		onclick="window.viewer.updateCalculatedReflections()", disabled=true>
 		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes", 
-		checked=false, onclick="showBoundingBoxes()", disabled=true>
+		checked=false, onclick="window.viewer.updateBoundingBoxes()", disabled=true>
 	</sidebar>
 	<footer id="footerText"> </footer>
-	<button class="btn" id="exptButton" onclick="removeExpt()"><i class="fa fa-trash"></i> expt file</button>
-	<button class="btn" id="reflButton" onclick="removeRefl()"><i class="fa fa-trash"></i> refl file</button>
+	<button class="btn" id="closeExpt" onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
+	<button class="btn" id="closeRefl" onclick="window.viewer.clearReflectionTable()"><i class="fa fa-trash"></i> refl file</button>
 		<style>
 		#headerText {
 			font-size: 16px;
@@ -82,7 +82,7 @@
 			white-space: pre-line;
 			line-height: .7;
 		}
-		#exptButton {
+		#closeExpt{
 			display: none;
 			font-family: Tahoma, Verdana, sans-serif;
 			font-size: 14px;
@@ -97,7 +97,7 @@
 			z-index: 9;
 			line-height: .7;
 		}
-		#reflButton {
+		#closeRefl{
 			display: none;
 			font-family: Tahoma, Verdana, sans-serif;
 			font-size: 14px;
@@ -114,36 +114,5 @@
 		}
 		</style>
 	<script src="./js/experiment.js" type="module"></script>
-	<script>
-	function showObservedReflections(){
-		window.viewer.showObservedReflections(
-			document.getElementById("observedReflections").checked
-		);
-	}
-	function showCalculatedReflections(){
-		window.viewer.showCalculatedReflections(
-			document.getElementById("calculatedReflections").checked
-		);
-	}
-	function showBoundingBoxes(){
-		window.viewer.showBoundingBoxes(
-			document.getElementById("boundingBoxes").checked
-		);
-	}
-
-	function removeExpt(){
-		window.viewer.clearExperiment();
-		const exptButton = document.getElementById("exptButton");
-		exptButton.style.display = "none";
-		removeRefl();
-	}
-
-	function removeRefl(){
-		window.viewer.clearReflectionTable();
-		const reflButton = document.getElementById("reflButton");
-		reflButton.style.display = "none";
-	}
-
-	</script>
 </body>
 </html>
