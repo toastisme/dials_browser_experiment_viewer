@@ -1,6 +1,6 @@
 import * as THREE from "https://unpkg.com/three@0.127.0/build/three.module.js";
 import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
-import gsap from "https://cdn.jsdelivr.net/npm/gsap@3.11/dist/gsap.min.js";
+import { gsap } from "https://cdn.jsdelivr.net/npm/gsap@3.11/dist/gsap.min.js";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from './THREE.MeshLine.js';
 import {decode} from "https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js";
 
