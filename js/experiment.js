@@ -1,5 +1,5 @@
 import * as THREE from "https://threejs.org/build/three.module.js";
-import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
+import * as controls from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 //import * as gsap from "https://cdn.jsdelivr.net/npm/gsap@3.11/dist/gsap.min.js";
 import * as meshline from './THREE.MeshLine.js';
 import * as msgpack from "https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js";
@@ -392,7 +392,7 @@ class ExperimentViewer{
 		window.rayCaster = new THREE.Raycaster(); // used for all raycasting
 
 		// Controls
-		window.controls = new OrbitControls(window.camera, window.renderer.domElement);
+		window.controls = new controls.OrbitControls(window.camera, window.renderer.domElement);
 		window.controls.maxDistance = 3000;
 		window.controls.enablePan = false;
 		window.controls.enableDamping = true;
