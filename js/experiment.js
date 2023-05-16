@@ -1,8 +1,8 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import gsap from "gsap";
+import * as THREE from "https://unpkg.com/three@0.127.0/build/three.module.js";
+import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
+import gsap from "https://cdn.jsdelivr.net/npm/gsap@3.11/dist/gsap.min.js";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
-import {decode} from "msgpack-lite";
+import {decode} from "https://rawgit.com/kawanet/msgpack-lite/master/dist/msgpack.min.js";
 
 class ExptParser{
 
