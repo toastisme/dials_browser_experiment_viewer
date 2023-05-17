@@ -31,7 +31,7 @@
 		checked=false, onclick="window.viewer.updateBoundingBoxes()", disabled=true>
 	</sidebar>
 	<footer id="footerText"> </footer>
-	<button class="btn" id="closeExpt" onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
+	<button class="btn" id="closeExpt" onmouseout="window.viewer.stopDisplayingImageFilenames()" onmouseover="window.viewer.displayImageFilenames() "onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
 	<button class="btn" id="closeRefl" onclick="window.viewer.clearReflectionTable()"><i class="fa fa-trash"></i> refl file</button>
 		<style>
 		#headerText {

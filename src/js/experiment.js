@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import gsap from "gsap";
+import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import {decode} from "msgpack-lite";
 
@@ -11,6 +11,7 @@ class ExptParser{
 		this.nameIdxMap = {};
 		this.panelCentroids = {};
 		this.filename = null;
+		this.imageFilenames = null;
 	}
 
 	hasExptJSON(){
@@ -30,6 +31,7 @@ class ExptParser{
 		this.nameIdxMap = {};
 		this.panelCentroids = {};
 		this.filename = null;
+		this.imageFilenames = null;
 	}
 
 	parseExperiment = (file) => {
@@ -47,11 +49,16 @@ class ExptParser{
 					this.exptJSON = JSON.parse(reader.result);
 					this.loadPanelData();
 					this.filename = file.name;
+					this.imageFilenames = this.getImageFilenames();
 				}
 			};
 			reader.readAsText(file);    
 		});
 	};
+
+	getImageFilenames(){
+		return this.exptJSON["imageset"][0]["template"];
+	}
 
 	loadPanelData(){
 		for (var i = 0; i < this.getNumDetectorPanels(); i++){
@@ -204,7 +211,7 @@ class ReflParser{
 
 			reader.onloadend = () => {
 				resolve(reader.result);
-				const decoded = decode(Buffer.from(reader.result));
+				const decoded = decode(new Uint8Array(reader.result));
 				this.refl = decoded[2]["data"];
 				this.loadReflectionData();
 			};
@@ -313,6 +320,7 @@ class ReflParser{
 			xyzCal = this.getXYZCal();
 		}	
 		bboxes = this.getBoundingBoxes();
+		console.log(this.refl)
 
 		for (var i = 0; i < panelNums.length; i++){
 			const panel = panelNums[i];
@@ -360,6 +368,8 @@ class ExperimentViewer{
 
 		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
+
+		this.displayingImageFilenames = false;
 
 		window.renderer.setAnimationLoop(this.animate);
 	}
@@ -919,6 +929,15 @@ class ExperimentViewer{
 		}
 	}
 
+	displayImageFilenames(){
+		this.displayHeaderText(this.expt.imageFilenames);
+		this.displayingImageFilenames = true;
+	}
+
+	stopDisplayingImageFilenames(){
+		this.displayingImageFilenames = false;
+	}
+
 	highlightObject(obj){
 		obj.material.color = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 	}
@@ -935,7 +954,7 @@ class ExperimentViewer{
 				}
 			}
 		}
-		else{
+		else if (!this.displayingImageFilenames){
 			this.displayDefaultHeaderText();
 		}
 	}
