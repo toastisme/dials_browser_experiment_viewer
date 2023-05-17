@@ -1,4 +1,4 @@
-import {decode} from "https://cdn.skypack.dev/msgpack-javascript";
+import * as msgpack from "https://cdn.skypack.dev/msgpack-javascript";
 
 export class ReflParser{
 
@@ -67,7 +67,7 @@ export class ReflParser{
 
 			reader.onloadend = () => {
 				resolve(reader.result);
-				const decoded = decode(new Uint8Array(reader.result));
+				const decoded = msgpack.decode(new Uint8Array(reader.result));
 				this.refl = decoded[2]["data"];
 				this.loadReflectionData();
 			};
