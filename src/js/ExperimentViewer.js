@@ -485,15 +485,15 @@ class ExperimentViewer{
 	}
 
 	addBeam(){
-		var beamLength = 2000.;
+		var beamLength = 800.;
 		var bd = this.expt.getBeamDirection();;
 
 		var incidentVertices = []
 		incidentVertices.push(
-			new THREE.Vector3(bd.x * -beamLength, bd.y * -beamLength, bd.z * -beamLength),
+			new THREE.Vector3(bd.x * -beamLength, bd.y * -beamLength, bd.z * -beamLength)
 		);
 		incidentVertices.push(
-			new THREE.Vector3(bd.x * -beamLength*.5, bd.y * -beamLength*.5, bd.z * -beamLength*.5),
+			new THREE.Vector3(bd.x * -beamLength*.5, bd.y * -beamLength*.5, bd.z * -beamLength*.5)
 		);
 		incidentVertices.push(new THREE.Vector3(0,0,0));
 		const incidentLine = new MeshLine();
