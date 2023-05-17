@@ -2,7 +2,7 @@ import * as THREE from "https://threejs.org/build/three.module.js";
 import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 import { gsap } from "https://cdn.skypack.dev/gsap@3.9.1";
 import * as meshline from './THREE.MeshLine.js';
-import { decode } from "https://cdn.jsdelivr.net/npm/msgpack-lite@0.1.26/dist/msgpack.min.js";
+import * as msgpack from "https://cdn.jsdelivr.net/npm/msgpack-lite@0.1.26/dist/msgpack.min.js";
 
 class ExptParser{
 
@@ -204,7 +204,7 @@ class ReflParser{
 
 			reader.onloadend = () => {
 				resolve(reader.result);
-				const decoded = decode(new Uint8Array(reader.result));
+				const decoded = msgpack.decode(new Uint8Array(reader.result));
 				this.refl = decoded[2]["data"];
 				this.loadReflectionData();
 			};

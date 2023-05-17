@@ -1327,6 +1327,13 @@ class ExperimentViewer {
         if (this.hasExperiment()) this.hideHeaderText();
         else this.displayHeaderText(ExperimentViewer.text()["default"]);
     }
+    displayImageFilenames() {
+        console.log("yes");
+        this.displayingImageFilenames = true;
+    }
+    stopDisplayingImageFilenames() {
+        this.displayingImageFilenames = false;
+    }
     highlightObject(obj) {
         obj.material.color = new _three.Color(ExperimentViewer.colors()["highlight"]);
     }
@@ -1339,7 +1346,7 @@ class ExperimentViewer {
                 this.displayHeaderText(name + " (" + this.getPanelPosition(intersects[0].point, name) + ")");
                 if (name in this.panelMeshes) this.highlightObject(this.panelMeshes[name]);
             }
-        } else this.displayDefaultHeaderText();
+        } else if (!this.displayingImageFilenames) this.displayDefaultHeaderText();
     }
     getPanelPosition(globalPos, panelName) {
         const data = this.expt.getPanelDataByName(panelName);
