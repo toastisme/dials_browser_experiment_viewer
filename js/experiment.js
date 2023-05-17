@@ -442,6 +442,7 @@ class ExperimentViewer{
 		});
 
 		window.addEventListener('mousedown', function(event){
+			console.log(event.button);
 			if (event.button == 2) { 
 				window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
 			}
