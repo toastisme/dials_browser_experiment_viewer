@@ -31,8 +31,8 @@
 		checked=false, onclick="window.viewer.updateBoundingBoxes()", disabled=true>
 	</sidebar>
 	<footer id="footerText"> </footer>
-	<button class="btn" id="closeExpt" onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
-	<button class="btn" id="closeRefl" onclick="window.viewer.clearReflectionTable()"><i class="fa fa-trash"></i> refl file</button>
+	<button class="btn" id="closeExpt" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayImageFilenames() "onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
+	<button class="btn" id="closeRefl" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayNumberOfReflections()" onclick="window.viewer.clearReflectionTable()"><i class="fa fa-trash"></i> refl file</button>
 		<style>
 		#headerText {
 			font-size: 16px;
@@ -113,6 +113,8 @@
 			line-height: .7;
 		}
 		</style>
-	<script src="./js/experiment.js" type="module"></script>
+	<script src="./src/js/ExptParser.js" type="module"></script>
+	<script src="./src/js/ReflParser.js" type="module"></script>
+	<script src="./src/js/ExperimentViewer.js" type="module"></script>
 </body>
 </html>

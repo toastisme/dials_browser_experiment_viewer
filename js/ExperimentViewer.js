@@ -2,339 +2,8 @@ import * as THREE from "https://threejs.org/build/three.module.js";
 import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 import { gsap } from "https://cdn.skypack.dev/gsap@3.9.1";
 import * as meshline from './THREE.MeshLine.js';
-import { deocde } from "https://cdn.jsdelivr.net/npm/msgpack-lite@0.1.26/dist/msgpack.min.js";
-
-class ExptParser{
-
-	constructor(){
-		this.exptJSON = null;
-		this.nameIdxMap = {};
-		this.panelCentroids = {};
-		this.filename = null;
-	}
-
-	hasExptJSON(){
-		return this.exptJSON != null;
-	}
-
-	static isDIALSExpt(file, content){
-		const fileExt = file.name.split(".").pop() ;
-		if (fileExt === "expt" && content[0] === "{"){
-			return true;
-		}
-		return false;
-	}
-
-	clearExperiment(){
-		this.exptJSON = null;
-		this.nameIdxMap = {};
-		this.panelCentroids = {};
-		this.filename = null;
-	}
-
-	parseExperiment = (file) => {
-		const reader = new FileReader();
-
-		return new Promise((resolve, reject) => {
-			reader.onerror = () => {
-				reader.abort();
-				reject(new DOMException("Problem parsing input file."));
-			};
-
-			reader.onloadend = () => {
-				resolve(reader.result);
-				if (ExptParser.isDIALSExpt(file, reader.result)){
-					this.exptJSON = JSON.parse(reader.result);
-					this.loadPanelData();
-					this.filename = file.name;
-				}
-			};
-			reader.readAsText(file);    
-		});
-	};
-
-	loadPanelData(){
-		for (var i = 0; i < this.getNumDetectorPanels(); i++){
-			const data = this.getPanelDataByIdx(i);
-			const name = this.getDetectorPanelName(i);
-			this.nameIdxMap[name] = i;
-			const centroid = data["origin"];
-			centroid.add(data["fastAxis"].multiplyScalar(.5));
-			centroid.add(data["slowAxis"].multiplyScalar(.5));
-			this.panelCentroids[name] = centroid;
-		}
-	}
-
-	getPanelCentroid(name){
-		return this.panelCentroids[name];
-	}
-
-	getDetectorPanelData(){
-		return this.exptJSON["detector"][0]["panels"];
-	}
-
-	getBeamData(){
-		return this.exptJSON["beam"][0];
-	}
-
-	getPanelDataByName(name){
-		const idx = this.nameIdxMap[name];
-		const data = this.getPanelDataByIdx(idx);
-		return data;
-	}
-
-	getPanelDataByIdx(idx){
-
-		/**
-		 * Returns dictionary of panel data in mm
-		 */
-
-		const panelData = this.getDetectorPanelData()[idx];
-		var pxSize = new THREE.Vector2(panelData["pixel_size"][0], panelData["pixel_size"][1]);
-		var pxs = new THREE.Vector2(panelData["image_size"][0], panelData["image_size"][1]);
-		var panelSize = new THREE.Vector2(pxSize.x*pxs.x, pxSize.y*pxs.y);
-		var fa = new THREE.Vector3(panelData["fast_axis"][0], panelData["fast_axis"][1], panelData["fast_axis"][2]).multiplyScalar(panelSize.x);
-		var sa = new THREE.Vector3(panelData["slow_axis"][0], panelData["slow_axis"][1], panelData["slow_axis"][2]).multiplyScalar(panelSize.y);
-		var o = new THREE.Vector3(panelData["origin"][0], panelData["origin"][1], panelData["origin"][2]);
-		return {
-			"panelSize" : panelSize,
-			"pxSize" : pxSize,
-			"pxs" : pxs,
-			"fastAxis" : fa,
-			"slowAxis" : sa,
-			"origin" : o
-		}
-
-	}
-
-	getBeamDirection(){
-		const beamData = this.getBeamData();
-		return new THREE.Vector3(
-			beamData["direction"][0], 
-			beamData["direction"][1], 
-			beamData["direction"][2]
-		);
-	}
-
-	getNumDetectorPanels(){
-		return this.getDetectorPanelData().length;
-	}
-
-	getDetectorPanelName(idx){
-		return this.getDetectorPanelData()[idx]["name"];
-	}
-
-	getDetectorPanelCorners(idx){
-
-		const vecs = this.getPanelDataByIdx(idx);
-
-		// Corners
-		var c1 = vecs["origin"].clone();
-		var c2 = vecs["origin"].clone().add(vecs["fastAxis"]);
-		var c3 = vecs["origin"].clone().add(vecs["fastAxis"]).add(vecs["slowAxis"]);
-		var c4 = vecs["origin"].clone().add(vecs["slowAxis"]);
-		return [c1, c2, c3, c4];
-	}
-
-
-}
-
-class ReflParser{
-
-	constructor(){
-		this.refl = null;
-		this.reflData = {};
-		this.filename = null;
-	}
-
-	hasReflTable(){
-		return (this.refl != null);
-	}
-
-	clearReflectionTable(){
-		this.refl = null;
-		this.reflData = {};
-		this.filename = null;
-	}
-
-	hasXyzObsData(){
-		if (!this.hasReflTable()){
-			return false;
-		}
-		for (var i in this.reflData){
-			if (!("xyzObs" in this.reflData[i][0])){
-				return false;
-			}
-		}
-		return true;
-	}
-
-	hasXyzCalData(){
-		if (!this.hasReflTable()){
-			return false;
-		}
-		for (var i in this.reflData){
-			if (!("xyzCal" in this.reflData[i][0])){
-				return false;
-			}
-		}
-		return true;
-	}
-
-	hasBboxData(){
-		if (!this.hasReflTable()){
-			return false;
-		}
-		for (var i in this.reflData){
-			if (!("bbox" in this.reflData[i][0])){
-				return false;
-			}
-		}
-		return true;
-	}
-
-	parseReflectionTable = (file) => {
-		const reader = new FileReader();
-
-		return new Promise((resolve, reject) => {
-			reader.onerror = () => {
-				reader.abort();
-				reject(new DOMException("Problem parsing input file."));
-			};
-
-			reader.onloadend = () => {
-				resolve(reader.result);
-				const decoded = msgpack.decode(new Uint8Array(reader.result));
-				this.refl = decoded[2]["data"];
-				this.loadReflectionData();
-			};
-			reader.readAsArrayBuffer(file);    
-			this.filename = file.name;
-		});
-	};
-
-	containsColumn(column_name){
-		return (column_name in this.refl);
-	}
-
-	getColumnBuffer(column_name){
-		return this.refl[column_name][1][1];
-	}
-
-	getUint32Array(column_name){
-		const buffer = this.getColumnBuffer(column_name);
-		const arr = new Uint32Array(buffer.length/8);
-		let count = 0;
-		for (let i = 0; i < buffer.length; i+=8) {
-			arr[count] = buffer.readUInt32LE(i);
-			count++;
-		}
-		return arr;
-
-	}
-
-	getDoubleArray(column_name){
-		const buffer = this.getColumnBuffer(column_name);
-		const arr = new Float64Array(buffer.length/8);
-		let count = 0;
-		for (let i = 0; i < buffer.length; i+=8) {
-		arr[count] = buffer.readDoubleLE(i);
-		count++;
-		}
-		return arr;
-	};
-
-	getVec3DoubleArray(column_name){
-		const buffer = this.getColumnBuffer(column_name);
-		const arr = new Array(buffer.length/(8*3));
-		let count = 0;
-		for (let i = 0; i < buffer.length; i+=24){
-			const vec = new Float64Array(3);
-			vec[0] = buffer.readDoubleLE(i);
-			vec[1] = buffer.readDoubleLE(i+8);
-			vec[2] = buffer.readDoubleLE(i+16);
-			arr[count] = vec;
-			count++;
-		}
-		return arr;
-	}
-
-	getVec6Uint32Array(column_name){
-		const buffer = this.getColumnBuffer(column_name);
-		const arr = new Array(buffer.length/(8*3));
-		let count = 0;
-		for (let i = 0; i < buffer.length; i+=24){
-			const vec = new Uint32Array(6);
-			vec[0] = buffer.readUInt32LE(i);
-			vec[1] = buffer.readUInt32LE(i+4);
-			vec[2] = buffer.readUInt32LE(i+8);
-			vec[3] = buffer.readUInt32LE(i+12);
-			vec[4] = buffer.readUInt32LE(i+16);
-			vec[5] = buffer.readUInt32LE(i+20);
-			arr[count] = vec;
-			count++;
-		}
-		return arr;
-	}
-
-	getPanelNumbers(){
-		return this.getUint32Array("panel");
-	}
-
-	getXYZObs(){
-		return this.getVec3DoubleArray("xyzobs.px.value");
-	}
-
-	containsXYZObs(){
-		return this.containsColumn("xyzobs.px.value");
-	}
-
-	getXYZCal(){
-		return this.getVec3DoubleArray("xyzcal.px");
-	}
-
-	containsXYZCal(){
-		return this.containsColumn("xyzcal.px");
-	}
-
-	getBoundingBoxes(){
-		return this.getVec6Uint32Array("bbox");
-	}
-
-	loadReflectionData(){
-		const panelNums = this.getPanelNumbers();
-		var xyzObs;
-		var xyzCal;
-		var bboxes;
-		if (this.containsXYZObs()){
-			xyzObs = this.getXYZObs();
-		}
-		if (this.containsXYZCal()){
-			xyzCal = this.getXYZCal();
-		}	
-		bboxes = this.getBoundingBoxes();
-
-		for (var i = 0; i < panelNums.length; i++){
-			const panel = panelNums[i];
-			const refl = {
-				"xyzObs" : xyzObs[i],
-				"bbox" : bboxes[i]
-			};
-			if (panel in this.reflData){
-				this.reflData[panel].push(refl);
-			}
-			else{
-				this.reflData[panel] = [refl];
-			}
-		}
-	}
-
-	getReflectionsForPanel(panelIdx){
-		console.assert(this.hasReflTable());
-		return this.reflData[panelIdx];
-	}
-}
-
+import { ExptParser } from "./ExptParser.js";
+import { ReflParser } from "./ReflParser.js";
 
 class ExperimentViewer{
 	constructor(exptParser, reflParser){
@@ -360,6 +29,8 @@ class ExperimentViewer{
 
 		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
+
+		this.displayingImageFilenames = false;
 
 		window.renderer.setAnimationLoop(this.animate);
 	}
@@ -442,7 +113,6 @@ class ExperimentViewer{
 		});
 
 		window.addEventListener('mousedown', function(event){
-			console.log(event.button);
 			if (event.button == 2) { 
 				window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
 			}
@@ -655,13 +325,13 @@ class ExperimentViewer{
 
 		function getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize){
 			const centre = mapPointToGlobal(xyz, pOrigin, fa, sa, pxSize);
-			const left = mapPointToGlobal([xyz[0] - pxSize[0], xyz[1]], pOrigin, fa, sa, pxSize);
-			const right = mapPointToGlobal([xyz[0] + pxSize[0], xyz[1]], pOrigin, fa, sa, pxSize);
-			const top = mapPointToGlobal([xyz[0], xyz[1] - pxSize[1]], pOrigin, fa, sa, pxSize);
-			const bottom = mapPointToGlobal([xyz[0], xyz[1] + pxSize[1]], pOrigin, fa, sa, pxSize);
-			const line1 = new meshline.MeshLine();
+			const left = mapPointToGlobal([xyz[0] - 1, xyz[1]], pOrigin, fa, sa, pxSize);
+			const right = mapPointToGlobal([xyz[0] + 1, xyz[1]], pOrigin, fa, sa, pxSize);
+			const top = mapPointToGlobal([xyz[0], xyz[1] - 1], pOrigin, fa, sa, pxSize);
+			const bottom = mapPointToGlobal([xyz[0], xyz[1] + 1], pOrigin, fa, sa, pxSize);
+			const line1 = new MeshLine();
 			line1.setPoints([left, centre, right]);
-			const line2 = new meshline.MeshLine();
+			const line2 = new MeshLine();
 			line2.setPoints([top, centre, bottom]);
 			const line1Mesh = new THREE.Mesh(line1, reflMaterial);
 			const line2Mesh = new THREE.Mesh(line2, reflMaterial);
@@ -673,13 +343,13 @@ class ExperimentViewer{
 		const pOrigin = panelData["origin"];
 		const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
 
-		const reflMaterial = new meshline.MeshLineMaterial({
+		const reflMaterial = new MeshLineMaterial({
 			lineWidth:1,
 			color: ExperimentViewer.colors()["reflection"],
 			fog:true
 		});
 
-		const bboxMaterial = new meshline.MeshLineMaterial({
+		const bboxMaterial = new MeshLineMaterial({
 			lineWidth:1.75,
 			color: ExperimentViewer.colors()["bbox"],
 			fog:true
@@ -718,7 +388,7 @@ class ExperimentViewer{
 			const c3 = mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
 			const c4 = mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
 			const corners = [c1, c2, c3, c4, c1];
-			const line = new meshline.MeshLine();
+			const line = new MeshLine();
 			line.setPoints(corners);
 			const mesh = new THREE.Mesh(line, bboxMaterial);
 			this.bboxMeshes.push(mesh);
@@ -801,9 +471,9 @@ class ExperimentViewer{
 			count++;
 		}
 
-		const line = new meshline.MeshLine();
+		const line = new MeshLine();
 		line.setPoints(corners);
-		const material = new meshline.MeshLineMaterial({
+		const material = new MeshLineMaterial({
 			lineWidth:7,
 			color: ExperimentViewer.colors()["panel"],
 			fog:true
@@ -815,20 +485,20 @@ class ExperimentViewer{
 	}
 
 	addBeam(){
-		var beamLength = 2000.;
+		var beamLength = 800.;
 		var bd = this.expt.getBeamDirection();;
 
 		var incidentVertices = []
 		incidentVertices.push(
-			new THREE.Vector3(bd.x * -beamLength, bd.y * -beamLength, bd.z * -beamLength),
+			new THREE.Vector3(bd.x * -beamLength, bd.y * -beamLength, bd.z * -beamLength)
 		);
 		incidentVertices.push(
-			new THREE.Vector3(bd.x * -beamLength*.5, bd.y * -beamLength*.5, bd.z * -beamLength*.5),
+			new THREE.Vector3(bd.x * -beamLength*.5, bd.y * -beamLength*.5, bd.z * -beamLength*.5)
 		);
 		incidentVertices.push(new THREE.Vector3(0,0,0));
-		const incidentLine = new meshline.MeshLine();
+		const incidentLine = new MeshLine();
 		incidentLine.setPoints(incidentVertices);
-		const incidentMaterial = new meshline.MeshLineMaterial({
+		const incidentMaterial = new MeshLineMaterial({
 			lineWidth:5,
 			color: ExperimentViewer.colors()["beam"],
 			fog: true,
@@ -847,9 +517,9 @@ class ExperimentViewer{
 		outgoingVertices.push(
 			new THREE.Vector3(bd.x * beamLength, bd.y * beamLength, bd.z * beamLength)
 		);
-		const outgoingLine = new meshline.MeshLine();
+		const outgoingLine = new MeshLine();
 		outgoingLine.setPoints(outgoingVertices);
-		const outgoingMaterial = new meshline.MeshLineMaterial({
+		const outgoingMaterial = new MeshLineMaterial({
 			lineWidth:5,
 			color: ExperimentViewer.colors()["beam"],
 			transparent: true,
@@ -920,13 +590,31 @@ class ExperimentViewer{
 		}
 	}
 
+	displayImageFilenames(){
+		this.displayHeaderText(this.expt.imageFilenames);
+		this.activelyDisplayingText = true;
+	}
+
+	displayNumberOfReflections(){
+		this.displayHeaderText(this.refl.numReflections + " reflections");
+		this.activelyDisplayingText = true;
+	}
+
+	stopDisplayingText(){
+		this.activelyDisplayingText = false;
+	}
+
+
 	highlightObject(obj){
 		obj.material.color = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 	}
 
 	updateGUIInfo() {
-		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
+		if (this.activelyDisplayingText){
+			return;
+		}
+		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
 			if (name in this.panelMeshes){
@@ -997,7 +685,6 @@ class ExperimentViewer{
 	}
 
 	rotateToPos(pos){
-		window.camera.lookAt(pos);
 		gsap.to( window.camera.position, {
 			duration: 1,
 			x: -pos.x,
