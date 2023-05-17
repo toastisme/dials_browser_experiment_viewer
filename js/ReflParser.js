@@ -1,4 +1,4 @@
-import {decode} from "https://cdn.skypack.dev/msgpack-lite@0.1.26";
+import {decode} from "https://cdn.skypack.dev/msgpack-javascript";
 
 export class ReflParser{
 
