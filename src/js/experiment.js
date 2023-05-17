@@ -152,6 +152,7 @@ class ReflParser{
 		this.refl = null;
 		this.reflData = {};
 		this.filename = null;
+		this.numReflections = null
 	}
 
 	hasReflTable(){
@@ -162,6 +163,7 @@ class ReflParser{
 		this.refl = null;
 		this.reflData = {};
 		this.filename = null;
+		this.numReflections = null;
 	}
 
 	hasXyzObsData(){
@@ -289,19 +291,19 @@ class ReflParser{
 	}
 
 	getXYZObs(){
-		return this.getVec3DoubleArray("xyzobs.mm.value");
+		return this.getVec3DoubleArray("xyzobs.px.value");
 	}
 
 	containsXYZObs(){
-		return this.containsColumn("xyzobs.mm.value");
+		return this.containsColumn("xyzobs.px.value");
 	}
 
 	getXYZCal(){
-		return this.getVec3DoubleArray("xyzcal.mm");
+		return this.getVec3DoubleArray("xyzcal.px");
 	}
 
 	containsXYZCal(){
-		return this.containsColumn("xyzcal.mm");
+		return this.containsColumn("xyzcal.px");
 	}
 
 	getBoundingBoxes(){
@@ -320,14 +322,21 @@ class ReflParser{
 			xyzCal = this.getXYZCal();
 		}	
 		bboxes = this.getBoundingBoxes();
-		console.log(this.refl)
+
+		console.assert(xyzObs || xyzCal);
+		console.assert(bboxes);
 
 		for (var i = 0; i < panelNums.length; i++){
 			const panel = panelNums[i];
 			const refl = {
-				"xyzObs" : xyzObs[i],
 				"bbox" : bboxes[i]
 			};
+			if (xyzObs){
+				refl["xyzObs"] = xyzObs[i];
+			}
+			if (xyzCal){
+				refl["xyzCal"] = xyzCal[i];
+			}
 			if (panel in this.reflData){
 				this.reflData[panel].push(refl);
 			}
@@ -335,6 +344,8 @@ class ReflParser{
 				this.reflData[panel] = [refl];
 			}
 		}
+
+		this.numReflections = panelNums.length;
 	}
 
 	getReflectionsForPanel(panelIdx){
@@ -663,11 +674,11 @@ class ExperimentViewer{
 		}
 
 		function getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize){
-			const centre = mapPointToGlobal(xyz, pOrigin, fa, sa);
-			const left = mapPointToGlobal([xyz[0] - pxSize[0], xyz[1]], pOrigin, fa, sa);
-			const right = mapPointToGlobal([xyz[0] + pxSize[0], xyz[1]], pOrigin, fa, sa);
-			const top = mapPointToGlobal([xyz[0], xyz[1] - pxSize[1]], pOrigin, fa, sa);
-			const bottom = mapPointToGlobal([xyz[0], xyz[1] + pxSize[1]], pOrigin, fa, sa);
+			const centre = mapPointToGlobal(xyz, pOrigin, fa, sa, pxSize);
+			const left = mapPointToGlobal([xyz[0] - 1, xyz[1]], pOrigin, fa, sa, pxSize);
+			const right = mapPointToGlobal([xyz[0] + 1, xyz[1]], pOrigin, fa, sa, pxSize);
+			const top = mapPointToGlobal([xyz[0], xyz[1] - 1], pOrigin, fa, sa, pxSize);
+			const bottom = mapPointToGlobal([xyz[0], xyz[1] + 1], pOrigin, fa, sa, pxSize);
 			const line1 = new MeshLine();
 			line1.setPoints([left, centre, right]);
 			const line2 = new MeshLine();
@@ -931,20 +942,29 @@ class ExperimentViewer{
 
 	displayImageFilenames(){
 		this.displayHeaderText(this.expt.imageFilenames);
-		this.displayingImageFilenames = true;
+		this.activelyDisplayingText = true;
 	}
 
-	stopDisplayingImageFilenames(){
-		this.displayingImageFilenames = false;
+	displayNumberOfReflections(){
+		this.displayHeaderText(this.refl.numReflections + " reflections");
+		this.activelyDisplayingText = true;
 	}
+
+	stopDisplayingText(){
+		this.activelyDisplayingText = false;
+	}
+
 
 	highlightObject(obj){
 		obj.material.color = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 	}
 
 	updateGUIInfo() {
-		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		const intersects = rayCaster.intersectObjects(window.scene.children);
+		if (this.activelyDisplayingText){
+			return;
+		}
+		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
 			if (name in this.panelMeshes){
@@ -954,7 +974,7 @@ class ExperimentViewer{
 				}
 			}
 		}
-		else if (!this.displayingImageFilenames){
+		else{
 			this.displayDefaultHeaderText();
 		}
 	}
