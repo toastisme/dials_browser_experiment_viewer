@@ -2,7 +2,7 @@ import * as THREE from "https://threejs.org/build/three.module.js";
 import { OrbitControls } from "https://unpkg.com/three@0.127.0/examples/jsm/controls/OrbitControls.js";
 import { gsap } from "https://cdn.skypack.dev/gsap@3.9.1";
 import * as meshline from './THREE.MeshLine.js';
-import { decode } from "https://cdn.skypack.dev/msgpack-lite";
+import { decode } from "https://cdn.jsdelivr.net/npm/msgpack-lite@0.1.26/dist/msgpack.min.js";
 
 class ExptParser{
 
