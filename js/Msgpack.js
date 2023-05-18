@@ -336,8 +336,7 @@ Decoder.prototype.parse = function () {
   throw new Error("Unknown type 0x" + type.toString(16));
 };
 function decode(buffer) {
-  var view = new DataView(buffer);
-  var decoder = new Decoder(view);
+  var decoder = new Decoder(buffer);
   var value = decoder.parse();
   if (decoder.offset !== buffer.byteLength) throw new Error((buffer.byteLength - decoder.offset) + " trailing bytes");
   return value;
