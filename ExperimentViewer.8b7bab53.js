@@ -584,6 +584,7 @@ class ReflParser {
         }
         return true;
     }
+    decode(buffer) {}
     hasXyzCalData() {
         if (!this.hasReflTable()) return false;
         for(var i in this.reflData){

@@ -1,11 +1,3 @@
-/* jshint browser: true */
-/* global define, module */
-( // Module boilerplate to support browser globals and browserify and AMD.
-  typeof define === "function" ? function (m) { define("msgpack-js", m); } :
-  typeof exports === "object" ? function (m) { module.exports = m(); } :
-  function(m){ this.msgpack = m(); }
-)(function () {
-"use strict";
 
 var exports = {};
 
@@ -641,6 +633,4 @@ function encodedSize(value) {
   throw new Error("Unknown type " + type);
 }
 
-return exports;
-
-});
+export{ decode } 
