@@ -67,7 +67,7 @@ export class ReflParser{
 
 			reader.onloadend = () => {
 				resolve(reader.result);
-				const decoded = msgpack.decode(new Uint8Array(reader.result));
+				const decoded = msgpack.decode(new Uint8Array(reader.result).buffer);
 				this.refl = decoded[2]["data"];
 				this.loadReflectionData();
 			};
