@@ -84,7 +84,7 @@ export class ReflParser{
 	}
 
 	getColumnBuffer(column_name){
-		return this.refl[column_name][1][1];
+		return new Uint8Array(this.refl[column_name][1][1]);
 	}
 
 	getUint32Array(column_name){

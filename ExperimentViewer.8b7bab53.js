@@ -608,9 +608,8 @@ class ReflParser {
             reader.onloadend = ()=>{
                 resolve(reader.result);
                 var arr = new Uint8Array(reader.result);
-                var buffer = arr.buffer;
-                console.log(buffer);
                 const decoded = (0, _msgpackLite.decode)(new Uint8Array(reader.result));
+                console.log(decoded);
                 this.refl = decoded[2]["data"];
                 this.loadReflectionData();
             };
