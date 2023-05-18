@@ -1,4 +1,4 @@
-import * as msgpack from "https://cdn.skypack.dev/msgpack-javascript";
+import * as msgpack from "./Msgpack.js";
 
 export class ReflParser{
 
