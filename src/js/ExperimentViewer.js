@@ -9,7 +9,6 @@ class ExperimentViewer{
 	constructor(exptParser, reflParser){
 		this.expt = exptParser;
 		this.refl = reflParser;
-		this.setupScene();
 		this.headerText = window.document.getElementById("headerText");
 		this.footerText = window.document.getElementById("footerText");
 		this.sidebar = window.document.getElementById("sidebar");
@@ -32,101 +31,11 @@ class ExperimentViewer{
 
 		this.displayingImageFilenames = false;
 
-		window.renderer.setAnimationLoop(this.animate);
-	}
-
-	setupScene(){
-
-		/**
-		 * Sets the renderer, camera, controls
-		 */
-
-		// Renderer
-		window.renderer = new THREE.WebGLRenderer();
-		window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
-		window.renderer.setSize(window.innerWidth, window.innerHeight);
-		document.body.appendChild(window.renderer.domElement);
-
-		// Two elements used to write text to the screen
-		headerText = window.document.getElementById("headerText")
-		sidebar = window.document.getElementById("sidebar")
-
-		window.scene = new THREE.Scene()
-		window.scene.fog = new THREE.Fog(ExperimentViewer.colors()["background"], 500, 3000);
-		window.camera = new THREE.PerspectiveCamera(
-			45,
-			window.innerWidth / window.innerHeight,
-			100,
-			10000
-		);
-		window.renderer.render(window.scene, window.camera);
-		window.rayCaster = new THREE.Raycaster(); // used for all raycasting
-
-		// Controls
-		window.controls = new OrbitControls(window.camera, window.renderer.domElement);
-		window.controls.maxDistance = 3000;
-		window.controls.enablePan = false;
-		window.controls.enableDamping = true;
-		window.controls.dampingFactor = 0.1;
-		window.controls.update();
-
-		// Events
-		window.mousePosition = new THREE.Vector2();
-		window.addEventListener("mousemove", function (e) {
-			window.mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
-			window.mousePosition.y = - (e.clientY / window.innerHeight) * 2 + 1;
-		});
-
-		window.addEventListener("resize", function() {
-			window.camera.aspect = window.innerWidth / window.innerHeight;
-			window.camera.updateProjectionMatrix();
-			window.renderer.setSize(window.innerWidth, window.innerHeight);
-		});
-
-		window.addEventListener("dragstart", (event) => {
-			dragged = event.target;
-		});
-
-		window.addEventListener("dragover", (event) => {
-			event.preventDefault();
-		});
-
-		window.addEventListener('drop', function(event) {
-
-			event.preventDefault();
-			event.stopPropagation();
-			const file = event.dataTransfer.files[0];
-			const fileExt = file.name.split(".").pop();
-			if (fileExt == "refl"){
-				window.viewer.addReflectionTable(file);
-			}
-			else if (fileExt == "expt"){
-				window.viewer.addExperiment(file);
-			}
-		});
-
-		window.addEventListener('dblclick', function(event){
-			var pos = window.viewer.getClickedPanelCentroid();
-			if (pos){
-				window.viewer.rotateToPos(pos);
-			}
-		});
-
-		window.addEventListener('mousedown', function(event){
-			if (event.button == 2) { 
-				window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
-			}
-		});
-		window.addEventListener('keydown', function(event){
-			if (event.key === "s"){
-				window.viewer.toggleSidebar();
-			}
-		});
-
 		this.updateReflectionCheckboxStatus();
 		this.setDefaultReflectionsDisplay();
 
 	}
+
 
 	static colors(){
 		return {
@@ -169,6 +78,7 @@ class ExperimentViewer{
 		for (var i = 0; i < this.reflMeshesObs.length; i++){
 			this.reflMeshesObs[i].visible = this.observedReflsCheckbox.checked;
 		}
+		this.requestRender();
 	}
 
 	updateCalculatedReflections(val=null){
@@ -178,6 +88,7 @@ class ExperimentViewer{
 		for (var i = 0; i < this.reflMeshesCal.length; i++){
 			this.reflMeshesCal[i].visible = this.calculatedReflsCheckbox.checked;
 		}
+		this.requestRender();
 	}
 
 	updateBoundingBoxes(val=null){
@@ -187,6 +98,7 @@ class ExperimentViewer{
 		for (var i = 0; i < this.bboxMeshes.length; i++){
 			this.bboxMeshes[i].visible = this.boundingBoxesCheckbox.checked;
 		}
+		this.requestRender();
 	}
 
 	hasExperiment(){
@@ -219,6 +131,7 @@ class ExperimentViewer{
 		this.hideCloseExptButton();
 
 		this.clearReflectionTable();
+		this.requestRender();
 	}
 
 	addExperiment = async (file) => {
@@ -234,6 +147,7 @@ class ExperimentViewer{
 		this.setCameraToDefaultPosition();
 		this.showSidebar();
 		this.showCloseExptButton();
+		this.requestRender();
 
 	}
 
@@ -273,7 +187,7 @@ class ExperimentViewer{
 		this.updateReflectionCheckboxStatus();
 		this.setDefaultReflectionsDisplay();
 		this.hideCloseReflButton();
-
+		this.requestRender();
 	}
 
 	showCloseReflButton(){
@@ -293,6 +207,7 @@ class ExperimentViewer{
 		if(this.hasReflectionTable()){
 			this.showCloseReflButton();
 		}
+		this.requestRender();
 	}
 
 	addReflections(){
@@ -692,19 +607,126 @@ class ExperimentViewer{
 			z: -pos.z, 
 			onUpdate: function() {
 				window.camera.lookAt( pos );
+				window.viewer.requestRender();
 			}
 		} );
 	}
 
 	animate() {
+		if (!this.renderRequested){
+			return;
+		}
 		window.viewer.resetPanelColors();
 		window.viewer.updateBeamAndSampleOpacity();
 		window.viewer.updateGUIInfo();
 		window.controls.update();
 		window.renderer.render(window.scene, window.camera);
+		this.renderRequested = false;
+	}
+
+	requestRender(){
+		if (typeof window !== "undefined" && !this.renderRequested){
+			this.renderRequested = true;
+			window.requestAnimationFrame(this.animate.bind(this));
+		}
 	}
 
 }
 
+function setupScene(){
+
+	/**
+	 * Sets the renderer, camera, controls
+	 */
+
+
+	if (typeof window.viewer === "undefined"){ return;}
+
+	// Renderer
+	window.renderer = new THREE.WebGLRenderer();
+	window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
+	window.renderer.setSize(window.innerWidth, window.innerHeight);
+	document.body.appendChild(window.renderer.domElement);
+
+	// Two elements used to write text to the screen
+	headerText = window.document.getElementById("headerText")
+	sidebar = window.document.getElementById("sidebar")
+
+	window.scene = new THREE.Scene()
+	window.scene.fog = new THREE.Fog(ExperimentViewer.colors()["background"], 500, 3000);
+	window.camera = new THREE.PerspectiveCamera(
+		45,
+		window.innerWidth / window.innerHeight,
+		100,
+		10000
+	);
+	window.renderer.render(window.scene, window.camera);
+	window.rayCaster = new THREE.Raycaster(); // used for all raycasting
+
+	// Controls
+	window.controls = new OrbitControls(window.camera, window.renderer.domElement);
+	window.controls.maxDistance = 3000;
+	window.controls.enablePan = false;
+	window.controls.update();
+	window.controls.addEventListener("change", function(){window.viewer.requestRender();});
+
+	// Events
+	window.mousePosition = new THREE.Vector2();
+	window.addEventListener("mousemove", function (e) {
+		window.mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
+		window.mousePosition.y = - (e.clientY / window.innerHeight) * 2 + 1;
+		window.viewer.requestRender();
+	});
+
+	window.addEventListener("resize", function() {
+		window.camera.aspect = window.innerWidth / window.innerHeight;
+		window.camera.updateProjectionMatrix();
+		window.renderer.setSize(window.innerWidth, window.innerHeight);
+		window.viewer.requestRender();
+	});
+
+	window.addEventListener("dragstart", (event) => {
+		dragged = event.target;
+	});
+
+	window.addEventListener("dragover", (event) => {
+		event.preventDefault();
+	});
+
+	window.addEventListener('drop', function(event) {
+
+		event.preventDefault();
+		event.stopPropagation();
+		const file = event.dataTransfer.files[0];
+		const fileExt = file.name.split(".").pop();
+		if (fileExt == "refl"){
+			window.viewer.addReflectionTable(file);
+		}
+		else if (fileExt == "expt"){
+			window.viewer.addExperiment(file);
+		}
+	});
+
+	window.addEventListener('dblclick', function(event){
+		var pos = window.viewer.getClickedPanelCentroid();
+		if (pos){
+			window.viewer.rotateToPos(pos);
+		}
+	});
+
+	window.addEventListener('mousedown', function(event){
+		if (event.button == 2) { 
+			window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
+		}
+	});
+	window.addEventListener('keydown', function(event){
+		if (event.key === "s"){
+			window.viewer.toggleSidebar();
+		}
+	});
+	window.viewer.requestRender();
+}
+
 window.viewer = new ExperimentViewer(new ExptParser(), new ReflParser());
+setupScene();
 

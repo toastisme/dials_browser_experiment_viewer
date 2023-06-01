@@ -1,3 +1,4 @@
+//import {decode} from "msgpack-js-browser";
 import {decode} from "msgpack-lite";
 
 export class ReflParser{
@@ -67,6 +68,14 @@ export class ReflParser{
 
 			reader.onloadend = () => {
 				resolve(reader.result);
+				/*
+				var arr = new Uint8Array(reader.result);
+				var buffer = arr.buffer;
+				console.log(arr);
+				console.log(buffer)
+				const decoded = decode(buffer);
+				console.log("decodedBuffer", decoded);
+				*/
 				const decoded = decode(new Uint8Array(reader.result));
 				this.refl = decoded[2]["data"];
 				this.loadReflectionData();
