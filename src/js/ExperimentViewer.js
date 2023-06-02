@@ -4,6 +4,7 @@ import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import { ExptParser } from "./ExptParser.js";
 import { ReflParser } from "./ReflParser.js";
+import reflSprite from "../../resources/disc.png";
 
 class ExperimentViewer{
 	constructor(exptParser, reflParser){
@@ -13,8 +14,8 @@ class ExperimentViewer{
 		this.footerText = window.document.getElementById("footerText");
 		this.sidebar = window.document.getElementById("sidebar");
 		this.panelMeshes = {};
-		this.reflMeshesObs = [];
-		this.reflMeshesCal = [];
+		this.reflPointsObs = [];
+		this.reflPointsCal = [];
 		this.bboxMeshes = [];
 		this.beamMeshes = {};
 		this.sampleMesh = null;
@@ -41,7 +42,8 @@ class ExperimentViewer{
 		return {
 			"background": 0x222222,
 			"sample" : 0xfdf6e3,
-			"reflection" : 0xe74c3c,
+			"reflectionObs" : 0xe74c3c,
+			"reflectionCal" : 0xFFFFFF,
 			"panel" : 0x119dff,
 			"highlight" : 0xFFFFFF,
 			"beam" : 0xFFFFFF,
@@ -75,8 +77,8 @@ class ExperimentViewer{
 		if (val){
 			this.observedReflsCheckbox.checked = val;
 		}
-		for (var i = 0; i < this.reflMeshesObs.length; i++){
-			this.reflMeshesObs[i].visible = this.observedReflsCheckbox.checked;
+		for (var i = 0; i < this.reflPointsObs.length; i++){
+			this.reflPointsObs[i].visible = this.observedReflsCheckbox.checked;
 		}
 		this.requestRender();
 	}
@@ -85,8 +87,8 @@ class ExperimentViewer{
 		if (val){
 			this.calculatedReflsCheckbox.checked = val;
 		}
-		for (var i = 0; i < this.reflMeshesCal.length; i++){
-			this.reflMeshesCal[i].visible = this.calculatedReflsCheckbox.checked;
+		for (var i = 0; i < this.reflPointsCal.length; i++){
+			this.reflPointsCal[i].visible = this.calculatedReflsCheckbox.checked;
 		}
 		this.requestRender();
 	}
@@ -165,18 +167,18 @@ class ExperimentViewer{
 	}
 
 	clearReflectionTable(){
-		for (var i = 0; i < this.reflMeshesObs.length; i++){
-			window.scene.remove(this.reflMeshesObs[i]);
-			this.reflMeshesObs[i].geometry.dispose();
-			this.reflMeshesObs[i].material.dispose();
+		for (var i = 0; i < this.reflPointsObs.length; i++){
+			window.scene.remove(this.reflPointsObs[i]);
+			this.reflPointsObs[i].geometry.dispose();
+			this.reflPointsObs[i].material.dispose();
 		}
-		this.reflMeshesObs = [];
-		for (var i = 0; i < this.reflMeshesCal.length; i++){
-			window.scene.remove(this.reflMeshesCal[i]);
-			this.reflMeshesCal[i].geometry.dispose();
-			this.reflMeshesCal[i].material.dispose();
+		this.reflPointsObs = [];
+		for (var i = 0; i < this.reflPointsCal.length; i++){
+			window.scene.remove(this.reflPointsCal[i]);
+			this.reflPointsCal[i].geometry.dispose();
+			this.reflPointsCal[i].material.dispose();
 		}
-		this.reflMeshesCal = [];
+		this.reflPointsCal = [];
 		for (var i = 0; i < this.bboxMeshes.length; i++){
 			window.scene.remove(this.bboxMeshes[i]);
 			this.bboxMeshes[i].geometry.dispose();
@@ -220,96 +222,102 @@ class ExperimentViewer{
 			this.clearReflectionTable();
 			return;
 		}
+
+		const positionsObs = new Array();
+		const positionsCal = new Array();
+		const bboxMaterial = new THREE.LineBasicMaterial( { color: ExperimentViewer.colors()["bbox"] } );
+		const containsXYZObs = this.refl.containsXYZObs();
+		const containsXYZCal = this.refl.containsXYZCal();
+
 		for (var i = 0; i < this.expt.getNumDetectorPanels(); i++){
+
 			const panelReflections = this.refl.getReflectionsForPanel(i);
 			const panelData = this.expt.getPanelDataByIdx(i);
-			this.addReflectionsForPanel(panelReflections, panelData);
+
+			const fa = panelData["fastAxis"];
+			const sa = panelData["slowAxis"];
+			const pOrigin = panelData["origin"];
+			const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
+
+			for (var j = 0; j < panelReflections.length; j++){
+			
+				if (containsXYZObs){
+					const xyzObs = panelReflections[j]["xyzObs"];
+					const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
+					positionsObs.push(globalPosObs.x);
+					positionsObs.push(globalPosObs.y);
+					positionsObs.push(globalPosObs.z);
+
+				}
+				if (containsXYZCal){
+					const xyzCal = panelReflections[j]["xyzCal"];
+					const globalPosCal = this.mapPointToGlobal(xyzCal, pOrigin, fa, sa, pxSize);
+					positionsCal.push(globalPosCal.x);
+					positionsCal.push(globalPosCal.y);
+					positionsCal.push(globalPosCal.z);
+				}
+
+				// bbox (1 mesh per reflection, so more expensive to render) 
+				const bbox = panelReflections[j]["bbox"];
+				const c1 = this.mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
+				const c2 = this.mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
+				const c3 = this.mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
+				const c4 = this.mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
+				const corners = [c1, c2, c3, c4, c1];
+				const bboxGeometry = new THREE.BufferGeometry().setFromPoints( corners );
+				const bboxLines = new THREE.Line( bboxGeometry, bboxMaterial );
+				this.bboxMeshes.push(bboxLines);
+				window.scene.add(bboxLines);
+			}
 		}
+
+		const sprite = new THREE.TextureLoader().load( reflSprite );
+
+		if (containsXYZObs){
+			const reflGeometryObs = new THREE.BufferGeometry();
+			reflGeometryObs.setAttribute(
+				"position", new THREE.Float32BufferAttribute(positionsObs, 3)
+			);
+
+			const reflMaterialObs = new THREE.PointsMaterial({
+				size: 5,
+				map: sprite,
+				transparent:true,
+				color: ExperimentViewer.colors()["reflectionObs"]
+			});
+			const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
+			window.scene.add(pointsObs);
+			this.reflPointsObs = [pointsObs];
+		}
+
+		if (containsXYZCal){
+			const reflGeometryCal = new THREE.BufferGeometry();
+			reflGeometryCal.setAttribute(
+				"position", new THREE.Float32BufferAttribute(positionsCal, 3)
+			);
+
+			const reflMaterialCal = new THREE.PointsMaterial({
+				size: 5,
+				map: sprite,
+				transparent:true,
+				color: ExperimentViewer.colors()["reflectionCal"]
+			});
+			const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
+			window.scene.add(pointsCal);
+			this.reflPointsCal = [pointsCal];
+		}
+
 		this.updateReflectionCheckboxStatus();
 		this.setDefaultReflectionsDisplay();
 	}
 
-	addReflectionsForPanel(panelReflections, panelData){
-
-		function mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor=[1,1]){
-			const pos = pOrigin.clone();
-			pos.add(fa.clone().normalize().multiplyScalar(point[0] * scaleFactor[0]));
-			pos.add(sa.clone().normalize().multiplyScalar(point[1] * scaleFactor[1]));
-			return pos;
-		}
-
-		function getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize){
-			const centre = mapPointToGlobal(xyz, pOrigin, fa, sa, pxSize);
-			const left = mapPointToGlobal([xyz[0] - 1, xyz[1]], pOrigin, fa, sa, pxSize);
-			const right = mapPointToGlobal([xyz[0] + 1, xyz[1]], pOrigin, fa, sa, pxSize);
-			const top = mapPointToGlobal([xyz[0], xyz[1] - 1], pOrigin, fa, sa, pxSize);
-			const bottom = mapPointToGlobal([xyz[0], xyz[1] + 1], pOrigin, fa, sa, pxSize);
-			const line1 = new MeshLine();
-			line1.setPoints([left, centre, right]);
-			const line2 = new MeshLine();
-			line2.setPoints([top, centre, bottom]);
-			const line1Mesh = new THREE.Mesh(line1, reflMaterial);
-			const line2Mesh = new THREE.Mesh(line2, reflMaterial);
-			return [line1Mesh, line2Mesh];
-		}
-
-		const fa = panelData["fastAxis"];
-		const sa = panelData["slowAxis"];
-		const pOrigin = panelData["origin"];
-		const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
-
-		const reflMaterial = new MeshLineMaterial({
-			lineWidth:1,
-			color: ExperimentViewer.colors()["reflection"],
-			fog:true
-		});
-
-		const bboxMaterial = new MeshLineMaterial({
-			lineWidth:1.75,
-			color: ExperimentViewer.colors()["bbox"],
-			fog:true
-		});
-
-		var xyz;
-		var crossLines;
-
-		for (var i = 0; i < panelReflections.length; i++){
-
-			if ("xyzObs" in panelReflections[i]){
-				xyz = panelReflections[i]["xyzObs"];
-
-				// reflection cross
-				crossLines = getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize);
-				this.reflMeshesObs.push(crossLines[0]);
-				this.reflMeshesObs.push(crossLines[1]);
-				window.scene.add(crossLines[0]);
-				window.scene.add(crossLines[1]);
-			}
-			if ("xyzCal" in panelReflections[i]){
-				xyz = panelReflections[i]["xyzCal"];
-
-				// reflection cross
-				crossLines = getCrossLineMeshes(xyz, pOrigin, fa, sa, pxSize);
-				this.reflMeshesCal.push(crossLines[0]);
-				this.reflMeshesCal.push(crossLines[1]);
-				window.scene.add(crossLines[0]);
-				window.scene.add(crossLines[1]);
-			}
-
-			// bbox
-			const bbox = panelReflections[i]["bbox"];
-			const c1 = mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
-			const c2 = mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
-			const c3 = mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
-			const c4 = mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
-			const corners = [c1, c2, c3, c4, c1];
-			const line = new MeshLine();
-			line.setPoints(corners);
-			const mesh = new THREE.Mesh(line, bboxMaterial);
-			this.bboxMeshes.push(mesh);
-			window.scene.add(mesh);
-		}
+	mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor=[1,1]){
+		const pos = pOrigin.clone();
+		pos.add(fa.clone().normalize().multiplyScalar(point[0] * scaleFactor[0]));
+		pos.add(sa.clone().normalize().multiplyScalar(point[1] * scaleFactor[1]));
+		return pos;
 	}
+
 
 	setDefaultReflectionsDisplay(){
 
@@ -328,7 +336,7 @@ class ExperimentViewer{
 			return;
 		}
 
-		if (this.reflMeshesObs.length > 0){
+		if (this.reflPointsObs.length > 0){
 			this.updateObservedReflections(true);
 			observed.checked = true;
 			this.updateCalculatedReflections(false);
@@ -336,7 +344,7 @@ class ExperimentViewer{
 			this.updateBoundingBoxes(true);
 			bboxes.checked = true;
 		}
-		else if (this.reflMeshesCal.length > 0){
+		else if (this.reflPointsCal.length > 0){
 			this.showCalculatedReflections(true);
 			calculated.checked = true;
 			this.showBoundingBoxes(true);
@@ -356,8 +364,8 @@ class ExperimentViewer{
 			bboxes.disabled = true;
 			return;
 		}
-		observed.disabled = !this.refl.hasXyzObsData();
-		calculated.disabled = !this.refl.hasXyzCalData();
+		observed.disabled = !this.refl.hasXYZObsData();
+		calculated.disabled = !this.refl.hasXYZCalData();
 		bboxes.disabled = !this.refl.hasBboxData();
 
 	}

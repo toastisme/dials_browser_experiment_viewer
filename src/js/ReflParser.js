@@ -21,7 +21,7 @@ export class ReflParser{
 		this.numReflections = null;
 	}
 
-	hasXyzObsData(){
+	hasXYZObsData(){
 		if (!this.hasReflTable()){
 			return false;
 		}
@@ -33,7 +33,7 @@ export class ReflParser{
 		return true;
 	}
 
-	hasXyzCalData(){
+	hasXYZCalData(){
 		if (!this.hasReflTable()){
 			return false;
 		}
