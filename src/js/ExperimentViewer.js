@@ -4,7 +4,6 @@ import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import { ExptParser } from "./ExptParser.js";
 import { ReflParser } from "./ReflParser.js";
-import reflSprite from "../../resources/disc.png";
 
 class ExperimentViewer{
 	constructor(exptParser, reflParser){
@@ -18,7 +17,6 @@ class ExperimentViewer{
 		this.reflPositionsObs = [];
 		this.reflPointsCal = [];
 		this.reflPositionsCal = []
-		this.reflSprite = new THREE.TextureLoader().load(reflSprite);
 		this.bboxMeshes = [];
 		this.beamMeshes = {};
 		this.sampleMesh = null;
@@ -52,12 +50,6 @@ class ExperimentViewer{
 			"highlight" : 0xFFFFFF,
 			"beam" : 0xFFFFFF,
 			"bbox" : 0xFFFFFF
-		};
-	}
-
-	static sizes(){
-		return{
-			"reflection" : 8
 		};
 	}
 
@@ -125,7 +117,6 @@ class ExperimentViewer{
 
 			const reflMaterialObs = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
-				map: this.reflSprite,
 				transparent:true,
 				color: ExperimentViewer.colors()["reflectionObs"]
 			});
@@ -143,7 +134,6 @@ class ExperimentViewer{
 
 			const reflMaterialCal = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
-				map: this.reflSprite,
 				transparent:true,
 				color: ExperimentViewer.colors()["reflectionCal"]
 			});
@@ -344,7 +334,6 @@ class ExperimentViewer{
 
 			const reflMaterialObs = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
-				map: this.reflSprite,
 				transparent:true,
 				color: ExperimentViewer.colors()["reflectionObs"]
 			});
@@ -362,7 +351,6 @@ class ExperimentViewer{
 
 			const reflMaterialCal = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
-				map: this.reflSprite,
 				transparent:true,
 				color: ExperimentViewer.colors()["reflectionCal"]
 			});
