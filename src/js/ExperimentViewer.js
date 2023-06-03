@@ -429,6 +429,7 @@ class ExperimentViewer{
 			color : ExperimentViewer.colors()["panel"],
 			opacity: 0.0,
 			transparent: true,
+			depthWrite: false
 		});
 		const plane = new THREE.Mesh(planeGeometry, planeMaterial);
 		plane.name = this.expt.getDetectorPanelName(idx);
