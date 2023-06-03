@@ -637,6 +637,16 @@ class ExperimentViewer{
 		this.beamMeshes["incident"].material.opacity = opacity;
 		this.beamMeshes["outgoing"].material.opacity = opacity*.25;
 		this.sampleMesh.material.opacity = opacity;
+		if (opacity < 0.1){
+			this.beamMeshes["incident"].material.depthWrite = false;
+			this.beamMeshes["outgoing"].material.depthWrite = false;
+			this.sampleMesh.material.depthWrite = false;
+		}
+		else{
+			this.beamMeshes["incident"].material.depthWrite = true;
+			this.beamMeshes["outgoing"].material.depthWrite = true;
+			this.sampleMesh.material.depthWrite = true;
+		}
 	}
 
 	getClickedPanelPos(){
