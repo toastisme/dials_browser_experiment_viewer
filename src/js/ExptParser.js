@@ -138,5 +138,12 @@ export class ExptParser{
 		return [c1, c2, c3, c4];
 	}
 
+	getDetectorPanelNormal(idx){
+		const vecs = this.getPanelDataByIdx(idx);
+		return vecs["fastAxis"].cross(vecs["slowAxis"]).normalize();
+
+	}
+
+
 
 }

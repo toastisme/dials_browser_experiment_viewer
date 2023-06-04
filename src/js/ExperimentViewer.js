@@ -12,6 +12,7 @@ class ExperimentViewer{
 		this.headerText = window.document.getElementById("headerText");
 		this.footerText = window.document.getElementById("footerText");
 		this.sidebar = window.document.getElementById("sidebar");
+		this.panelOutlineMeshes = {};
 		this.panelMeshes = {};
 		this.reflPointsObs = [];
 		this.reflPositionsObs = [];
@@ -152,6 +153,13 @@ class ExperimentViewer{
 
 	clearExperiment(){
 		
+		for (const i in this.panelOutlineMeshes){
+			window.scene.remove(this.panelOutlineMeshes[i]);
+			this.panelOutlineMeshes[i].geometry.dispose();
+			this.panelOutlineMeshes[i].material.dispose();
+		}
+		this.panelOutlineMeshes = {};
+
 		for (const i in this.panelMeshes){
 			window.scene.remove(this.panelMeshes[i]);
 			this.panelMeshes[i].geometry.dispose();
@@ -423,26 +431,43 @@ class ExperimentViewer{
 
 		var corners = this.expt.getDetectorPanelCorners(idx);
 		corners.push(corners[0]);
+		var panelName = this.expt.getDetectorPanelName(idx);
 
 		const planeGeometry = new THREE.PlaneGeometry(192, 192);
 		const planeMaterial = new THREE.MeshPhongMaterial({
 			color : ExperimentViewer.colors()["panel"],
-			opacity: 0.0,
+			opacity: 0.25,
 			transparent: true,
 			depthWrite: false
 		});
 		const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-		plane.name = this.expt.getDetectorPanelName(idx);
+		plane.name = panelName;
 
-		window.scene.add(plane);
+
 		var count = 0;
 		var idxs = [1,2,0,3]
+
+		// Rotate if not facing the origin
+		var normalVec = this.expt.getDetectorPanelNormal(idx);
+		var posVec = corners[0].clone();
+		posVec.add(corners[1].clone());
+		posVec.add(corners[2].clone());
+		posVec.add(corners[3].clone());
+		posVec.divideScalar(4).normalize();
+		if (posVec.dot(normalVec) < 0){
+			idxs = [0,3,1,2];
+		}
+
 		for (var i = 0; i < 12; i+=3){
 			plane.geometry.attributes.position.array[i] = corners[idxs[count]].x;
 			plane.geometry.attributes.position.array[i+1] = corners[idxs[count]].y;
 			plane.geometry.attributes.position.array[i+2] = corners[idxs[count]].z;
 			count++;
 		}
+
+		window.scene.add(plane);
+		this.panelMeshes[panelName] = plane;
+
 
 		const line = new MeshLine();
 		line.setPoints(corners);
@@ -452,7 +477,7 @@ class ExperimentViewer{
 			fog:true
 		});
 		const mesh = new THREE.Mesh(line, material);
-		this.panelMeshes[this.expt.getDetectorPanelName(idx)] = mesh;
+		this.panelOutlineMeshes[panelName] = mesh;
 		window.scene.add(mesh);
 
 	}
@@ -594,10 +619,10 @@ class ExperimentViewer{
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
-			if (name in this.panelMeshes){
+			if (name in this.panelOutlineMeshes){
 				this.displayHeaderText(name + " (" + this.getPanelPosition(intersects[0].point, name) + ")");
-				if (name in this.panelMeshes){
-					this.highlightObject(this.panelMeshes[name]);
+				if (name in this.panelOutlineMeshes){
+					this.highlightObject(this.panelOutlineMeshes[name]);
 				}
 			}
 		}
@@ -623,8 +648,8 @@ class ExperimentViewer{
 	}
 
 	resetPanelColors(){
-		for (var i in this.panelMeshes){
-			this.panelMeshes[i].material.color = this.panelColor;
+		for (var i in this.panelOutlineMeshes){
+			this.panelOutlineMeshes[i].material.color = this.panelColor;
 		}
 	}
 
