@@ -468,7 +468,6 @@ class ExperimentViewer{
 		window.scene.add(plane);
 		this.panelMeshes[panelName] = plane;
 
-
 		const line = new MeshLine();
 		line.setPoints(corners);
 		const material = new MeshLineMaterial({
@@ -618,12 +617,15 @@ class ExperimentViewer{
 		}
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		if (intersects.length > 0) {
-			const name = intersects[0].object.name;
-			if (name in this.panelOutlineMeshes){
-				this.displayHeaderText(name + " (" + this.getPanelPosition(intersects[0].point, name) + ")");
+			for (var i = 0; i < intersects.length; i++){
+				const name = intersects[i].object.name;
 				if (name in this.panelOutlineMeshes){
-					this.highlightObject(this.panelOutlineMeshes[name]);
+					this.displayHeaderText(name + " (" + this.getPanelPosition(intersects[i].point, name) + ")");
+					if (name in this.panelOutlineMeshes){
+						this.highlightObject(this.panelOutlineMeshes[name]);
+					}
 				}
+
 			}
 		}
 		else{
