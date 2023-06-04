@@ -476,7 +476,8 @@ class ExperimentViewer{
 			color: ExperimentViewer.colors()["beam"],
 			fog: true,
 			transparent: true,
-			opacity: 0.
+			opacity: 0.,
+			depthWrite: false
 		});
 		const incidentMesh = new THREE.Mesh(incidentLine, incidentMaterial);
 		this.beamMeshes["incident"] = incidentMesh;
@@ -498,6 +499,7 @@ class ExperimentViewer{
 			transparent: true,
 			opacity: .25,
 			fog: true,
+			depthWrite: false
 		});
 		const outgoingMesh = new THREE.Mesh(outgoingLine, outgoingMaterial);
 		this.beamMeshes["outgoing"] = outgoingMesh;
@@ -506,9 +508,11 @@ class ExperimentViewer{
 
 	addSample() {
 		const sphereGeometry = new THREE.SphereGeometry(5);
-		const sphereMaterial = new THREE.MeshBasicMaterial(
-			{ color: ExperimentViewer.colors()["sample"], 
-			transparent: true });
+		const sphereMaterial = new THREE.MeshBasicMaterial({ 
+			color: ExperimentViewer.colors()["sample"], 
+			transparent: true, 
+			depthWrite: false
+		});
 		const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
 		sphere.name = "sample";
 		this.sampleMesh = sphere;
@@ -637,16 +641,6 @@ class ExperimentViewer{
 		this.beamMeshes["incident"].material.opacity = opacity;
 		this.beamMeshes["outgoing"].material.opacity = opacity*.25;
 		this.sampleMesh.material.opacity = opacity;
-		if (opacity < 0.1){
-			this.beamMeshes["incident"].material.depthWrite = false;
-			this.beamMeshes["outgoing"].material.depthWrite = false;
-			this.sampleMesh.material.depthWrite = false;
-		}
-		else{
-			this.beamMeshes["incident"].material.depthWrite = true;
-			this.beamMeshes["outgoing"].material.depthWrite = true;
-			this.sampleMesh.material.depthWrite = true;
-		}
 	}
 
 	getClickedPanelPos(){
