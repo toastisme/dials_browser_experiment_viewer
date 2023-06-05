@@ -133,7 +133,7 @@ export class ReflParser{
 
 	getVec6Uint32Array(column_name){
 		const buffer = this.getColumnBuffer(column_name);
-		const arr = new Array(buffer.length/(8*3));
+		const arr = new Array(buffer.length/(6*4));
 		let count = 0;
 		for (let i = 0; i < buffer.length; i+=24){
 			const vec = new Uint32Array(6);
@@ -143,6 +143,21 @@ export class ReflParser{
 			vec[3] = buffer.readUInt32LE(i+12);
 			vec[4] = buffer.readUInt32LE(i+16);
 			vec[5] = buffer.readUInt32LE(i+20);
+			arr[count] = vec;
+			count++;
+		}
+		return arr;
+	}
+
+	getVec3Int32Array(column_name){
+		const buffer = this.getColumnBuffer(column_name);
+		const arr = new Array(buffer.length/(3*4));
+		let count = 0;
+		for (let i = 0; i < buffer.length; i+=12){
+			const vec = new Int32Array(3);
+			vec[0] = buffer.readInt32LE(i);
+			vec[1] = buffer.readInt32LE(i+4);
+			vec[2] = buffer.readInt32LE(i+8);
 			arr[count] = vec;
 			count++;
 		}
@@ -173,17 +188,29 @@ export class ReflParser{
 		return this.getVec6Uint32Array("bbox");
 	}
 
+	containsMillerIndices(){
+		return this.containsColumn("miller_index");
+	}
+
+	getMillerIndices(){
+		return this.getVec3Int32Array("miller_index");
+	}
+
 	loadReflectionData(){
 		const panelNums = this.getPanelNumbers();
 		var xyzObs;
 		var xyzCal;
 		var bboxes;
+		var millerIndices;
 		if (this.containsXYZObs()){
 			xyzObs = this.getXYZObs();
 		}
 		if (this.containsXYZCal()){
 			xyzCal = this.getXYZCal();
 		}	
+		if (this.containsMillerIndices()){
+			millerIndices = this.getMillerIndices();
+		}
 		bboxes = this.getBoundingBoxes();
 
 		console.assert(xyzObs || xyzCal);
@@ -200,6 +227,9 @@ export class ReflParser{
 			if (xyzCal){
 				refl["xyzCal"] = xyzCal[i];
 			}
+			if (millerIndices){
+				refl["millerIdx"] = millerIndices[i];
+			}
 			if (panel in this.reflData){
 				this.reflData[panel].push(refl);
 			}
@@ -207,7 +237,6 @@ export class ReflParser{
 				this.reflData[panel] = [refl];
 			}
 		}
-
 		this.numReflections = panelNums.length;
 	}
 
