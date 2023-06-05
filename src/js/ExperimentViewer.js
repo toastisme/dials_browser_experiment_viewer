@@ -13,7 +13,7 @@ class ExperimentViewer{
 		this.footerText = window.document.getElementById("footerText");
 		this.sidebar = window.document.getElementById("sidebar");
 		this.panelOutlineMeshes = {};
-		this.panelMeshes = {};
+		this.panelMeshes = [];
 		this.reflPointsObs = [];
 		this.reflPositionsObs = [];
 		this.reflPointsCal = [];
@@ -33,7 +33,7 @@ class ExperimentViewer{
 		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
 
-		this.displayingImageFilenames = false;
+		this.displayingTextFromHTMLEvent = false;
 
 		this.updateReflectionCheckboxStatus();
 		this.setDefaultReflectionsDisplay();
@@ -160,12 +160,12 @@ class ExperimentViewer{
 		}
 		this.panelOutlineMeshes = {};
 
-		for (const i in this.panelMeshes){
+		for (var i = 0; i < this.panelMeshes.length; i++){
 			window.scene.remove(this.panelMeshes[i]);
 			this.panelMeshes[i].geometry.dispose();
 			this.panelMeshes[i].material.dispose();
 		}
-		this.panelMeshes = {};
+		this.panelMeshes = [];
 
 		for (const i in this.beamMeshes){
 			window.scene.remove(this.beamMeshes[i]);
@@ -466,7 +466,7 @@ class ExperimentViewer{
 		}
 
 		window.scene.add(plane);
-		this.panelMeshes[panelName] = plane;
+		this.panelMeshes.push(plane);
 
 		const line = new MeshLine();
 		line.setPoints(corners);
@@ -593,16 +593,16 @@ class ExperimentViewer{
 
 	displayImageFilenames(){
 		this.displayHeaderText(this.expt.imageFilenames);
-		this.activelyDisplayingText = true;
+		this.displayingTextFromHTMLEvent = true;
 	}
 
 	displayNumberOfReflections(){
 		this.displayHeaderText(this.refl.numReflections + " reflections");
-		this.activelyDisplayingText = true;
+		this.displayingTextFromHTMLEvent = true;
 	}
 
 	stopDisplayingText(){
-		this.activelyDisplayingText = false;
+		this.displayingTextFromHTMLEvent = false;
 	}
 
 
@@ -611,26 +611,19 @@ class ExperimentViewer{
 	}
 
 	updateGUIInfo() {
-		const intersects = rayCaster.intersectObjects(window.scene.children);
-		if (this.activelyDisplayingText){
-			return;
-		}
-		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-		if (intersects.length > 0) {
-			for (var i = 0; i < intersects.length; i++){
-				const name = intersects[i].object.name;
-				if (name in this.panelOutlineMeshes){
-					this.displayHeaderText(name + " (" + this.getPanelPosition(intersects[i].point, name) + ")");
-					if (name in this.panelOutlineMeshes){
-						this.highlightObject(this.panelOutlineMeshes[name]);
-					}
-				}
 
+		function updatePanelInfo(viewer){
+			const intersects = window.rayCaster.intersectObjects(viewer.panelMeshes);
+			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+			if (intersects.length > 0) {
+				const name = intersects[0].object.name;
+				viewer.displayHeaderText(name + " (" + viewer.getPanelPosition(intersects[0].point, name) + ")");
+				viewer.highlightObject(viewer.panelOutlineMeshes[name]);
 			}
 		}
-		else{
-			this.displayDefaultHeaderText();
-		}
+		if (this.displayingTextFromHTMLEvent){ return; }
+		this.displayDefaultHeaderText();
+		updatePanelInfo(this);
 	}
 
 	getPanelPosition(globalPos, panelName){
