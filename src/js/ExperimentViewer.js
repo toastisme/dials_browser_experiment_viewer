@@ -561,6 +561,10 @@ class ExperimentViewer{
 		this.headerText.innerHTML = text;
 	}
 
+	appendHeaderText(text){
+		this.headerText.innerHTML += text;
+	}
+
 	hideHeaderText(){
 		this.headerText.style.display = "none";
 	}
@@ -621,9 +625,22 @@ class ExperimentViewer{
 				viewer.highlightObject(viewer.panelOutlineMeshes[name]);
 			}
 		}
+
+		function updateReflectionInfo(viewer){
+			const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObs);
+			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+			if (intersects.length > 0) {
+				for (var i = 0; i < intersects.length; i++){
+					viewer.appendHeaderText(" " + intersects[i].index);
+				}
+			}
+
+		}
+
 		if (this.displayingTextFromHTMLEvent){ return; }
 		this.displayDefaultHeaderText();
 		updatePanelInfo(this);
+		updateReflectionInfo(this);
 	}
 
 	getPanelPosition(globalPos, panelName){
