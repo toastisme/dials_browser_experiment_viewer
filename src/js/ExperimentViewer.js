@@ -21,7 +21,7 @@ class ExperimentViewer{
 		this.reflPointsCal = [];
 		this.reflPositionsCal = []
 		this.bboxMeshes = [];
-		this.beamMeshes = {};
+		this.beamMeshes = [];
 		this.axesMeshes = [];
 		this.sampleMesh = null;
 
@@ -52,7 +52,7 @@ class ExperimentViewer{
 			"sample" : 0xfdf6e3,
 			"reflectionObsUnindexed" : 0xFFFFFF,
 			"reflectionObsIndexed" : 0xe74c3c,
-			"reflectionCal" : 0xFFFFFF,
+			"reflectionCal" : 0xffaaaa,
 			"panel" : 0x119dff,
 			"highlight" : 0xFFFFFF,
 			"beam" : 0xFFFFFF,
@@ -213,12 +213,12 @@ class ExperimentViewer{
 		}
 		this.panelMeshes = [];
 
-		for (const i in this.beamMeshes){
+		for (var i = 0; i < this.beamMeshes.length; i++){
 			window.scene.remove(this.beamMeshes[i]);
 			this.beamMeshes[i].geometry.dispose();
 			this.beamMeshes[i].material.dispose();
 		}
-		this.beamMeshes = {};
+		this.beamMeshes = [];
 		if (this.sampleMesh){
 			window.scene.remove(this.sampleMesh);
 			this.sampleMesh.geometry.dispose();
@@ -596,7 +596,8 @@ class ExperimentViewer{
 			depthWrite: false
 		});
 		const incidentMesh = new THREE.Mesh(incidentLine, incidentMaterial);
-		this.beamMeshes["incident"] = incidentMesh;
+		incidentMesh.raycast = MeshLineRaycast;
+		this.beamMeshes.push(incidentMesh);
 		window.scene.add(incidentMesh);
 
 		var outgoingVertices = []
@@ -618,7 +619,8 @@ class ExperimentViewer{
 			depthWrite: false
 		});
 		const outgoingMesh = new THREE.Mesh(outgoingLine, outgoingMaterial);
-		this.beamMeshes["outgoing"] = outgoingMesh;
+		outgoingMesh.raycast = MeshLineRaycast;
+		this.beamMeshes.push(outgoingMesh);
 		window.scene.add(outgoingMesh);
 	}
 
@@ -740,6 +742,13 @@ class ExperimentViewer{
 		obj.material.color = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 	}
 
+	beamHidden(){
+		if (this.beamMeshes.length === 0){
+			return true;
+		}
+		return this.beamMeshes[0].material.opacity < 0.01;
+	}
+
 	updateGUIInfo() {
 
 		function updatePanelInfo(viewer){
@@ -761,13 +770,31 @@ class ExperimentViewer{
 					viewer.appendHeaderText(" (" + millerIdx+")");
 				}
 			}
+		}
 
+		function updateBeamInfo(viewer){
+			if (viewer.beamHidden()){
+				return;
+			}
+			const intersects = window.rayCaster.intersectObjects(viewer.beamMeshes);
+			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+			if (intersects.length > 0) {
+				const beamData = viewer.expt.getBeamData();
+				const direction = beamData["direction"];
+				const wavelength = beamData["wavelength"];
+				var text = "direction: (" + direction + "), ";
+				if (wavelength){
+					text += " wavelength: " + wavelength;
+				}
+				viewer.displayHeaderText(text);
+			}
 		}
 
 		if (this.displayingTextFromHTMLEvent){ return; }
 		this.displayDefaultHeaderText();
 		updatePanelInfo(this);
 		updateReflectionInfo(this);
+		updateBeamInfo(this);
 	}
 
 	getPanelPosition(globalPos, panelName){
@@ -792,7 +819,7 @@ class ExperimentViewer{
 		}
 	}
 
-	updateBeamAndSampleOpacity(){
+	updateOriginObjectsOpacity(){
 		if (!this.hasExperiment()){
 			return;
 		}
@@ -802,8 +829,8 @@ class ExperimentViewer{
 		const cameraDistance = Math.pow(cameraPos.x, 2) + Math.pow(cameraPos.y, 2) + Math.pow(cameraPos.z, 2);
 	 	var opacity = ((cameraDistance - minCameraDistance) / (maxCameraDistance - minCameraDistance));
 		opacity = Math.min(1., Math.max(opacity, 0.))
-		this.beamMeshes["incident"].material.opacity = opacity;
-		this.beamMeshes["outgoing"].material.opacity = opacity*.25;
+		this.beamMeshes[0].material.opacity = opacity;
+		this.beamMeshes[1].material.opacity = opacity*.25;
 		this.sampleMesh.material.opacity = opacity;
 		for (var i = 0; i < this.axesMeshes.length; i++){
 			this.axesMeshes[i].material.opacity = opacity * .5;
@@ -846,7 +873,7 @@ class ExperimentViewer{
 			return;
 		}
 		window.viewer.resetPanelColors();
-		window.viewer.updateBeamAndSampleOpacity();
+		window.viewer.updateOriginObjectsOpacity();
 		window.viewer.updateGUIInfo();
 		window.controls.update();
 		window.renderer.render(window.scene, window.camera);
