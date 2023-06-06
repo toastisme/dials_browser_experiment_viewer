@@ -57,6 +57,18 @@ export class ReflParser{
 		return true;
 	}
 
+	hasMillerIndicesData(){
+		if (!this.hasReflTable()){
+			return false;
+		}
+		for (var i in this.reflData){
+			if (!("millerIdx" in this.reflData[i][0])){
+				return false;
+			}
+		}
+		return true;
+	}
+
 	parseReflectionTable = (file) => {
 		const reader = new FileReader();
 
@@ -196,6 +208,10 @@ export class ReflParser{
 		return this.getVec3Int32Array("miller_index");
 	}
 
+	isValidMillerIndex(idx){
+		return Math.pow(idx[0], 2) + Math.pow(idx[1], 2) + Math.pow(idx[2], 2) > 1e-3;
+	}
+
 	loadReflectionData(){
 		const panelNums = this.getPanelNumbers();
 		var xyzObs;
@@ -219,7 +235,8 @@ export class ReflParser{
 		for (var i = 0; i < panelNums.length; i++){
 			const panel = panelNums[i];
 			const refl = {
-				"bbox" : bboxes[i]
+				"bbox" : bboxes[i],
+				"indexed" : false
 			};
 			if (xyzObs){
 				refl["xyzObs"] = xyzObs[i];
@@ -229,6 +246,9 @@ export class ReflParser{
 			}
 			if (millerIndices){
 				refl["millerIdx"] = millerIndices[i];
+				if (this.isValidMillerIndex(millerIndices[i])){
+					refl["indexed"] = true;
+				}
 			}
 			if (panel in this.reflData){
 				this.reflData[panel].push(refl);
