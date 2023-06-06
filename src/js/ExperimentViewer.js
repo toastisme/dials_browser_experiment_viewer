@@ -22,6 +22,7 @@ class ExperimentViewer{
 		this.reflPositionsCal = []
 		this.bboxMeshes = [];
 		this.beamMeshes = {};
+		this.axesMeshes = [];
 		this.sampleMesh = null;
 
 		this.closeExptButton = document.getElementById("closeExpt");
@@ -30,6 +31,7 @@ class ExperimentViewer{
 		this.observedUnindexedReflsCheckbox = document.getElementById("observedUnindexedReflections");
 		this.calculatedReflsCheckbox = document.getElementById("calculatedReflections");
 		this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
+		this.axesCheckbox = document.getElementById("showAxes");
 		this.reflectionSize = document.getElementById("reflectionSize");
 
 
@@ -54,13 +56,15 @@ class ExperimentViewer{
 			"panel" : 0x119dff,
 			"highlight" : 0xFFFFFF,
 			"beam" : 0xFFFFFF,
-			"bbox" : 0xFFFFFF
+			"bbox" : 0xFFFFFF,
+			"axes": [0xffaaaa, 0xaaffaa, 0xaaaaff]
 		};
 	}
 
 	static cameraPositions(){
 		return {
-			"default" : new THREE.Vector3(-1000, 0, 0),
+			"default" : new THREE.Vector3(0, 0, -1000),
+			"defaultWithExperiment" : new THREE.Vector3(-1000, 0, 0),
 			"centre" : new THREE.Vector3(0, 0, 0)
 		};
 	}
@@ -81,7 +85,7 @@ class ExperimentViewer{
 	}
 
 	updateObservedIndexedReflections(val=null){
-		if (val){
+		if (val !== null){
 			this.observedIndexedReflsCheckbox.checked = val;
 		}
 		for (var i = 0; i < this.reflPointsObsIndexed.length; i++){
@@ -91,7 +95,7 @@ class ExperimentViewer{
 	}
 
 	updateObservedUnindexedReflections(val=null){
-		if (val){
+		if (val !== null){
 			this.observedUnindexedReflsCheckbox.checked = val;
 		}
 		for (var i = 0; i < this.reflPointsObsUnindexed.length; i++){
@@ -101,7 +105,7 @@ class ExperimentViewer{
 	}
 
 	updateCalculatedReflections(val=null){
-		if (val){
+		if (val !== null){
 			this.calculatedReflsCheckbox.checked = val;
 		}
 		for (var i = 0; i < this.reflPointsCal.length; i++){
@@ -111,11 +115,21 @@ class ExperimentViewer{
 	}
 
 	updateBoundingBoxes(val=null){
-		if (val){
+		if (val !== null){
 			this.boundingBoxesCheckbox.checked = val;
 		}
 		for (var i = 0; i < this.bboxMeshes.length; i++){
 			this.bboxMeshes[i].visible = this.boundingBoxesCheckbox.checked;
+		}
+		this.requestRender();
+	}
+
+	updateAxes(val=null){
+		if (val !== null){
+			this.axesCheckbox.checked = val;
+		}
+		for (var i = 0; i < this.axesMeshes.length; i++){
+			this.axesMeshes[i].visible = this.axesCheckbox.checked;
 		}
 		this.requestRender();
 	}
@@ -229,7 +243,7 @@ class ExperimentViewer{
 		}
 		this.addBeam();
 		this.addSample();
-		this.setCameraToDefaultPosition();
+		this.setCameraToDefaultPositionWithExperiment();
 		this.showSidebar();
 		this.showCloseExptButton();
 		this.requestRender();
@@ -621,6 +635,36 @@ class ExperimentViewer{
 		window.scene.add(sphere);
 	}
 
+	addAxes(){
+		function addAxis(viewer, vertices, color){
+			const line = new MeshLine();
+			line.setPoints(vertices);
+			const Material = new MeshLineMaterial({
+				lineWidth:5,
+				color: color,
+				fog: true,
+				transparent: true,
+				opacity: 0.5,
+				depthWrite: false
+			});
+			const Mesh = new THREE.Mesh(line, Material);
+			viewer.axesMeshes.push(Mesh);
+			window.scene.add(Mesh);
+		}
+
+		const length = 200.;
+		this.axesMeshes = [];
+
+		const xVertices = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(length, 0, 0)];
+		const yVertices = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, length, 0)];
+		const zVertices = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, length)];
+
+		addAxis(this, xVertices, ExperimentViewer.colors()["axes"][0]);
+		addAxis(this, yVertices, ExperimentViewer.colors()["axes"][1]);
+		addAxis(this, zVertices, ExperimentViewer.colors()["axes"][2]);
+		this.axesCheckbox.disabled = false;
+	}
+
 	setCameraSmooth(position) {
 		this.rotateToPos(position);
 		window.controls.update();
@@ -628,6 +672,10 @@ class ExperimentViewer{
 
 	setCameraToDefaultPosition() {
 		this.setCameraSmooth(ExperimentViewer.cameraPositions()["default"]);
+	}
+
+	setCameraToDefaultPositionWithExperiment(){
+		this.setCameraSmooth(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
 	}
 
 	setCameraToCentrePosition() {
@@ -757,6 +805,9 @@ class ExperimentViewer{
 		this.beamMeshes["incident"].material.opacity = opacity;
 		this.beamMeshes["outgoing"].material.opacity = opacity*.25;
 		this.sampleMesh.material.opacity = opacity;
+		for (var i = 0; i < this.axesMeshes.length; i++){
+			this.axesMeshes[i].material.opacity = opacity * .5;
+		}
 	}
 
 	getClickedPanelPos(){
@@ -894,7 +945,7 @@ function setupScene(){
 
 	window.addEventListener('mousedown', function(event){
 		if (event.button == 2) { 
-			window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["default"]);
+			window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
 		}
 	});
 	window.addEventListener('keydown', function(event){
@@ -902,6 +953,9 @@ function setupScene(){
 			window.viewer.toggleSidebar();
 		}
 	});
+	window.viewer.addAxes();
+	window.viewer.updateAxes(false);
+	window.viewer.setCameraToDefaultPosition();
 	window.viewer.requestRender();
 }
 
