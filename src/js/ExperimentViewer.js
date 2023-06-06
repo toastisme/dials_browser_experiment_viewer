@@ -48,7 +48,7 @@ class ExperimentViewer{
 		return {
 			"background": 0x222222,
 			"sample" : 0xfdf6e3,
-			"reflectionObsUnindexed" : 0xe74c3c,
+			"reflectionObsUnindexed" : 0xFFFFFF,
 			"reflectionObsIndexed" : 0xe74c3c,
 			"reflectionCal" : 0xFFFFFF,
 			"panel" : 0x119dff,
@@ -124,21 +124,39 @@ class ExperimentViewer{
 		if (!this.hasReflectionTable()){
 			return;
 		}
-		if (this.refl.containsXYZObs() && this.reflPositionsUnindexed){
-			const reflGeometryObs = new THREE.BufferGeometry();
-			reflGeometryObs.setAttribute(
-				"position", new THREE.Float32BufferAttribute(this.reflPositionsUnindexed, 3)
-			);
+		if (this.refl.containsXYZObs()){
+			if (this.reflPointsObsUnindexed){
+				const reflGeometryObs = new THREE.BufferGeometry();
+				reflGeometryObs.setAttribute(
+					"position", new THREE.Float32BufferAttribute(this.reflPositionsUnindexed, 3)
+				);
 
-			const reflMaterialObs = new THREE.PointsMaterial({
-				size: this.reflectionSize.value,
-				transparent:true,
-				color: ExperimentViewer.colors()["reflectionObs"]
-			});
-			const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
-			this.clearReflPointsObs();
-			window.scene.add(pointsObs);
-			this.reflPointsObsUnindexed = [pointsObs];
+				const reflMaterialObs = new THREE.PointsMaterial({
+					size: this.reflectionSize.value,
+					transparent:true,
+					color: ExperimentViewer.colors()["reflectionObsUnindexed"]
+				});
+				const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
+				this.clearReflPointsObs();
+				window.scene.add(pointsObs);
+				this.reflPointsObsUnindexed = [pointsObs];
+			}
+			if (this.reflPointsObsIndexed){
+				const reflGeometryObs = new THREE.BufferGeometry();
+				reflGeometryObs.setAttribute(
+					"position", new THREE.Float32BufferAttribute(this.reflPositionsIndexed, 3)
+				);
+
+				const reflMaterialObs = new THREE.PointsMaterial({
+					size: this.reflectionSize.value,
+					transparent:true,
+					color: ExperimentViewer.colors()["reflectionObsIndexed"]
+				});
+				const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
+				this.clearReflPointsObs();
+				window.scene.add(pointsObs);
+				this.reflPointsObsIndexed = [pointsObs];
+			}
 		}
 
 		if (this.refl.containsXYZCal() && this.reflPositionsCal){
@@ -743,7 +761,7 @@ class ExperimentViewer{
 
 	getClickedPanelPos(){
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-		const intersects = rayCaster.intersectObjects(window.scene.children);
+		const intersects = rayCaster.intersectObjects(this.panelMeshes);
 		if (intersects.length > 0) {
 			return intersects[0].point;
 		}
@@ -752,7 +770,7 @@ class ExperimentViewer{
 
 	getClickedPanelCentroid(){
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-		const intersects = rayCaster.intersectObjects(window.scene.children);
+		const intersects = rayCaster.intersectObjects(this.panelMeshes);
 		if (intersects.length > 0) {
 			return window.viewer.getPanelCentroid(intersects[0].object.name);
 		}
