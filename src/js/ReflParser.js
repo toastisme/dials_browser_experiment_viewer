@@ -6,6 +6,8 @@ export class ReflParser{
 	constructor(){
 		this.refl = null;
 		this.reflData = {};
+		this.indexedMap = {};
+		this.unindexedMap = {};
 		this.filename = null;
 		this.numReflections = null
 	}
@@ -232,6 +234,8 @@ export class ReflParser{
 		console.assert(xyzObs || xyzCal);
 		console.assert(bboxes);
 
+		var numUnindexed = 0;
+		var numIndexed = 0;
 		for (var i = 0; i < panelNums.length; i++){
 			const panel = panelNums[i];
 			const refl = {
@@ -248,7 +252,18 @@ export class ReflParser{
 				refl["millerIdx"] = millerIndices[i];
 				if (this.isValidMillerIndex(millerIndices[i])){
 					refl["indexed"] = true;
+					refl["id"] = numIndexed;
+					this.indexedMap[numIndexed] = millerIndices[i];
+					numIndexed++; 
 				}
+				else{
+					refl["id"] = numUnindexed;
+					numUnindexed++;
+				}
+			}
+			else{
+				refl["id"] = numUnindexed;
+				numUnindexed++;
 			}
 			if (panel in this.reflData){
 				this.reflData[panel].push(refl);
@@ -258,6 +273,10 @@ export class ReflParser{
 			}
 		}
 		this.numReflections = panelNums.length;
+	}
+
+	getMillerIndexById(id){
+		return this.indexedMap[id];
 	}
 
 	getReflectionsForPanel(panelIdx){

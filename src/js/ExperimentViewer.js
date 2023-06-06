@@ -681,17 +681,18 @@ class ExperimentViewer{
 			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 			if (intersects.length > 0) {
 				const name = intersects[0].object.name;
-				viewer.displayHeaderText(name + " (" + viewer.getPanelPosition(intersects[0].point, name) + ")");
+				viewer.displayHeaderText(name + " [" + viewer.getPanelPosition(intersects[0].point, name) + "]");
 				viewer.highlightObject(viewer.panelOutlineMeshes[name]);
 			}
 		}
 
 		function updateReflectionInfo(viewer){
-			const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsUnindexed);
+			const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed);
 			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 			if (intersects.length > 0) {
 				for (var i = 0; i < intersects.length; i++){
-					viewer.appendHeaderText(" " + intersects[i].index);
+					const millerIdx = viewer.refl.getMillerIndexById(intersects[i].index); 
+					viewer.appendHeaderText(" (" + millerIdx+")");
 				}
 			}
 
