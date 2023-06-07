@@ -154,6 +154,7 @@ class ExperimentViewer{
 				this.clearReflPointsObs();
 				window.scene.add(pointsObs);
 				this.reflPointsObsUnindexed = [pointsObs];
+				this.updateObservedUnindexedReflections();
 			}
 			if (this.reflPointsObsIndexed){
 				const reflGeometryObs = new THREE.BufferGeometry();
@@ -170,6 +171,7 @@ class ExperimentViewer{
 				this.clearReflPointsObs();
 				window.scene.add(pointsObs);
 				this.reflPointsObsIndexed = [pointsObs];
+				this.updateObservedIndexedReflections();
 			}
 		}
 
@@ -188,6 +190,7 @@ class ExperimentViewer{
 			this.clearReflPointsCal();
 			window.scene.add(pointsCal);
 			this.reflPointsCal = [pointsCal];
+			this.updateCalculatedReflections();
 		}
 		this.requestRender();
 
