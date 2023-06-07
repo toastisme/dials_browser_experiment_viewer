@@ -151,7 +151,7 @@ class ExperimentViewer{
 					color: ExperimentViewer.colors()["reflectionObsUnindexed"]
 				});
 				const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
-				this.clearReflPointsObs();
+				this.clearReflPointsObsUnindexed();
 				window.scene.add(pointsObs);
 				this.reflPointsObsUnindexed = [pointsObs];
 				this.updateObservedUnindexedReflections();
@@ -168,7 +168,7 @@ class ExperimentViewer{
 					color: ExperimentViewer.colors()["reflectionObsIndexed"]
 				});
 				const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
-				this.clearReflPointsObs();
+				this.clearReflPointsObsIndexed();
 				window.scene.add(pointsObs);
 				this.reflPointsObsIndexed = [pointsObs];
 				this.updateObservedIndexedReflections();
@@ -266,20 +266,22 @@ class ExperimentViewer{
 		return (this.refl.hasReflTable());
 	}
 
-	clearReflPointsObs(){
-		for (var i = 0; i < this.reflPointsObsUnindexed.length; i++){
-			window.scene.remove(this.reflPointsObsUnindexed[i]);
-			this.reflPointsObsUnindexed[i].geometry.dispose();
-			this.reflPointsObsUnindexed[i].material.dispose();
-		}
-		this.reflPointsObsUnindexed = [];
-
+	clearReflPointsObsIndexed(){
 		for (var i = 0; i < this.reflPointsObsIndexed.length; i++){
 			window.scene.remove(this.reflPointsObsIndexed[i]);
 			this.reflPointsObsIndexed[i].geometry.dispose();
 			this.reflPointsObsIndexed[i].material.dispose();
 		}
 		this.reflPointsObsIndexed = [];
+	}
+
+	clearReflPointsObsUnindexed(){
+		for (var i = 0; i < this.reflPointsObsUnindexed.length; i++){
+			window.scene.remove(this.reflPointsObsUnindexed[i]);
+			this.reflPointsObsUnindexed[i].geometry.dispose();
+			this.reflPointsObsUnindexed[i].material.dispose();
+		}
+		this.reflPointsObsUnindexed = [];
 	}
 
 	clearReflPointsCal(){
@@ -301,7 +303,8 @@ class ExperimentViewer{
 	}
 
 	clearReflectionTable(){
-		this.clearReflPointsObs();
+		this.clearReflPointsObsIndexed();
+		this.clearReflPointsObsUnindexed();
 		this.clearReflPointsCal();
 		this.clearBoundingBoxes();
 		this.refl.clearReflectionTable();
@@ -495,8 +498,8 @@ class ExperimentViewer{
 		else if (this.reflPointsCal.length > 0){
 			this.showCalculatedReflections(true);
 			this.calculatedReflsCheckbox.checked = true;
-			this.observedIndexedReflsChecbox.checked = false;
-			this.observedUnindexedReflsChecbox.checked = false;
+			this.observedIndexedReflsCheckbox.checked = false;
+			this.observedUnindexedReflsCheckbox.checked = false;
 		}
 		/*
 		 * Bboxes off by default as they can be expensive for 
@@ -645,7 +648,7 @@ class ExperimentViewer{
 			const line = new MeshLine();
 			line.setPoints(vertices);
 			const Material = new MeshLineMaterial({
-				lineWidth:5,
+				lineWidth: 5,
 				color: color,
 				fog: true,
 				transparent: true,
