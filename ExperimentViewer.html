@@ -20,19 +20,19 @@
 		<b>double left click</b> = focus on panel <br>
 		<b>right click</b> = reset view <br>
 		<b>mouse wheel</b> = zoom<br>
-		-------------------------------------------------------<br>
-		<span style="color: #e74c3c"><b>observed indexed reflections:</b> </span><input type="checkbox" 
-		id="observedIndexedReflections", checked=false, 
-		onclick="window.viewer.updateObservedIndexedReflections()", disabled=true>
-		<b>observed unindexed reflections:</b> <input type="checkbox" 
+		--------------------------------------------------<br>
+		<b>unindexed reflections:</b> <input type="checkbox" 
 		id="observedUnindexedReflections", checked=false, 
 		onclick="window.viewer.updateObservedUnindexedReflections()", disabled=true>
+		<span style="color: #e74c3c"><b>indexed reflections:</b> </span><input type="checkbox" 
+		id="observedIndexedReflections", checked=false, 
+		onclick="window.viewer.updateObservedIndexedReflections()", disabled=true>
 		<span style="color: #ffaaaa"><b>calculated reflections:</b> </span><input type="checkbox" 
 		id="calculatedReflections", checked=false, 
 		onclick="window.viewer.updateCalculatedReflections()", disabled=true>
 		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes", 
 		checked=false, onclick="window.viewer.updateBoundingBoxes()", disabled=true>
-		<b>show axes:</b> <input type="checkbox" id="showAxes", 
+		<b>axes:</b> <input type="checkbox" id="showAxes", 
 		checked=false, onclick="window.viewer.updateAxes()", disabled=false>
 		<b>reflection size:</b>  <input type="range" min="1" max="15" value="1" 
 		class="slider" id="reflectionSize" 

@@ -858,6 +858,14 @@ class ExperimentViewer{
 		if (intersects.length > 0) {
 			return window.viewer.getPanelCentroid(intersects[0].object.name);
 		}
+	}
+
+	getClickedPanelMesh(){
+		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+		const intersects = rayCaster.intersectObjects(this.panelMeshes);
+		if (intersects.length > 0) {
+			return intersects[0].object;
+		}
 
 	}
 
@@ -872,6 +880,40 @@ class ExperimentViewer{
 				window.viewer.requestRender();
 			}
 		} );
+	}
+
+	zoomInOnPanel(panel, fitOffset=1.1){
+
+		const size = new THREE.Vector3();
+		const center = new THREE.Vector3();
+		const box = new THREE.Box3();
+
+		box.makeEmpty();
+		box.expandByObject(panel);
+		
+		box.getSize(size);
+		box.getCenter(center);
+		
+		const maxSize = Math.max(size.x, size.y, size.z);
+		const fitHeightDistance = maxSize / (2 * Math.atan(Math.PI * window.camera.fov / 360));
+		const fitWidthDistance = fitHeightDistance / window.camera.aspect;
+		const distance = fitOffset * Math.max(fitHeightDistance, fitWidthDistance);
+		
+		const direction = center.clone()
+			.normalize()
+			.multiplyScalar(distance);
+
+		const target = center.clone().sub(direction);
+		gsap.to( window.camera.position, {
+			duration: 1,
+			x: target.x,
+			y: target.y,
+			z: target.z, 
+			onUpdate: function() {
+				window.viewer.requestRender();
+			}
+		} );
+		window.controls.update();
 	}
 
 	animate() {
@@ -970,9 +1012,9 @@ function setupScene(){
 	});
 
 	window.addEventListener('dblclick', function(event){
-		var pos = window.viewer.getClickedPanelCentroid();
-		if (pos){
-			window.viewer.rotateToPos(pos);
+		var panel = window.viewer.getClickedPanelMesh();
+		if (panel){
+			window.viewer.zoomInOnPanel(panel);
 		}
 	});
 
