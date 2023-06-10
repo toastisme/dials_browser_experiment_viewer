@@ -20,7 +20,8 @@ class ExperimentViewer{
 		this.reflPositionsIndexed = [];
 		this.reflPointsCal = [];
 		this.reflPositionsCal = []
-		this.bboxMeshes = [];
+		this.bboxMeshesUnindexed = [];
+		this.bboxMeshesIndexed = [];
 		this.beamMeshes = [];
 		this.axesMeshes = [];
 		this.sampleMesh = null;
@@ -88,8 +89,11 @@ class ExperimentViewer{
 		if (val !== null){
 			this.observedIndexedReflsCheckbox.checked = val;
 		}
-		for (var i = 0; i < this.reflPointsObsIndexed.length; i++){
-			this.reflPointsObsIndexed[i].visible = this.observedIndexedReflsCheckbox.checked;
+		this.reflPointsObsIndexed[0].visible = this.observedIndexedReflsCheckbox.checked;
+		const showBbox = this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
+
+		for (var i = 0; i < this.bboxMeshesIndexed.length; i++){
+			this.bboxMeshesIndexed[i].visible = showBbox;
 		}
 		this.requestRender();
 	}
@@ -98,8 +102,11 @@ class ExperimentViewer{
 		if (val !== null){
 			this.observedUnindexedReflsCheckbox.checked = val;
 		}
-		for (var i = 0; i < this.reflPointsObsUnindexed.length; i++){
-			this.reflPointsObsUnindexed[i].visible = this.observedUnindexedReflsCheckbox.checked;
+		this.reflPointsObsUnindexed[0].visible = this.observedUnindexedReflsCheckbox.checked;
+		const showBbox = this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
+
+		for (var i = 0; i < this.bboxMeshesUnindexed.length; i++){
+			this.bboxMeshesUnindexed[i].visible = showBbox;
 		}
 		this.requestRender();
 	}
@@ -118,8 +125,25 @@ class ExperimentViewer{
 		if (val !== null){
 			this.boundingBoxesCheckbox.checked = val;
 		}
-		for (var i = 0; i < this.bboxMeshes.length; i++){
-			this.bboxMeshes[i].visible = this.boundingBoxesCheckbox.checked;
+		if (this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked){
+			for (var i = 0; i < this.bboxMeshesIndexed.length; i++){
+				this.bboxMeshesIndexed[i].visible = true;
+			}
+		}
+		else{
+			for (var i = 0; i < this.bboxMeshesIndexed.length; i++){
+				this.bboxMeshesIndexed[i].visible = false;
+			}
+		}
+		if (this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked){
+			for (var i = 0; i < this.bboxMeshesUnindexed.length; i++){
+				this.bboxMeshesUnindexed[i].visible = true;
+			}
+		}
+		else{
+			for (var i = 0; i < this.bboxMeshesUnindexed.length; i++){
+				this.bboxMeshesUnindexed[i].visible = false;
+			}
 		}
 		this.requestRender();
 	}
@@ -294,12 +318,19 @@ class ExperimentViewer{
 	}
 
 	clearBoundingBoxes(){
-		for (var i = 0; i < this.bboxMeshes.length; i++){
-			window.scene.remove(this.bboxMeshes[i]);
-			this.bboxMeshes[i].geometry.dispose();
-			this.bboxMeshes[i].material.dispose();
+		for (var i = 0; i < this.bboxMeshesIndexed.length; i++){
+			window.scene.remove(this.bboxMeshesIndexed[i]);
+			this.bboxMeshesIndexed[i].geometry.dispose();
+			this.bboxMeshesIndexed[i].material.dispose();
 		}
-		this.bboxMeshes = [];
+		this.bboxMeshesIndexed = [];
+
+		for (var i = 0; i < this.bboxMeshesUnindexed.length; i++){
+			window.scene.remove(this.bboxMeshesUnindexed[i]);
+			this.bboxMeshesUnindexed[i].geometry.dispose();
+			this.bboxMeshesUnindexed[i].material.dispose();
+		}
+		this.bboxMeshesUnindexed = [];
 	}
 
 	clearReflectionTable(){
@@ -335,6 +366,18 @@ class ExperimentViewer{
 	}
 
 	addReflections(){
+
+		function getBboxMesh(bbox, bboxMaterial, viewer, pOrigin, fa, sa, pxSize){
+			const c1 = viewer.mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
+			const c2 = viewer.mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
+			const c3 = viewer.mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
+			const c4 = viewer.mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
+			const corners = [c1, c2, c3, c4, c1];
+			const bboxGeometry = new THREE.BufferGeometry().setFromPoints( corners );
+			const bboxLines = new THREE.Line( bboxGeometry, bboxMaterial );
+			return bboxLines;
+		}
+
 		if (!this.hasReflectionTable()){
 			console.warn("Tried to add reflections but no table has been loaded");
 			return;
@@ -370,16 +413,21 @@ class ExperimentViewer{
 					const xyzObs = panelReflections[j]["xyzObs"];
 					const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
 
+					const bboxMesh = getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
+
 					if (containsMillerIndices && panelReflections[j]["indexed"]){
 						positionsObsIndexed.push(globalPosObs.x);
 						positionsObsIndexed.push(globalPosObs.y);
 						positionsObsIndexed.push(globalPosObs.z);
+						this.bboxMeshesIndexed.push(bboxMesh);
 					}
 					else{
 						positionsObsUnindexed.push(globalPosObs.x);
 						positionsObsUnindexed.push(globalPosObs.y);
 						positionsObsUnindexed.push(globalPosObs.z);
+						this.bboxMeshesUnindexed.push(bboxMesh);
 					}
+					window.scene.add(bboxMesh);
 
 				}
 				if (containsXYZCal){
@@ -389,18 +437,6 @@ class ExperimentViewer{
 					positionsCal.push(globalPosCal.y);
 					positionsCal.push(globalPosCal.z);
 				}
-
-				// bbox (1 mesh per reflection, so more expensive to render) 
-				const bbox = panelReflections[j]["bbox"];
-				const c1 = this.mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
-				const c2 = this.mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
-				const c3 = this.mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
-				const c4 = this.mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
-				const corners = [c1, c2, c3, c4, c1];
-				const bboxGeometry = new THREE.BufferGeometry().setFromPoints( corners );
-				const bboxLines = new THREE.Line( bboxGeometry, bboxMaterial );
-				this.bboxMeshes.push(bboxLines);
-				window.scene.add(bboxLines);
 			}
 		}
 
@@ -910,6 +946,7 @@ class ExperimentViewer{
 			y: target.y,
 			z: target.z, 
 			onUpdate: function() {
+				window.camera.lookAt(target);
 				window.viewer.requestRender();
 			}
 		} );
