@@ -1,5 +1,4 @@
-//import {decode} from "msgpack-js-browser";
-import {decode} from "msgpack-lite";
+import { deserialize } from "@ygoe/msgpack";
 
 export class ReflParser{
 
@@ -82,15 +81,7 @@ export class ReflParser{
 
 			reader.onloadend = () => {
 				resolve(reader.result);
-				/*
-				var arr = new Uint8Array(reader.result);
-				var buffer = arr.buffer;
-				console.log(arr);
-				console.log(buffer)
-				const decoded = decode(buffer);
-				console.log("decodedBuffer", decoded);
-				*/
-				const decoded = decode(new Uint8Array(reader.result));
+				const decoded = deserialize(new Uint8Array(reader.result));
 				this.refl = decoded[2]["data"];
 				this.loadReflectionData();
 			};
@@ -107,24 +98,26 @@ export class ReflParser{
 		return this.refl[column_name][1][1];
 	}
 
-	getUint32Array(column_name){
+	getUint32Array(column_name) {
 		const buffer = this.getColumnBuffer(column_name);
-		const arr = new Uint32Array(buffer.length/8);
+		const dataView = new DataView(buffer.buffer);
+		const arr = new Uint32Array(buffer.byteLength / 8);
 		let count = 0;
-		for (let i = 0; i < buffer.length; i+=8) {
-			arr[count] = buffer.readUInt32LE(i);
+		
+		for (let i = 0; i < buffer.byteLength; i += 8) {
+			arr[count] = dataView.getUint32(buffer.byteOffset + i, true); 
 			count++;
 		}
 		return arr;
-
 	}
 
 	getDoubleArray(column_name){
 		const buffer = this.getColumnBuffer(column_name);
+		const dataView = new DataView(buffer.buffer);
 		const arr = new Float64Array(buffer.length/8);
 		let count = 0;
-		for (let i = 0; i < buffer.length; i+=8) {
-		arr[count] = buffer.readDoubleLE(i);
+		for (let i = 0; i < buffer.byteLength; i+=8) {
+		arr[count] = dataView.getFloat64(buffer.byteOffset + i, true);
 		count++;
 		}
 		return arr;
@@ -132,13 +125,14 @@ export class ReflParser{
 
 	getVec3DoubleArray(column_name){
 		const buffer = this.getColumnBuffer(column_name);
+		const dataView = new DataView(buffer.buffer);
 		const arr = new Array(buffer.length/(8*3));
 		let count = 0;
-		for (let i = 0; i < buffer.length; i+=24){
+		for (let i = 0; i < buffer.byteLength; i+=24){
 			const vec = new Float64Array(3);
-			vec[0] = buffer.readDoubleLE(i);
-			vec[1] = buffer.readDoubleLE(i+8);
-			vec[2] = buffer.readDoubleLE(i+16);
+			vec[0] = dataView.getFloat64(buffer.byteOffset + i, true);
+			vec[1] = dataView.getFloat64(buffer.byteOffset + i+8, true);
+			vec[2] = dataView.getFloat64(buffer.byteOffset + i+16, true);
 			arr[count] = vec;
 			count++;
 		}
@@ -148,15 +142,16 @@ export class ReflParser{
 	getVec6Uint32Array(column_name){
 		const buffer = this.getColumnBuffer(column_name);
 		const arr = new Array(buffer.length/(6*4));
+		const dataView = new DataView(buffer.buffer);
 		let count = 0;
 		for (let i = 0; i < buffer.length; i+=24){
 			const vec = new Uint32Array(6);
-			vec[0] = buffer.readUInt32LE(i);
-			vec[1] = buffer.readUInt32LE(i+4);
-			vec[2] = buffer.readUInt32LE(i+8);
-			vec[3] = buffer.readUInt32LE(i+12);
-			vec[4] = buffer.readUInt32LE(i+16);
-			vec[5] = buffer.readUInt32LE(i+20);
+			vec[0] = dataView.getUint32(buffer.byteOffset + i, true);
+			vec[1] = dataView.getUint32(buffer.byteOffset + i+4, true);
+			vec[2] = dataView.getUint32(buffer.byteOffset + i+8, true);
+			vec[3] = dataView.getUint32(buffer.byteOffset + i+12, true);
+			vec[4] = dataView.getUint32(buffer.byteOffset + i+16, true);
+			vec[5] = dataView.getUint32(buffer.byteOffset + i+20, true);
 			arr[count] = vec;
 			count++;
 		}
@@ -166,12 +161,13 @@ export class ReflParser{
 	getVec3Int32Array(column_name){
 		const buffer = this.getColumnBuffer(column_name);
 		const arr = new Array(buffer.length/(3*4));
+		const dataView = new DataView(buffer.buffer);
 		let count = 0;
 		for (let i = 0; i < buffer.length; i+=12){
 			const vec = new Int32Array(3);
-			vec[0] = buffer.readInt32LE(i);
-			vec[1] = buffer.readInt32LE(i+4);
-			vec[2] = buffer.readInt32LE(i+8);
+			vec[0] = dataView.getInt32(buffer.byteOffset + i, true);
+			vec[1] = dataView.getInt32(buffer.byteOffset + i+4, true);
+			vec[2] = dataView.getInt32(buffer.byteOffset + i+8, true);
 			arr[count] = vec;
 			count++;
 		}
