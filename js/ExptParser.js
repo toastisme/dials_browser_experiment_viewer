@@ -8,6 +8,7 @@ export class ExptParser{
 		this.panelCentroids = {};
 		this.filename = null;
 		this.imageFilenames = null;
+		this.crystalSummary = null;
 	}
 
 	hasExptJSON(){
@@ -28,6 +29,7 @@ export class ExptParser{
 		this.panelCentroids = {};
 		this.filename = null;
 		this.imageFilenames = null;
+		this.crystalSummary = null;
 	}
 
 	parseExperiment = (file) => {
@@ -44,6 +46,7 @@ export class ExptParser{
 				if (ExptParser.isDIALSExpt(file, reader.result)){
 					this.exptJSON = JSON.parse(reader.result);
 					this.loadPanelData();
+					this.loadCrystalSummary();
 					this.filename = file.name;
 					this.imageFilenames = this.getImageFilenames();
 				}
@@ -79,6 +82,52 @@ export class ExptParser{
 	getBeamData(){
 		return this.exptJSON["beam"][0];
 	}
+
+	getBeamSummary(){
+		const beamData = this.getBeamData();
+		const direction = beamData["direction"];
+		const wavelength = beamData["wavelength"];
+		var text = "direction: (" + direction + "), ";
+		if (wavelength){
+			text += " wavelength: " + wavelength;
+		}
+		return text;
+	}
+
+	getCrystalData(){
+		return this.exptJSON["crystal"][0];
+	}
+
+	loadCrystalSummary(){
+		const crystalData = this.getCrystalData();
+		const aRaw = crystalData["real_space_a"];
+		const aVec = new THREE.Vector3(aRaw[0], aRaw[1], aRaw[2]);
+		const bRaw = crystalData["real_space_b"];
+		const bVec = new THREE.Vector3(bRaw[0], bRaw[1], bRaw[2]);
+		const cRaw = crystalData["real_space_c"];
+		const cVec = new THREE.Vector3(cRaw[0], cRaw[1], cRaw[2]);
+
+		const a = aVec.length().toFixed(3);
+		const b = bVec.length().toFixed(3);
+		const c = cVec.length().toFixed(3);
+
+		const alpha = (bVec.angleTo(cVec) * (180./Math.PI)).toFixed(3);
+		const beta = (aVec.angleTo(cVec) * (180./Math.PI)).toFixed(3);
+		const gamma = (aVec.angleTo(bVec) * (180./Math.PI)).toFixed(3);
+
+		var text = "a: " + a + " b: " + b + " c: " + c;
+		text += " alpha: " + alpha + " beta: " + beta + " gamma: " + gamma;
+		text += " (" + crystalData["space_group_hall_symbol"] + ")";
+		this.crystalSummary = text;
+	}
+
+	getCrystalSummary(){
+		if (this.crystalSummary === null){
+			this.loadCrystalSummary();
+		}
+		return this.crystalSummary;
+	}
+
 
 	getPanelDataByName(name){
 		const idx = this.nameIdxMap[name];

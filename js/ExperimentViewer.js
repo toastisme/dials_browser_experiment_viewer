@@ -791,6 +791,13 @@ class ExperimentViewer{
 		return this.beamMeshes[0].material.opacity < 0.01;
 	}
 
+	sampleHidden(){
+		if (this.sampleMesh === null){
+			return true;
+		}
+		return this.sampleMesh.material.opacity < 0.01;
+	}
+
 	updateGUIInfo() {
 
 		function updatePanelInfo(viewer){
@@ -821,22 +828,31 @@ class ExperimentViewer{
 			const intersects = window.rayCaster.intersectObjects(viewer.beamMeshes);
 			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 			if (intersects.length > 0) {
-				const beamData = viewer.expt.getBeamData();
-				const direction = beamData["direction"];
-				const wavelength = beamData["wavelength"];
-				var text = "direction: (" + direction + "), ";
-				if (wavelength){
-					text += " wavelength: " + wavelength;
-				}
+				const text = "<b>beam: </b>" + viewer.expt.getBeamSummary();
 				viewer.displayHeaderText(text);
 			}
 		}
+
+		function updateCrystalInfo(viewer){
+			if (viewer.sampleHidden()){
+				return;
+			}
+			const intersects = window.rayCaster.intersectObjects([viewer.sampleMesh]);
+			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+			if (intersects.length > 0) {
+				const text = "<b>crystal: </b>" + viewer.expt.getCrystalSummary();
+				viewer.displayHeaderText(text);
+			}
+
+		}
+
 
 		if (this.displayingTextFromHTMLEvent){ return; }
 		this.displayDefaultHeaderText();
 		updatePanelInfo(this);
 		updateReflectionInfo(this);
 		updateBeamInfo(this);
+		updateCrystalInfo(this);
 	}
 
 	getPanelPosition(globalPos, panelName){
