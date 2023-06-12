@@ -1,4 +1,4 @@
-import { deserialize } from "@ygoe/msgpack";
+import { deserialize } from "https://cdn.skypack.dev/@ygoe/msgpack";
 
 export class ReflParser{
 
