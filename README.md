@@ -9,6 +9,8 @@ An open source tool to view [DIALS](https://github.com/dials/dials) [experiment 
 - Drag .refl files into the browser to view reflection centroids and bounding boxes in lab space
 - Realtime panel coordinates of mouse position
 - Hover over indexed reflections to see Miller indices
+- Hover over sample to see unit cell
+- Hover over beam to see beam direction, and wavelength (if monochromatic)
 - Compare calculated reflections of current model against observed reflections
 
 ## Limitations
