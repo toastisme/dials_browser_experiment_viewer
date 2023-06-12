@@ -7,11 +7,25 @@ import { ReflParser } from "./ReflParser.js";
 
 class ExperimentViewer{
 	constructor(exptParser, reflParser){
+
+		// Data parsers
 		this.expt = exptParser;
 		this.refl = reflParser;
+
+		// Html elements
 		this.headerText = window.document.getElementById("headerText");
 		this.footerText = window.document.getElementById("footerText");
 		this.sidebar = window.document.getElementById("sidebar");
+		this.closeExptButton = document.getElementById("closeExpt");
+		this.closeReflButton = document.getElementById("closeRefl");
+		this.observedIndexedReflsCheckbox = document.getElementById("observedIndexedReflections");
+		this.observedUnindexedReflsCheckbox = document.getElementById("observedUnindexedReflections");
+		this.calculatedReflsCheckbox = document.getElementById("calculatedReflections");
+		this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
+		this.axesCheckbox = document.getElementById("showAxes");
+		this.reflectionSize = document.getElementById("reflectionSize");
+
+		// Bookkeeping for meshes
 		this.panelOutlineMeshes = {};
 		this.panelMeshes = [];
 		this.reflPointsObsUnindexed = [];
@@ -25,16 +39,6 @@ class ExperimentViewer{
 		this.beamMeshes = [];
 		this.axesMeshes = [];
 		this.sampleMesh = null;
-
-		this.closeExptButton = document.getElementById("closeExpt");
-		this.closeReflButton = document.getElementById("closeRefl");
-		this.observedIndexedReflsCheckbox = document.getElementById("observedIndexedReflections");
-		this.observedUnindexedReflsCheckbox = document.getElementById("observedUnindexedReflections");
-		this.calculatedReflsCheckbox = document.getElementById("calculatedReflections");
-		this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
-		this.axesCheckbox = document.getElementById("showAxes");
-		this.reflectionSize = document.getElementById("reflectionSize");
-
 
 		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
 		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
@@ -558,7 +562,6 @@ class ExperimentViewer{
 		this.observedIndexedReflsCheckbox.disabled = !this.refl.hasMillerIndicesData();
 		this.calculatedReflsCheckbox.disabled = !this.refl.hasXYZCalData();
 		this.boundingBoxesCheckbox.disabled = !this.refl.hasBboxData();
-
 	}
 
 	addDetectorPanelOutline(idx){
@@ -840,7 +843,6 @@ class ExperimentViewer{
 	}
 
 	getPanelPosition(globalPos, panelName){
-
 		const data = this.expt.getPanelDataByName(panelName);
 		const pos = data["origin"].sub(globalPos);
 		const fa = data["fastAxis"].normalize();
