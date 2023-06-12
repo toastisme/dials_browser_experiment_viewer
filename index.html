@@ -20,15 +20,23 @@
 		<b>double left click</b> = focus on panel <br>
 		<b>right click</b> = reset view <br>
 		<b>mouse wheel</b> = zoom<br>
-		--------------------------------------------------<br>
-		<b>observed reflections:</b> <input type="checkbox" 
-		id="observedReflections", checked=false, 
-		onclick="window.viewer.updateObservedReflections()", disabled=true>
-		<b>calculated reflections:</b> <input type="checkbox" 
+		-------------------------------------------------------<br>
+		<b>unindexed reflections:</b> <input type="checkbox" 
+		id="observedUnindexedReflections", checked=false, 
+		onclick="window.viewer.updateObservedUnindexedReflections()", disabled=true>
+		<span style="color: #e74c3c"><b>observed indexed reflections:</b> </span><input type="checkbox" 
+		id="observedIndexedReflections", checked=false, 
+		onclick="window.viewer.updateObservedIndexedReflections()", disabled=true>
+		<span style="color: #ffaaaa"><b>calculated reflections:</b> </span><input type="checkbox" 
 		id="calculatedReflections", checked=false, 
 		onclick="window.viewer.updateCalculatedReflections()", disabled=true>
 		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes", 
 		checked=false, onclick="window.viewer.updateBoundingBoxes()", disabled=true>
+		<b>show axes:</b> <input type="checkbox" id="showAxes", 
+		checked=false, onclick="window.viewer.updateAxes()", disabled=false>
+		<b>reflection size:</b>  <input type="range" min="1" max="15" value="1" 
+		class="slider" id="reflectionSize" 
+		onmouseup="window.viewer.updateReflectionSize()">
 	</sidebar>
 	<footer id="footerText"> </footer>
 	<button class="btn" id="closeExpt" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayImageFilenames() "onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
@@ -112,10 +120,13 @@
 			z-index: 9;
 			line-height: .7;
 		}
+		#reflectionSize{
+			position: relative;
+			top:8px;
+		}
 		</style>
-	<script src="./js/Msgpack.js" type="module"></script>
-	<script src="./js/ExptParser.js" type="module"></script>
-	<script src="./js/ReflParser.js" type="module"></script>
-	<script src="./js/ExperimentViewer.js" type="module"></script>
+	<script src="./src/js/ExptParser.js" type="module"></script>
+	<script src="./src/js/ReflParser.js" type="module"></script>
+	<script src="./src/js/ExperimentViewer.js" type="module"></script>
 </body>
 </html>

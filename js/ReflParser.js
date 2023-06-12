@@ -1,10 +1,12 @@
-import * as msgpack from "./Msgpack.js";
+import { deserialize } from "@ygoe/msgpack";
 
 export class ReflParser{
 
 	constructor(){
 		this.refl = null;
 		this.reflData = {};
+		this.indexedMap = {};
+		this.unindexedMap = {};
 		this.filename = null;
 		this.numReflections = null
 	}
@@ -20,7 +22,7 @@ export class ReflParser{
 		this.numReflections = null;
 	}
 
-	hasXyzObsData(){
+	hasXYZObsData(){
 		if (!this.hasReflTable()){
 			return false;
 		}
@@ -32,7 +34,7 @@ export class ReflParser{
 		return true;
 	}
 
-	hasXyzCalData(){
+	hasXYZCalData(){
 		if (!this.hasReflTable()){
 			return false;
 		}
@@ -56,6 +58,18 @@ export class ReflParser{
 		return true;
 	}
 
+	hasMillerIndicesData(){
+		if (!this.hasReflTable()){
+			return false;
+		}
+		for (var i in this.reflData){
+			if (!("millerIdx" in this.reflData[i][0])){
+				return false;
+			}
+		}
+		return true;
+	}
+
 	parseReflectionTable = (file) => {
 		const reader = new FileReader();
 
@@ -67,10 +81,7 @@ export class ReflParser{
 
 			reader.onloadend = () => {
 				resolve(reader.result);
-				var arr = new Uint8Array(reader.result);
-				var buffer = arr.buffer;
-				const decoded = msgpack.decode(buffer);
-				console.log(decoded);
+				const decoded = deserialize(new Uint8Array(reader.result));
 				this.refl = decoded[2]["data"];
 				this.loadReflectionData();
 			};
@@ -84,27 +95,29 @@ export class ReflParser{
 	}
 
 	getColumnBuffer(column_name){
-		return new Uint8Array(this.refl[column_name][1][1]);
+		return this.refl[column_name][1][1];
 	}
 
-	getUint32Array(column_name){
+	getUint32Array(column_name) {
 		const buffer = this.getColumnBuffer(column_name);
-		const arr = new Uint32Array(buffer.length/8);
+		const dataView = new DataView(buffer.buffer);
+		const arr = new Uint32Array(buffer.byteLength / 8);
 		let count = 0;
-		for (let i = 0; i < buffer.length; i+=8) {
-			arr[count] = buffer.readUInt32LE(i);
+		
+		for (let i = 0; i < buffer.byteLength; i += 8) {
+			arr[count] = dataView.getUint32(buffer.byteOffset + i, true); 
 			count++;
 		}
 		return arr;
-
 	}
 
 	getDoubleArray(column_name){
 		const buffer = this.getColumnBuffer(column_name);
+		const dataView = new DataView(buffer.buffer);
 		const arr = new Float64Array(buffer.length/8);
 		let count = 0;
-		for (let i = 0; i < buffer.length; i+=8) {
-		arr[count] = buffer.readDoubleLE(i);
+		for (let i = 0; i < buffer.byteLength; i+=8) {
+		arr[count] = dataView.getFloat64(buffer.byteOffset + i, true);
 		count++;
 		}
 		return arr;
@@ -112,13 +125,14 @@ export class ReflParser{
 
 	getVec3DoubleArray(column_name){
 		const buffer = this.getColumnBuffer(column_name);
+		const dataView = new DataView(buffer.buffer);
 		const arr = new Array(buffer.length/(8*3));
 		let count = 0;
-		for (let i = 0; i < buffer.length; i+=24){
+		for (let i = 0; i < buffer.byteLength; i+=24){
 			const vec = new Float64Array(3);
-			vec[0] = buffer.readDoubleLE(i);
-			vec[1] = buffer.readDoubleLE(i+8);
-			vec[2] = buffer.readDoubleLE(i+16);
+			vec[0] = dataView.getFloat64(buffer.byteOffset + i, true);
+			vec[1] = dataView.getFloat64(buffer.byteOffset + i+8, true);
+			vec[2] = dataView.getFloat64(buffer.byteOffset + i+16, true);
 			arr[count] = vec;
 			count++;
 		}
@@ -127,16 +141,33 @@ export class ReflParser{
 
 	getVec6Uint32Array(column_name){
 		const buffer = this.getColumnBuffer(column_name);
-		const arr = new Array(buffer.length/(8*3));
+		const arr = new Array(buffer.length/(6*4));
+		const dataView = new DataView(buffer.buffer);
 		let count = 0;
 		for (let i = 0; i < buffer.length; i+=24){
 			const vec = new Uint32Array(6);
-			vec[0] = buffer.readUInt32LE(i);
-			vec[1] = buffer.readUInt32LE(i+4);
-			vec[2] = buffer.readUInt32LE(i+8);
-			vec[3] = buffer.readUInt32LE(i+12);
-			vec[4] = buffer.readUInt32LE(i+16);
-			vec[5] = buffer.readUInt32LE(i+20);
+			vec[0] = dataView.getUint32(buffer.byteOffset + i, true);
+			vec[1] = dataView.getUint32(buffer.byteOffset + i+4, true);
+			vec[2] = dataView.getUint32(buffer.byteOffset + i+8, true);
+			vec[3] = dataView.getUint32(buffer.byteOffset + i+12, true);
+			vec[4] = dataView.getUint32(buffer.byteOffset + i+16, true);
+			vec[5] = dataView.getUint32(buffer.byteOffset + i+20, true);
+			arr[count] = vec;
+			count++;
+		}
+		return arr;
+	}
+
+	getVec3Int32Array(column_name){
+		const buffer = this.getColumnBuffer(column_name);
+		const arr = new Array(buffer.length/(3*4));
+		const dataView = new DataView(buffer.buffer);
+		let count = 0;
+		for (let i = 0; i < buffer.length; i+=12){
+			const vec = new Int32Array(3);
+			vec[0] = dataView.getInt32(buffer.byteOffset + i, true);
+			vec[1] = dataView.getInt32(buffer.byteOffset + i+4, true);
+			vec[2] = dataView.getInt32(buffer.byteOffset + i+8, true);
 			arr[count] = vec;
 			count++;
 		}
@@ -167,32 +198,68 @@ export class ReflParser{
 		return this.getVec6Uint32Array("bbox");
 	}
 
+	containsMillerIndices(){
+		return this.containsColumn("miller_index");
+	}
+
+	getMillerIndices(){
+		return this.getVec3Int32Array("miller_index");
+	}
+
+	isValidMillerIndex(idx){
+		return Math.pow(idx[0], 2) + Math.pow(idx[1], 2) + Math.pow(idx[2], 2) > 1e-3;
+	}
+
 	loadReflectionData(){
 		const panelNums = this.getPanelNumbers();
 		var xyzObs;
 		var xyzCal;
 		var bboxes;
+		var millerIndices;
 		if (this.containsXYZObs()){
 			xyzObs = this.getXYZObs();
 		}
 		if (this.containsXYZCal()){
 			xyzCal = this.getXYZCal();
 		}	
+		if (this.containsMillerIndices()){
+			millerIndices = this.getMillerIndices();
+		}
 		bboxes = this.getBoundingBoxes();
 
 		console.assert(xyzObs || xyzCal);
 		console.assert(bboxes);
 
+		var numUnindexed = 0;
+		var numIndexed = 0;
 		for (var i = 0; i < panelNums.length; i++){
 			const panel = panelNums[i];
 			const refl = {
-				"bbox" : bboxes[i]
+				"bbox" : bboxes[i],
+				"indexed" : false
 			};
 			if (xyzObs){
 				refl["xyzObs"] = xyzObs[i];
 			}
 			if (xyzCal){
 				refl["xyzCal"] = xyzCal[i];
+			}
+			if (millerIndices){
+				refl["millerIdx"] = millerIndices[i];
+				if (this.isValidMillerIndex(millerIndices[i])){
+					refl["indexed"] = true;
+					refl["id"] = numIndexed;
+					this.indexedMap[numIndexed] = millerIndices[i];
+					numIndexed++; 
+				}
+				else{
+					refl["id"] = numUnindexed;
+					numUnindexed++;
+				}
+			}
+			else{
+				refl["id"] = numUnindexed;
+				numUnindexed++;
 			}
 			if (panel in this.reflData){
 				this.reflData[panel].push(refl);
@@ -201,8 +268,11 @@ export class ReflParser{
 				this.reflData[panel] = [refl];
 			}
 		}
-
 		this.numReflections = panelNums.length;
+	}
+
+	getMillerIndexById(id){
+		return this.indexedMap[id];
 	}
 
 	getReflectionsForPanel(panelIdx){

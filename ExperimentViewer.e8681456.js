@@ -674,6 +674,10 @@ class ExptParser {
             c4
         ];
     }
+    getDetectorPanelNormal(idx) {
+        const vecs = this.getPanelDataByIdx(idx);
+        return vecs["fastAxis"].cross(vecs["slowAxis"]).normalize();
+    }
 }
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8","three":"ktPTu"}],"fD7H8":[function(require,module,exports) {

@@ -1,4 +1,5 @@
 import * as THREE from "https://threejs.org/build/three.module.js";
+
 export class ExptParser{
 
 	constructor(){
@@ -137,6 +138,13 @@ export class ExptParser{
 		var c4 = vecs["origin"].clone().add(vecs["slowAxis"]);
 		return [c1, c2, c3, c4];
 	}
+
+	getDetectorPanelNormal(idx){
+		const vecs = this.getPanelDataByIdx(idx);
+		return vecs["fastAxis"].cross(vecs["slowAxis"]).normalize();
+
+	}
+
 
 
 }
