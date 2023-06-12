@@ -1055,6 +1055,10 @@ function setupScene(){
 		}
 	});
 
+	window.addEventListener('contextmenu', function(event) {
+		window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
+	});
+
 	window.addEventListener('mousedown', function(event){
 		if (event.button == 2) { 
 			window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
