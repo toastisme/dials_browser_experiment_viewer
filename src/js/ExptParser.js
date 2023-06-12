@@ -8,6 +8,7 @@ export class ExptParser{
 		this.panelCentroids = {};
 		this.filename = null;
 		this.imageFilenames = null;
+		this.crystalSummary = null;
 	}
 
 	hasExptJSON(){
