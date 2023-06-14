@@ -1,6 +1,6 @@
-# dials_experiment_viewer
+# dials_browser_experiment_viewer
 
-An open source tool to view [DIALS](https://github.com/dials/dials) [experiment list (.expt) and reflection (.refl) files](https://dials.github.io/documentation/data_files.html) in the browser without needing a DIALS installation. [Available here.](https://toastisme.github.io/dials_experiment_viewer/)
+An open source tool to view [DIALS](https://github.com/dials/dials) [experiment list (.expt) and reflection (.refl) files](https://dials.github.io/documentation/data_files.html) in the browser without needing a DIALS installation. [Available here.](https://toastisme.github.io/dials_browser_experiment_viewer/)
 
 ![dials_experiment_viewer](https://github.com/toastisme/dials_experiment_viewer/blob/0e58b7c16098a8264b8ead8a78a39c2735440ac8/resources/screenshot.png)
 
