@@ -1260,6 +1260,7 @@ class ExperimentViewer {
         }
         function updateCrystalInfo(viewer) {
             if (viewer.sampleHidden()) return;
+            if (viewer.expt.getCrystalSummary() == null) return;
             const intersects = window.rayCaster.intersectObjects([
                 viewer.sampleMesh
             ]);

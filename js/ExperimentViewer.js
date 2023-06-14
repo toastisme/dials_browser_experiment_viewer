@@ -837,6 +837,9 @@ class ExperimentViewer{
 			if (viewer.sampleHidden()){
 				return;
 			}
+			if (viewer.expt.getCrystalSummary() == null){
+				return;
+			}
 			const intersects = window.rayCaster.intersectObjects([viewer.sampleMesh]);
 			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 			if (intersects.length > 0) {

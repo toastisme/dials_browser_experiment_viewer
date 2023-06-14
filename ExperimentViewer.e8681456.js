@@ -642,6 +642,10 @@ class ExptParser {
     }
     loadCrystalSummary() {
         const crystalData = this.getCrystalData();
+        if (!crystalData) {
+            this.crystalSummary = null;
+            return;
+        }
         const aRaw = crystalData["real_space_a"];
         const aVec = new _three.Vector3(aRaw[0], aRaw[1], aRaw[2]);
         const bRaw = crystalData["real_space_b"];
@@ -660,7 +664,6 @@ class ExptParser {
         this.crystalSummary = text;
     }
     getCrystalSummary() {
-        if (this.crystalSummary === null) this.loadCrystalSummary();
         return this.crystalSummary;
     }
     getPanelDataByName(name) {

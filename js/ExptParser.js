@@ -100,6 +100,10 @@ export class ExptParser{
 
 	loadCrystalSummary(){
 		const crystalData = this.getCrystalData();
+		if (!crystalData){
+			this.crystalSummary = null;
+			return;
+		}
 		const aRaw = crystalData["real_space_a"];
 		const aVec = new THREE.Vector3(aRaw[0], aRaw[1], aRaw[2]);
 		const bRaw = crystalData["real_space_b"];
@@ -122,9 +126,6 @@ export class ExptParser{
 	}
 
 	getCrystalSummary(){
-		if (this.crystalSummary === null){
-			this.loadCrystalSummary();
-		}
 		return this.crystalSummary;
 	}
 
