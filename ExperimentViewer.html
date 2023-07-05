@@ -125,8 +125,12 @@
 			top:8px;
 		}
 		</style>
-	<script src="./src/js/ExptParser.js" type="module"></script>
-	<script src="./src/js/ReflParser.js" type="module"></script>
-	<script src="./src/js/ExperimentViewer.js" type="module"></script>
+	<script type="module">
+	import { ExperimentViewer, setupScene } from "./src/js/ExperimentViewer.js";
+	import { ExptParser } from "./src/js/ExptParser.js";
+	import { ReflParser } from "./src/js/ReflParser.js";
+	window.viewer = new ExperimentViewer(new ExptParser(), new ReflParser(), true);
+	setupScene();
+	</script>
 </body>
 </html>

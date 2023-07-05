@@ -2,11 +2,15 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
-import { ExptParser } from "./ExptParser.js";
-import { ReflParser } from "./ReflParser.js";
 
-class ExperimentViewer{
-	constructor(exptParser, reflParser){
+export class ExperimentViewer{
+	constructor(exptParser, reflParser, standalone=true){
+
+		/*
+		 * if isStandalone, the user can add and remove .expt and .refl files
+		 * manually
+		 */
+		this.isStandalone = standalone; 
 
 		// Data parsers
 		this.expt = exptParser;
@@ -276,7 +280,9 @@ class ExperimentViewer{
 		this.addSample();
 		this.setCameraToDefaultPositionWithExperiment();
 		this.showSidebar();
-		this.showCloseExptButton();
+		if (this.isStandalone){
+			this.showCloseExptButton();
+		}
 		this.requestRender();
 
 	}
@@ -363,7 +369,7 @@ class ExperimentViewer{
 		this.clearReflectionTable();
 		await this.refl.parseReflectionTable(file);
 		this.addReflections();
-		if(this.hasReflectionTable()){
+		if(this.hasReflectionTable() && this.isStandalone){
 			this.showCloseReflButton();
 		}
 		this.requestRender();
@@ -760,7 +766,7 @@ class ExperimentViewer{
 	}
 
 	displayDefaultHeaderText(){
-		if (this.hasExperiment()){
+		if (this.hasExperiment() || !this.isStandalone){
 			this.hideHeaderText();
 		}
 		else{
@@ -995,7 +1001,7 @@ class ExperimentViewer{
 
 }
 
-function setupScene(){
+export function setupScene(){
 
 	/**
 	 * Sets the renderer, camera, controls
@@ -1061,10 +1067,10 @@ function setupScene(){
 		event.stopPropagation();
 		const file = event.dataTransfer.files[0];
 		const fileExt = file.name.split(".").pop();
-		if (fileExt == "refl"){
+		if (fileExt == "refl" && window.viewer.isStandalone){
 			window.viewer.addReflectionTable(file);
 		}
-		else if (fileExt == "expt"){
+		else if (fileExt == "expt" && window.viewer.isStandalone){
 			window.viewer.addExperiment(file);
 		}
 	});
@@ -1091,7 +1097,3 @@ function setupScene(){
 	window.viewer.setCameraToDefaultPosition();
 	window.viewer.requestRender();
 }
-
-window.viewer = new ExperimentViewer(new ExptParser(), new ReflParser());
-setupScene();
-
