@@ -9,6 +9,7 @@ export class ExptParser{
 		this.filename = null;
 		this.imageFilenames = null;
 		this.crystalSummary = null;
+		this.imageData = null;
 	}
 
 	hasExptJSON(){
@@ -30,6 +31,7 @@ export class ExptParser{
 		this.filename = null;
 		this.imageFilenames = null;
 		this.crystalSummary = null;
+		this.imageData = null;
 	}
 
 	parseExperiment = (file) => {
@@ -54,6 +56,14 @@ export class ExptParser{
 			reader.readAsText(file);    
 		});
 	};
+
+	parseExperimentJSON(jsonString){
+		const data = JSON.parse(jsonString);
+		this.exptJSON = data["expt"];
+		this.imageData = data["image_data_2d"];
+		this.loadPanelData();
+		this.loadCrystalSummary();
+	}
 
 	getImageFilenames(){
 		return this.exptJSON["imageset"][0]["template"];

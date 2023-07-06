@@ -284,7 +284,24 @@ export class ExperimentViewer{
 			this.showCloseExptButton();
 		}
 		this.requestRender();
+	}
 
+	addExperimentFromJSONString = async (jsonString) =>{
+		this.clearExperiment();
+		this.clearReflectionTable();
+		await this.expt.parseExperimentJSON(jsonString);
+		console.assert(this.hasExperiment());
+		for (var i = 0; i < this.expt.getNumDetectorPanels(); i++){
+			this.addDetectorPanelOutline(i);
+		}
+		this.addBeam();
+		this.addSample();
+		this.setCameraToDefaultPositionWithExperiment();
+		this.showSidebar();
+		if (this.isStandalone){
+			this.showCloseExptButton();
+		}
+		this.requestRender();
 	}
 
 	showCloseExptButton(){
@@ -570,20 +587,60 @@ export class ExperimentViewer{
 		this.boundingBoxesCheckbox.disabled = !this.refl.hasBboxData();
 	}
 
+	getPanelTexture(idx){
+
+		const imageData = this.expt.imageData[0][idx];
+		const panelSize = this.expt.imageData[1];
+
+		var canvas = document.createElement('canvas');
+		canvas.width = panelSize[0];  
+		canvas.height = panelSize[1];  
+		var context = canvas.getContext('2d');
+		context.fillRect(0, 0, canvas.width, canvas.height);
+		const contextData = context.getImageData(
+			0, 0, canvas.width, canvas.height
+		);
+		const data = contextData.data;
+		var idx = 0
+		for (var i = 0; i < data.length; i += 4){
+			data[i] = imageData[idx]*255; // red
+			data[i+1] = imageData[idx]*255; // green
+			data[i+2] = imageData[idx]*255; // blue
+			idx++;
+		}
+		context.putImageData(contextData, 0, 0);
+
+		var texture = new THREE.Texture(canvas);
+		texture.needsUpdate = true;
+		return texture;
+
+	}
+
 	addDetectorPanelOutline(idx){
 
 		var corners = this.expt.getDetectorPanelCorners(idx);
 		corners.push(corners[0]);
 		var panelName = this.expt.getDetectorPanelName(idx);
 
-		const planeGeometry = new THREE.PlaneGeometry(192, 192);
-		const planeMaterial = new THREE.MeshPhongMaterial({
-			color : ExperimentViewer.colors()["panel"],
-			opacity: 0.25,
-			transparent: true,
-			depthWrite: false
-		});
-		const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+		const panelGeometry = new THREE.PlaneGeometry(192, 192);
+		var panelMaterial;
+		if (this.isStandalone){
+			panelMaterial = new THREE.MeshPhongMaterial({
+					color : ExperimentViewer.colors()["panel"],
+					opacity: 0.25,
+					transparent: true,
+					depthWrite: false
+			});
+		}
+		else{
+			var uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
+			panelGeometry.setAttribute('uvs', new THREE.BufferAttribute(uvs, 2));
+			const panelTexture = this.getPanelTexture(idx);
+			panelMaterial = new THREE.MeshBasicMaterial({
+				map: panelTexture
+			})
+		}
+		const plane = new THREE.Mesh(panelGeometry, panelMaterial);
 		plane.name = panelName;
 
 
