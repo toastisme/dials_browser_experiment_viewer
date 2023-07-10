@@ -24,6 +24,15 @@ export class ExptParser{
 		return false;
 	}
 
+	static isExptJSON(data){
+		try{
+			return data["expt"]["__id__"] == "ExperimentList";
+
+		}catch(ex){
+			return false;
+		}
+	}
+
 	clearExperiment(){
 		this.exptJSON = null;
 		this.nameIdxMap = {};
@@ -58,7 +67,7 @@ export class ExptParser{
 	};
 
 	parseExperimentJSON(jsonString){
-		const data = JSON.parse(jsonString);
+		const data = jsonString;
 		this.exptJSON = data["expt"];
 		this.imageData = data["image_data_2d"];
 		this.loadPanelData();
@@ -143,6 +152,10 @@ export class ExptParser{
 		const idx = this.nameIdxMap[name];
 		const data = this.getPanelDataByIdx(idx);
 		return data;
+	}
+
+	getPanelIdxByName(name){
+		return this.nameIdxMap[name];
 	}
 
 	getPanelDataByIdx(idx){

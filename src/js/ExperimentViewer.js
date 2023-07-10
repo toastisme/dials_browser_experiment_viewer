@@ -2,15 +2,23 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
+import { ExptParser } from './ExptParser';
 
 export class ExperimentViewer{
-	constructor(exptParser, reflParser, standalone=true){
+	constructor(exptParser, reflParser, isStandalone){
 
 		/*
 		 * if isStandalone, the user can add and remove .expt and .refl files
-		 * manually
+		 * manually. Else controlled via websocket
 		 */
-		this.isStandalone = standalone; 
+
+		this.isStandalone = isStandalone; 
+
+		this.websocketSub = null;
+		this.websocketPub = null;
+		this.websocketSubChannel = null;
+		this.websocketPubChannel = null;
+
 
 		// Data parsers
 		this.expt = exptParser;
@@ -54,6 +62,28 @@ export class ExperimentViewer{
 
 	}
 
+	setupWebsocketComms(){
+
+	}
+
+	sendClickedPanelPosition(panelIdx, panelPos){
+		this.websocketPub.send(
+			JSON.stringify(
+				["PUBLISH", this.websocketPubChannel, {
+					"msg" : "clicked_panel_position",
+					"panelIdx" : panelIdx,
+					"panelPos" : panelPos
+				}]
+			)
+		);
+	}
+
+	static commsChannels(){
+		return {
+			"toViewer" : "ExperimentViewer",
+			"toDIALS" : "DIALS"
+		};
+	}
 
 	static colors(){
 		return {
@@ -864,6 +894,17 @@ export class ExperimentViewer{
 		return this.sampleMesh.material.opacity < 0.01;
 	}
 
+	onLeftClick(){
+		const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
+		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+		if (intersects.length > 0) {
+			const name = intersects[0].object.name;
+			const panelIdx = this.expt.getPanelIdxByName(name);
+			const panelPos = this.getClickedPanelPos(intersects[0].point, name);
+			this.sendClickedPanelPosition(panelIdx, panelPos);
+		}
+	}
+
 
 	updateGUIInfo() {
 
@@ -1137,6 +1178,12 @@ export function setupScene(){
 		if (panel){
 			window.viewer.zoomInOnPanel(panel);
 		}
+	});
+
+	window.addEventListener('click', function(event) {
+	if (event.button === 0) {
+		window.viewer.onLeftClick();
+	}
 	});
 
 	window.addEventListener('mousedown', function(event){
