@@ -1008,10 +1008,6 @@ function setupScene(){
 	window.renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(window.renderer.domElement);
 
-	// Two elements used to write text to the screen
-	headerText = window.document.getElementById("headerText")
-	sidebar = window.document.getElementById("sidebar")
-
 	window.scene = new THREE.Scene()
 	window.scene.fog = new THREE.Fog(ExperimentViewer.colors()["background"], 500, 3000);
 	window.camera = new THREE.PerspectiveCamera(
