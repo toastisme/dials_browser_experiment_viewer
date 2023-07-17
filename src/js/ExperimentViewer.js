@@ -67,15 +67,14 @@ export class ExperimentViewer{
 	}
 
 	sendClickedPanelPosition(panelIdx, panelPos){
-		this.websocketPub.send(
-			JSON.stringify(
+		const data = JSON.stringify(
 				["PUBLISH", this.websocketPubChannel, {
-					"msg" : "clicked_panel_position",
+					"description" : "clicked_panel_position",
 					"panelIdx" : panelIdx,
 					"panelPos" : panelPos
 				}]
 			)
-		);
+		this.websocketPub.send(data);
 	}
 
 	static commsChannels(){
@@ -1113,10 +1112,6 @@ export function setupScene(){
 	window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
 	window.renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(window.renderer.domElement);
-
-	// Two elements used to write text to the screen
-	headerText = window.document.getElementById("headerText")
-	sidebar = window.document.getElementById("sidebar")
 
 	window.scene = new THREE.Scene()
 	window.scene.fog = new THREE.Fog(ExperimentViewer.colors()["background"], 500, 3000);

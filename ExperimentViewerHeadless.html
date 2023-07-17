@@ -160,7 +160,6 @@
 			switch (description){
 				case "experiment":
 					if (ExptParser.isExptJSON(data)){
-						console.log("is exptJSON");
 						window.viewer.addExperimentFromJSONString(data);
 					}
 					break;
