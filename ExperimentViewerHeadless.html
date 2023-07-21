@@ -137,10 +137,24 @@
 
 	const serverWSAddr = "ws://127.0.0.1:8888/";
 
+	const colors = {
+			"background": 0x020817,
+			"sample" : 0xfdf6e3,
+			"reflectionObsUnindexed" : 0xFFFFFF,
+			"reflectionObsIndexed" : 0xe74c3c,
+			"reflectionCal" : 0xffaaaa,
+			"panel" : 0x5d7d99,
+			"highlight" : 0xFFFFFF,
+			"beam" : 0xFFFFFF,
+			"bbox" : 0xFFFFFF,
+			"axes": [0xffaaaa, 0xaaffaa, 0xaaaaff]
+	};
+
 	window.viewer = new ExperimentViewer(
 		new ExptParser(), 
 		new ReflParser(), 
-		false
+		false,
+		colors
 	);
 	window.viewer.serverWS = new WebSocket(serverWSAddr);
 

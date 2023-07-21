@@ -5,7 +5,7 @@ import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import { ExptParser } from './ExptParser';
 
 export class ExperimentViewer{
-	constructor(exptParser, reflParser, isStandalone){
+	constructor(exptParser, reflParser, isStandalone, colors=null){
 
 		/*
 		 * if isStandalone, the user can add and remove .expt and .refl files
@@ -15,6 +15,14 @@ export class ExperimentViewer{
 		this.isStandalone = isStandalone; 
 
 		this.serverWS = null;
+
+		this.colors = null;
+		if (colors != null){
+			this.colors = colors;
+		}
+		else{
+			this.colors = ExperimentViewer.defaultColors();
+		}
 
 		// Data parsers
 		this.expt = exptParser;
@@ -48,8 +56,8 @@ export class ExperimentViewer{
 		this.axesMeshes = [];
 		this.sampleMesh = null;
 
-		this.hightlightColor = new THREE.Color(ExperimentViewer.colors()["highlight"]);
-		this.panelColor = new THREE.Color(ExperimentViewer.colors()["panel"]);
+		this.hightlightColor = new THREE.Color(this.colors["highlight"]);
+		this.panelColor = new THREE.Color(this.colors["panel"]);
 
 		this.displayingTextFromHTMLEvent = false;
 
@@ -76,9 +84,10 @@ export class ExperimentViewer{
 		};
 	}
 
-	static colors(){
+	static defaultColors(){
 		return {
-			"background": 0x222222,
+			"backgroundOld": 0x222222,
+			"background": 0x020817,
 			"sample" : 0xfdf6e3,
 			"reflectionObsUnindexed" : 0xFFFFFF,
 			"reflectionObsIndexed" : 0xe74c3c,
@@ -201,7 +210,7 @@ export class ExperimentViewer{
 				const reflMaterialObs = new THREE.PointsMaterial({
 					size: this.reflectionSize.value,
 					transparent:true,
-					color: ExperimentViewer.colors()["reflectionObsUnindexed"]
+					color: this.colors["reflectionObsUnindexed"]
 				});
 				const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
 				this.clearReflPointsObsUnindexed();
@@ -218,7 +227,7 @@ export class ExperimentViewer{
 				const reflMaterialObs = new THREE.PointsMaterial({
 					size: this.reflectionSize.value,
 					transparent:true,
-					color: ExperimentViewer.colors()["reflectionObsIndexed"]
+					color: this.colors["reflectionObsIndexed"]
 				});
 				const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
 				this.clearReflPointsObsIndexed();
@@ -237,7 +246,7 @@ export class ExperimentViewer{
 			const reflMaterialCal = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
 				transparent:true,
-				color: ExperimentViewer.colors()["reflectionCal"]
+				color: this.colors["reflectionCal"]
 			});
 			const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
 			this.clearReflPointsCal();
@@ -439,7 +448,7 @@ export class ExperimentViewer{
 		const positionsObsIndexed = new Array();
 		const positionsObsUnindexed = new Array();
 		const positionsCal = new Array();
-		const bboxMaterial = new THREE.LineBasicMaterial( { color: ExperimentViewer.colors()["bbox"] } );
+		const bboxMaterial = new THREE.LineBasicMaterial( { color: this.colors["bbox"] } );
 		const containsXYZObs = this.refl.containsXYZObs();
 		const containsXYZCal = this.refl.containsXYZCal();
 		const containsMillerIndices = this.refl.containsMillerIndices();
@@ -499,7 +508,7 @@ export class ExperimentViewer{
 				const reflMaterialObsIndexed = new THREE.PointsMaterial({
 					size: this.reflectionSize.value,
 					transparent:true,
-					color: ExperimentViewer.colors()["reflectionObsIndexed"]
+					color: this.colors["reflectionObsIndexed"]
 				});
 				const pointsObsIndexed = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
 				window.scene.add(pointsObsIndexed);
@@ -515,7 +524,7 @@ export class ExperimentViewer{
 			const reflMaterialObsUnindexed = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
 				transparent:true,
-				color: ExperimentViewer.colors()["reflectionObsUnindexed"]
+				color: this.colors["reflectionObsUnindexed"]
 			});
 			const pointsObsUnindexed = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
 			window.scene.add(pointsObsUnindexed);
@@ -532,7 +541,7 @@ export class ExperimentViewer{
 			const reflMaterialCal = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
 				transparent:true,
-				color: ExperimentViewer.colors()["reflectionCal"]
+				color: this.colors["reflectionCal"]
 			});
 			const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
 			window.scene.add(pointsCal);
@@ -647,7 +656,7 @@ export class ExperimentViewer{
 		var panelMaterial;
 		if (this.isStandalone){
 			panelMaterial = new THREE.MeshPhongMaterial({
-					color : ExperimentViewer.colors()["panel"],
+					color : this.colors["panel"],
 					opacity: 0.25,
 					transparent: true,
 					depthWrite: false
@@ -693,7 +702,7 @@ export class ExperimentViewer{
 		line.setPoints(corners);
 		const material = new MeshLineMaterial({
 			lineWidth:7,
-			color: ExperimentViewer.colors()["panel"],
+			color: this.colors["panel"],
 			fog:true
 		});
 		const mesh = new THREE.Mesh(line, material);
@@ -718,7 +727,7 @@ export class ExperimentViewer{
 		incidentLine.setPoints(incidentVertices);
 		const incidentMaterial = new MeshLineMaterial({
 			lineWidth:5,
-			color: ExperimentViewer.colors()["beam"],
+			color: this.colors["beam"],
 			fog: true,
 			transparent: true,
 			opacity: 0.,
@@ -741,7 +750,7 @@ export class ExperimentViewer{
 		outgoingLine.setPoints(outgoingVertices);
 		const outgoingMaterial = new MeshLineMaterial({
 			lineWidth:5,
-			color: ExperimentViewer.colors()["beam"],
+			color: this.colors["beam"],
 			transparent: true,
 			opacity: .25,
 			fog: true,
@@ -756,7 +765,7 @@ export class ExperimentViewer{
 	addSample() {
 		const sphereGeometry = new THREE.SphereGeometry(5);
 		const sphereMaterial = new THREE.MeshBasicMaterial({ 
-			color: ExperimentViewer.colors()["sample"], 
+			color: this.colors["sample"], 
 			transparent: true, 
 			depthWrite: false
 		});
@@ -790,9 +799,9 @@ export class ExperimentViewer{
 		const yVertices = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, length, 0)];
 		const zVertices = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, length)];
 
-		addAxis(this, xVertices, ExperimentViewer.colors()["axes"][0]);
-		addAxis(this, yVertices, ExperimentViewer.colors()["axes"][1]);
-		addAxis(this, zVertices, ExperimentViewer.colors()["axes"][2]);
+		addAxis(this, xVertices, this.colors["axes"][0]);
+		addAxis(this, yVertices, this.colors["axes"][1]);
+		addAxis(this, zVertices, this.colors["axes"][2]);
 		this.axesCheckbox.disabled = false;
 	}
 
@@ -868,7 +877,7 @@ export class ExperimentViewer{
 
 
 	highlightObject(obj){
-		obj.material.color = new THREE.Color(ExperimentViewer.colors()["highlight"]);
+		obj.material.color = new THREE.Color(this.colors["highlight"]);
 	}
 
 	beamHidden(){
@@ -1101,12 +1110,12 @@ export function setupScene(){
 
 	// Renderer
 	window.renderer = new THREE.WebGLRenderer();
-	window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
+	window.renderer.setClearColor(window.viewer.colors["background"]);
 	window.renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(window.renderer.domElement);
 
 	window.scene = new THREE.Scene()
-	window.scene.fog = new THREE.Fog(ExperimentViewer.colors()["background"], 500, 3000);
+	window.scene.fog = new THREE.Fog(window.viewer.colors["background"], 500, 3000);
 	window.camera = new THREE.PerspectiveCamera(
 		45,
 		window.innerWidth / window.innerHeight,
