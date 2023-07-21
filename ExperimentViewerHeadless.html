@@ -131,45 +131,61 @@
 	import { ExptParser } from "./src/js/ExptParser.js";
 	import { ReflParser } from "./src/js/ReflParser.js";
 
-	const websocketAddr = "ws://127.0.0.1:7379/.json";
+	function isExperimentViewerMsg(msg){
+		return "channel" in msg && msg["channel"] == "experiment_viewer";
+	}
+
+	const serverWSAddr = "ws://127.0.0.1:8888/";
 
 	window.viewer = new ExperimentViewer(
 		new ExptParser(), 
 		new ReflParser(), 
 		false
 	);
-	window.viewer.websocketSub = new WebSocket(websocketAddr);
-	window.viewer.websocketPub = new WebSocket(websocketAddr);
-	window.viewer.websocketSubChannel = ExperimentViewer.commsChannels()["toViewer"];
-	window.viewer.websocketPubChannel = ExperimentViewer.commsChannels()["toDIALS"];
+	window.viewer.serverWS = new WebSocket(serverWSAddr);
 
-	window.viewer.websocketSub.onopen = function() {
-		window.viewer.websocketSub.send(JSON.stringify(
-		["SUBSCRIBE", 
-		window.viewer.websocketSubChannel, 
-		]));
+	window.viewer.serverWS.onopen = () => {
+		console.log('Opened Connection')
+
+      window.viewer.serverWS.send(JSON.stringify({
+        "channel": "server",
+        "command": "record_connection", 
+        "id": "experiment_viewer"
+        }
+      ));
+
+
 	};
 
-	window.viewer.websocketSub.onmessage = function(messageEvent) {
-		var j = JSON.parse(messageEvent.data);
-		if (j.SUBSCRIBE[1] ===  window.viewer.websocketSubChannel){
+	window.viewer.serverWS.onclose = () => {
+		console.log('Closed Connection')
+	};
 
-			const data = JSON.parse(j.SUBSCRIBE[2]);
-			const description = data["description"];
+	window.viewer.serverWS.onmessage = (event) => {
 
-			switch (description){
-				case "experiment":
-					if (ExptParser.isExptJSON(data)){
-						window.viewer.addExperimentFromJSONString(data);
-					}
-					break;
-				case undefined:
-					break;
-				default:
-					console.warn("Could not understand msg ", description, " from", data);
-			}
+		console.log("msg received", event.data);
+		const msg = JSON.parse(event.data);
+
+		if (!isExperimentViewerMsg(msg)){
+			return;
 		}
+
+		const command = msg["command"];
+
+		switch(command){
+			case "update_experiment":
+				if (ExptParser.isExptJSON(msg)){
+					window.viewer.addExperimentFromJSONString(msg);
+				}
+			break;
+			default:
+				console.warn("Unrecognised command ", command);
+		}
+
+
+
 	};
+
 	setupScene();
 	</script>
 </body>

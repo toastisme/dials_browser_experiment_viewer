@@ -14,11 +14,7 @@ export class ExperimentViewer{
 
 		this.isStandalone = isStandalone; 
 
-		this.websocketSub = null;
-		this.websocketPub = null;
-		this.websocketSubChannel = null;
-		this.websocketPubChannel = null;
-
+		this.serverWS = null;
 
 		// Data parsers
 		this.expt = exptParser;
@@ -59,10 +55,6 @@ export class ExperimentViewer{
 
 		this.updateReflectionCheckboxStatus();
 		this.setDefaultReflectionsDisplay();
-
-	}
-
-	setupWebsocketComms(){
 
 	}
 
