@@ -66,13 +66,14 @@ export class ExperimentViewer{
 
 	}
 
-	sendClickedPanelPosition(panelIdx, panelPos){
+	sendClickedPanelPosition(panelIdx, panelPos, name){
 		const data = JSON.stringify(
 				{
 					"channel" : "server",
 					"command" : "update_lineplot",
 					"panel_idx" : panelIdx,
-					"panel_pos" : panelPos
+					"panel_pos" : panelPos,
+					"name" : name
 				}
 			);
 		this.serverWS.send(data);
@@ -889,13 +890,14 @@ export class ExperimentViewer{
 	}
 
 	onLeftClick(){
+		if (this.isStandalone){return;}
 		const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
 			const panelIdx = this.expt.getPanelIdxByName(name);
 			const panelPos = this.getPanelPosition(intersects[0].point, name);
-			this.sendClickedPanelPosition(panelIdx, panelPos);
+			this.sendClickedPanelPosition(panelIdx, panelPos, name);
 		}
 	}
 
