@@ -68,20 +68,14 @@ export class ExperimentViewer{
 
 	sendClickedPanelPosition(panelIdx, panelPos){
 		const data = JSON.stringify(
-				["PUBLISH", this.websocketPubChannel, {
-					"description" : "clicked_panel_position",
-					"panelIdx" : panelIdx,
-					"panelPos" : panelPos
-				}]
-			)
-		this.websocketPub.send(data);
-	}
-
-	static commsChannels(){
-		return {
-			"toViewer" : "ExperimentViewer",
-			"toDIALS" : "DIALS"
-		};
+				{
+					"channel" : "server",
+					"command" : "update_lineplot",
+					"panel_idx" : panelIdx,
+					"panel_pos" : panelPos
+				}
+			);
+		this.serverWS.send(data);
 	}
 
 	static defaultColors(){
@@ -900,7 +894,7 @@ export class ExperimentViewer{
 		if (intersects.length > 0) {
 			const name = intersects[0].object.name;
 			const panelIdx = this.expt.getPanelIdxByName(name);
-			const panelPos = this.getClickedPanelPos(intersects[0].point, name);
+			const panelPos = this.getPanelPosition(intersects[0].point, name);
 			this.sendClickedPanelPosition(panelIdx, panelPos);
 		}
 	}
@@ -913,7 +907,7 @@ export class ExperimentViewer{
 			window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 			if (intersects.length > 0) {
 				const name = intersects[0].object.name;
-				viewer.displayHeaderText(name + " [" + viewer.getPanelPosition(intersects[0].point, name) + "]");
+				viewer.displayHeaderText(name + " [" + viewer.getPanelPositionAsString(intersects[0].point, name) + "]");
 				viewer.highlightObject(viewer.panelOutlineMeshes[name]);
 			}
 		}
@@ -972,7 +966,13 @@ export class ExperimentViewer{
 		const sa = data["slowAxis"].normalize();
 		const panelX = (pos.x * fa.x + pos.y * fa.y + pos.z * fa.z) / data["pxSize"].x;  
 		const panelY = (pos.x * sa.x + pos.y * sa.y + pos.z * sa.z) / data["pxSize"].y;  
-		return ~~-panelX + ", " + ~~-panelY;
+		return [Math.floor(-panelX), Math.floor(-panelY)];
+
+	}
+
+	getPanelPositionAsString(globalPos, panelName){
+		const [panelX, panelY] = this.getPanelPosition(globalPos, panelName);
+		return panelX + ", " + panelY;
 
 	}
 
