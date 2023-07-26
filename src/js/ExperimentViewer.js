@@ -195,7 +195,7 @@ export class ExperimentViewer{
 		if (!this.hasReflectionTable()){
 			return;
 		}
-		if (this.refl.containsXYZObs()){
+		if (this.refl.hasXYZObsData()){
 			if (this.reflPointsObsUnindexed){
 				const reflGeometryObs = new THREE.BufferGeometry();
 				reflGeometryObs.setAttribute(
@@ -232,7 +232,7 @@ export class ExperimentViewer{
 			}
 		}
 
-		if (this.refl.containsXYZCal() && this.reflPositionsCal){
+		if (this.refl.hasXYZCalData() && this.reflPositionsCal){
 			const reflGeometryCal = new THREE.BufferGeometry();
 			reflGeometryCal.setAttribute(
 				"position", new THREE.Float32BufferAttribute(this.reflPositionsCal, 3)
@@ -415,6 +415,139 @@ export class ExperimentViewer{
 			this.showCloseReflButton();
 		}
 		this.requestRender();
+	}
+
+	addReflectionsFromData(reflData){
+		function getBboxMesh(bbox, bboxMaterial, viewer, pOrigin, fa, sa, pxSize){
+			const c1 = viewer.mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
+			const c2 = viewer.mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
+			const c3 = viewer.mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
+			const c4 = viewer.mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
+			const corners = [c1, c2, c3, c4, c1];
+			const bboxGeometry = new THREE.BufferGeometry().setFromPoints( corners );
+			const bboxLines = new THREE.Line( bboxGeometry, bboxMaterial );
+			return bboxLines;
+		}
+
+		if (!this.hasExperiment()){
+			console.warn("Tried to add reflections but no experiment has been loaded");
+			this.clearReflectionTable();
+			return;
+		}
+
+		this.refl.reflData = reflData;
+		this.refl.refl = "reflData";
+
+		const positionsObsIndexed = new Array();
+		const positionsObsUnindexed = new Array();
+		const positionsCal = new Array();
+		const bboxMaterial = new THREE.LineBasicMaterial( { color: this.colors["bbox"] } );
+
+		const panelKeys = Object.keys(reflData);
+		const refl = reflData[panelKeys[0]][0];
+
+		const containsXYZObs = "xyzObs" in refl;
+		const containsXYZCal = "xyzCal" in refl;
+		const containsMillerIndices = "millerIdx" in refl;
+
+		for (var i = 0; i < this.expt.getNumDetectorPanels(); i++){
+
+			const panelReflections = reflData[panelKeys[0]];
+			const panelData = this.expt.getPanelDataByIdx(i);
+
+			const fa = panelData["fastAxis"];
+			const sa = panelData["slowAxis"];
+			const pOrigin = panelData["origin"];
+			const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
+
+			for (var j = 0; j < panelReflections.length; j++){
+			
+				if (containsXYZObs){
+
+					const xyzObs = panelReflections[j]["xyzObs"];
+					const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
+
+					const bboxMesh = getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
+
+					if (containsMillerIndices && panelReflections[j]["indexed"]){
+						positionsObsIndexed.push(globalPosObs.x);
+						positionsObsIndexed.push(globalPosObs.y);
+						positionsObsIndexed.push(globalPosObs.z);
+						this.bboxMeshesIndexed.push(bboxMesh);
+					}
+					else{
+						positionsObsUnindexed.push(globalPosObs.x);
+						positionsObsUnindexed.push(globalPosObs.y);
+						positionsObsUnindexed.push(globalPosObs.z);
+						this.bboxMeshesUnindexed.push(bboxMesh);
+					}
+					window.scene.add(bboxMesh);
+
+				}
+				if (containsXYZCal){
+					const xyzCal = panelReflections[j]["xyzCal"];
+					const globalPosCal = this.mapPointToGlobal(xyzCal, pOrigin, fa, sa, pxSize);
+					positionsCal.push(globalPosCal.x);
+					positionsCal.push(globalPosCal.y);
+					positionsCal.push(globalPosCal.z);
+				}
+			}
+		}
+
+		if (containsXYZObs){
+			if (containsMillerIndices){
+
+				const reflGeometryObsIndexed = new THREE.BufferGeometry();
+				reflGeometryObsIndexed.setAttribute(
+					"position", new THREE.Float32BufferAttribute(positionsObsIndexed, 3)
+				);
+
+				const reflMaterialObsIndexed = new THREE.PointsMaterial({
+					size: this.reflectionSize.value,
+					transparent:true,
+					color: this.colors["reflectionObsIndexed"]
+				});
+				const pointsObsIndexed = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
+				window.scene.add(pointsObsIndexed);
+				this.reflPointsObsIndexed = [pointsObsIndexed];
+				this.reflPositionsIndexed = positionsObsIndexed;
+
+			}
+			const reflGeometryObsUnindexed = new THREE.BufferGeometry();
+			reflGeometryObsUnindexed.setAttribute(
+				"position", new THREE.Float32BufferAttribute(positionsObsUnindexed, 3)
+			);
+
+			const reflMaterialObsUnindexed = new THREE.PointsMaterial({
+				size: this.reflectionSize.value,
+				transparent:true,
+				color: this.colors["reflectionObsUnindexed"]
+			});
+			const pointsObsUnindexed = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
+			window.scene.add(pointsObsUnindexed);
+			this.reflPointsObsUnindexed = [pointsObsUnindexed];
+			this.reflPositionsUnindexed = positionsObsUnindexed;
+		}
+
+		if (containsXYZCal){
+			const reflGeometryCal = new THREE.BufferGeometry();
+			reflGeometryCal.setAttribute(
+				"position", new THREE.Float32BufferAttribute(positionsCal, 3)
+			);
+
+			const reflMaterialCal = new THREE.PointsMaterial({
+				size: this.reflectionSize.value,
+				transparent:true,
+				color: this.colors["reflectionCal"]
+			});
+			const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
+			window.scene.add(pointsCal);
+			this.reflPointsCal = [pointsCal];
+			this.reflPositionsCal = positionsCal;
+		}
+
+		this.updateReflectionCheckboxStatus();
+		this.setDefaultReflectionsDisplay();
 	}
 
 	addReflections(){

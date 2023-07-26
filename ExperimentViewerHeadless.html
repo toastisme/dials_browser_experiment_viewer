@@ -192,6 +192,11 @@
 					window.viewer.addExperimentFromJSONString(msg);
 				}
 			break;
+			case "update_reflection_table":
+				delete msg["command"];
+				delete msg["channel"];
+				window.viewer.addReflectionsFromData(msg);
+				break;
 			default:
 				console.warn("Unrecognised command ", command);
 		}
