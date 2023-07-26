@@ -452,7 +452,7 @@ export class ExperimentViewer{
 
 		for (var i = 0; i < this.expt.getNumDetectorPanels(); i++){
 
-			const panelReflections = reflData[panelKeys[0]];
+			const panelReflections = reflData[panelKeys[i]];
 			const panelData = this.expt.getPanelDataByIdx(i);
 
 			const fa = panelData["fastAxis"];
