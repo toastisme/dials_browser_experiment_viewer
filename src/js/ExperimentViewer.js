@@ -1102,7 +1102,7 @@ export class ExperimentViewer{
 		const sa = data["slowAxis"].normalize();
 		const panelX = (pos.x * fa.x + pos.y * fa.y + pos.z * fa.z) / data["pxSize"].x;  
 		const panelY = (pos.x * sa.x + pos.y * sa.y + pos.z * sa.z) / data["pxSize"].y;  
-		return [Math.floor(-panelX), Math.floor(-panelY)];
+		return [Math.floor(-panelY), Math.floor(-panelX)];
 
 	}
 
