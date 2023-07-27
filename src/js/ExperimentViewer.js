@@ -816,10 +816,11 @@ export class ExperimentViewer{
 			idxs = [0,3,1,2];
 		}
 
+		const scaleFactor = 1.01 // ensure reflections appear in front of image
 		for (var i = 0; i < 12; i+=3){
-			plane.geometry.attributes.position.array[i] = corners[idxs[count]].x;
-			plane.geometry.attributes.position.array[i+1] = corners[idxs[count]].y;
-			plane.geometry.attributes.position.array[i+2] = corners[idxs[count]].z;
+			plane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
+			plane.geometry.attributes.position.array[i+1] = corners[idxs[count]].y * scaleFactor;
+			plane.geometry.attributes.position.array[i+2] = corners[idxs[count]].z * scaleFactor;
 			count++;
 		}
 
