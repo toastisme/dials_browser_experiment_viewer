@@ -15,6 +15,41 @@
 <body>
 	<header id="headerText"> </header>
 	<sidebar id="sidebar"> 
+		<script>
+			// Wrapper functions to prevent mouse events triggering underneath sidebar
+
+			function updateObservedUnindexedReflections(){
+				window.viewer.disableMouseClick(); 
+				window.viewer.updateObservedUnindexedReflections()
+			}
+
+			function updateObservedIndexedReflections(){
+				window.viewer.disableMouseClick(); 
+				window.viewer.updateObservedIndexedReflections()
+			}
+
+			function updateCalculatedReflections(){
+				window.viewer.disableMouseClick(); 
+				window.viewer.updateObservedIndexedReflections()
+			}
+
+			function updateBoundingBoxes(){
+				window.viewer.disableMouseClick();
+				window.viewer.updateBoundingBoxes();
+			}
+
+			function updateAxes(){
+				window.viewer.disableMouseClick(); 
+				window.viewer.updateAxes()
+			}
+
+			function updateReflectionSize(){
+				window.viewer.disableMouseClick();
+				window.viewer.updateReflectionSize();
+			}
+
+
+		</script>
 		<b>s</b>          = toggle sidebar <br>
 		<b>left click</b> = navigate <br>
 		<b>double left click</b> = focus on panel <br>
@@ -23,20 +58,20 @@
 		----------------------------------------------------<br>
 		<b>unindexed reflections:</b> <input type="checkbox" 
 		id="observedUnindexedReflections", checked=false, 
-		onclick="window.viewer.updateObservedUnindexedReflections()", disabled=true><br>
+		onclick="updateObservedUnindexedReflections()", disabled=true><br>
 		<span style="color: #e74c3c"><b>indexed reflections:</b> </span><input type="checkbox" 
 		id="observedIndexedReflections", checked=false, 
-		onclick="window.viewer.updateObservedIndexedReflections()", disabled=true><br>
+		onclick="updateObservedIndexedReflections()", disabled=true><br>
 		<span style="color: #ffaaaa"><b>calculated reflections:</b> </span><input type="checkbox" 
 		id="calculatedReflections", checked=false, 
-		onclick="window.viewer.updateCalculatedReflections()", disabled=true><br>
+		onclick="updateCalculatedReflections()", disabled=true><br>
 		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes", 
-		checked=false, onclick="window.viewer.updateBoundingBoxes()", disabled=true><br>
+		checked=false, onclick="updateBoundingBoxes()", disabled=true><br>
 		<b>axes:</b> <input type="checkbox" id="showAxes", 
-		checked=false, onclick="window.viewer.updateAxes()", disabled=false><br>
+		checked=false, onclick="updateAxes()", disabled=false><br>
 		<b>reflection size:</b>  <input type="range" min="1" max="15" value="1" 
-		class="slider" id="reflectionSize" 
-		onmouseup="window.viewer.updateReflectionSize()">
+		class="slider" id="reflectionSize" onclick="window.viewer.disableMouseClick()"
+		onmouseup="updateReflectionSize()">
 	</sidebar>
 	<footer id="footerText"> </footer>
 	<button class="btn" id="closeExpt" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayImageFilenames() "onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
@@ -130,6 +165,8 @@
 	import { ExperimentViewer, setupScene } from "./src/js/ExperimentViewer.js";
 	import { ExptParser } from "./src/js/ExptParser.js";
 	import { ReflParser } from "./src/js/ReflParser.js";
+
+
 
 	function isExperimentViewerMsg(msg){
 		return "channel" in msg && msg["channel"] == "experiment_viewer";

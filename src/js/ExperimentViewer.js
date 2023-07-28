@@ -56,6 +56,8 @@ export class ExperimentViewer{
 		this.axesMeshes = [];
 		this.sampleMesh = null;
 
+		this.preventMouseClick = false;
+
 		this.hightlightColor = new THREE.Color(this.colors["highlight"]);
 		this.panelColor = new THREE.Color(this.colors["panel"]);
 
@@ -688,7 +690,6 @@ export class ExperimentViewer{
 		return pos;
 	}
 
-
 	setDefaultReflectionsDisplay(){
 
 		/**
@@ -1025,6 +1026,7 @@ export class ExperimentViewer{
 
 	onLeftClick(){
 		if (this.isStandalone){return;}
+		if (this.preventMouseClick){return;}
 		const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
 		window.rayCaster.setFromCamera(window.mousePosition, window.camera);
 		if (intersects.length > 0) {
@@ -1035,6 +1037,14 @@ export class ExperimentViewer{
 		}
 	}
 
+	disableMouseClick(){
+
+		this.preventMouseClick = true;
+	}
+
+	enableMouseClick(){
+		this.preventMouseClick = false;
+	}
 
 	updateGUIInfo() {
 
@@ -1224,6 +1234,7 @@ export class ExperimentViewer{
 		window.controls.update();
 		window.renderer.render(window.scene, window.camera);
 		this.renderRequested = false;
+		window.viewer.enableMouseClick();
 	}
 
 	requestRender(){
