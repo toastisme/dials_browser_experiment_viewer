@@ -683,6 +683,11 @@ export class ExperimentViewer{
 		this.setDefaultReflectionsDisplay();
 	}
 
+	highlightReflection(reflData){
+		var panel = this.panelMeshes[reflData["panelIdx"]];
+		window.viewer.zoomInOnPanel(panel);
+	}
+
 	mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor=[1,1]){
 		const pos = pOrigin.clone();
 		pos.add(fa.clone().normalize().multiplyScalar(point[0] * scaleFactor[0]));

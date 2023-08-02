@@ -234,6 +234,9 @@
 				delete msg["channel"];
 				window.viewer.addReflectionsFromData(msg);
 				break;
+			case "highlight_reflection":
+				window.viewer.highlightReflection(msg);
+				break;
 			default:
 				console.warn("Unrecognised command ", command);
 		}
