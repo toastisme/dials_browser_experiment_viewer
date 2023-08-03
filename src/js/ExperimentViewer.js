@@ -55,6 +55,7 @@ export class ExperimentViewer{
 		this.beamMeshes = [];
 		this.axesMeshes = [];
 		this.sampleMesh = null;
+		this.highlightReflectionMesh = null;
 
 		this.preventMouseClick = false;
 
@@ -83,7 +84,6 @@ export class ExperimentViewer{
 
 	static defaultColors(){
 		return {
-			"backgroundOld": 0x222222,
 			"background": 0x020817,
 			"sample" : 0xfdf6e3,
 			"reflectionObsUnindexed" : 0xFFFFFF,
@@ -93,7 +93,8 @@ export class ExperimentViewer{
 			"highlight" : 0xFFFFFF,
 			"beam" : 0xFFFFFF,
 			"bbox" : 0xFFFFFF,
-			"axes": [0xffaaaa, 0xaaffaa, 0xaaaaff]
+			"axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
+			"highlightBbox" : 0x59b578
 		};
 	}
 
@@ -110,6 +111,12 @@ export class ExperimentViewer{
 			"default" : "To view an experiment, drag .expt and .refl files into the browser",
 			"defaultWithExpt" : null
 		}
+	}
+
+	static sizes(){
+		return {
+			"highlightBboxSize" : 4
+		};
 	}
 
 	toggleSidebar(){
@@ -288,6 +295,13 @@ export class ExperimentViewer{
 			this.sampleMesh = null;
 		}
 
+		if (this.highlightReflectionMesh){
+			window.scene.remove(this.highlightReflectionMesh);
+			this.highlightReflectionMesh.geometry.dispose();
+			this.highlightReflectionMesh.material.dispose();
+			this.highlightReflectionMesh = null;
+		}
+
 		this.expt.clearExperiment();
 		this.hideCloseExptButton();
 
@@ -419,17 +433,19 @@ export class ExperimentViewer{
 		this.requestRender();
 	}
 
+	getBboxMesh(bbox, bboxMaterial, viewer, pOrigin, fa, sa, pxSize){
+		const c1 = viewer.mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
+		const c2 = viewer.mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
+		const c3 = viewer.mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
+		const c4 = viewer.mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
+		const corners = [c1, c2, c3, c4, c1];
+
+		const bboxGeometry = new THREE.BufferGeometry().setFromPoints( corners );
+		const bboxLines = new THREE.Line( bboxGeometry, bboxMaterial );
+		return bboxLines;
+	}
+
 	addReflectionsFromData(reflData){
-		function getBboxMesh(bbox, bboxMaterial, viewer, pOrigin, fa, sa, pxSize){
-			const c1 = viewer.mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
-			const c2 = viewer.mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
-			const c3 = viewer.mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
-			const c4 = viewer.mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
-			const corners = [c1, c2, c3, c4, c1];
-			const bboxGeometry = new THREE.BufferGeometry().setFromPoints( corners );
-			const bboxLines = new THREE.Line( bboxGeometry, bboxMaterial );
-			return bboxLines;
-		}
 
 		if (!this.hasExperiment()){
 			console.warn("Tried to add reflections but no experiment has been loaded");
@@ -469,7 +485,7 @@ export class ExperimentViewer{
 					const xyzObs = panelReflections[j]["xyzObs"];
 					const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
 
-					const bboxMesh = getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
+					const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
 
 					if (containsMillerIndices && panelReflections[j]["indexed"]){
 						positionsObsIndexed.push(globalPosObs.x);
@@ -554,17 +570,6 @@ export class ExperimentViewer{
 
 	addReflections(){
 
-		function getBboxMesh(bbox, bboxMaterial, viewer, pOrigin, fa, sa, pxSize){
-			const c1 = viewer.mapPointToGlobal([bbox[0], bbox[2]], pOrigin, fa, sa, pxSize);
-			const c2 = viewer.mapPointToGlobal([bbox[1], bbox[2]], pOrigin, fa, sa, pxSize);
-			const c3 = viewer.mapPointToGlobal([bbox[1], bbox[3]], pOrigin, fa, sa, pxSize);
-			const c4 = viewer.mapPointToGlobal([bbox[0], bbox[3]], pOrigin, fa, sa, pxSize);
-			const corners = [c1, c2, c3, c4, c1];
-			const bboxGeometry = new THREE.BufferGeometry().setFromPoints( corners );
-			const bboxLines = new THREE.Line( bboxGeometry, bboxMaterial );
-			return bboxLines;
-		}
-
 		if (!this.hasReflectionTable()){
 			console.warn("Tried to add reflections but no table has been loaded");
 			return;
@@ -600,7 +605,7 @@ export class ExperimentViewer{
 					const xyzObs = panelReflections[j]["xyzObs"];
 					const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
 
-					const bboxMesh = getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
+					const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
 
 					if (containsMillerIndices && panelReflections[j]["indexed"]){
 						positionsObsIndexed.push(globalPosObs.x);
@@ -683,9 +688,46 @@ export class ExperimentViewer{
 		this.setDefaultReflectionsDisplay();
 	}
 
-	highlightReflection(reflData){
-		var panel = this.panelMeshes[reflData["panelIdx"]];
-		window.viewer.zoomInOnPanel(panel);
+	highlightReflection(reflData, focusOnPanel=true){
+
+		const bboxSize = ExperimentViewer.sizes()["highlightBboxSize"];
+
+		if (focusOnPanel){
+			var panel = this.panelMeshes[reflData["panelIdx"]];
+			window.viewer.zoomInOnPanel(panel);
+		}
+
+		if (this.highlightReflectionMesh){
+			window.scene.remove(this.highlightReflectionMesh);
+			this.highlightReflectionMesh.geometry.dispose();
+			this.highlightReflectionMesh.material.dispose();
+			this.highlightReflectionMesh = null;
+		}
+
+		const panelData = this.expt.getPanelDataByIdx(reflData["panelIdx"]);
+		const pos = reflData["panelPos"];
+		const bbox = [
+			pos[1] - bboxSize, 
+			pos[1] + bboxSize, 
+			pos[0] - bboxSize,
+			pos[0] + bboxSize 
+		]
+
+		const bboxMaterial = new THREE.LineBasicMaterial( { color: this.colors["highlightBbox"] } );
+
+		const mesh = this.getBboxMesh(
+			bbox,
+			bboxMaterial,
+			this,
+			panelData["origin"],
+			panelData["fastAxis"],
+			panelData["slowAxis"],
+			[panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
+		);
+
+		window.scene.add(mesh);
+		this.highlightReflectionMesh = mesh;
+		
 	}
 
 	mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor=[1,1]){
@@ -1039,6 +1081,7 @@ export class ExperimentViewer{
 			const panelIdx = this.expt.getPanelIdxByName(name);
 			const panelPos = this.getPanelPosition(intersects[0].point, name);
 			this.sendClickedPanelPosition(panelIdx, panelPos, name);
+			this.highlightReflection({"panelIdx": panelIdx, "panelPos": panelPos}, false);
 		}
 	}
 
