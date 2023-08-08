@@ -58,6 +58,7 @@ export class ExperimentViewer{
 		this.highlightReflectionMesh = null;
 
 		this.preventMouseClick = false;
+		this.lastClickedPanelPosition = null
 
 		this.hightlightColor = new THREE.Color(this.colors["highlight"]);
 		this.panelColor = new THREE.Color(this.colors["panel"]);
@@ -70,6 +71,11 @@ export class ExperimentViewer{
 	}
 
 	sendClickedPanelPosition(panelIdx, panelPos, name){
+		this.lastClickedPanelPosition = {
+			"panelIdx": panelIdx,
+			"panelPos": panelPos,
+			"name": name
+		};
 		const data = JSON.stringify(
 				{
 					"channel" : "server",
@@ -566,6 +572,14 @@ export class ExperimentViewer{
 
 		this.updateReflectionCheckboxStatus();
 		this.setDefaultReflectionsDisplay();
+		if (this.lastClickedPanelPosition != null){
+			this.sendClickedPanelPosition(
+				this.lastClickedPanelPosition["panelIdx"],
+				this.lastClickedPanelPosition["panelPos"],
+				this.lastClickedPanelPosition["name"]
+
+			);
+		}
 	}
 
 	addReflections(){
