@@ -459,6 +459,8 @@ export class ExperimentViewer{
 			return;
 		}
 
+		this.clearReflectionTable();
+
 		this.refl.reflData = reflData;
 		this.refl.refl = "reflData";
 

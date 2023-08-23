@@ -197,7 +197,7 @@
 	window.viewer.serverWS = new WebSocket(serverWSAddr);
 
 	window.viewer.serverWS.onopen = () => {
-		console.log('Opened Connection')
+		console.log('Experiment viewer opened Connection to server');
 
       window.viewer.serverWS.send(JSON.stringify({
         "channel": "server",
@@ -210,7 +210,7 @@
 	};
 
 	window.viewer.serverWS.onclose = () => {
-		console.log('Closed Connection')
+		console.log('Experiment viewer closed Connection to server');
 	};
 
 	window.viewer.serverWS.onmessage = (event) => {
