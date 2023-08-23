@@ -464,6 +464,8 @@ export class ExperimentViewer{
 
 		this.refl.reflData = reflData;
 		this.refl.refl = "reflData";
+		const indexedMap = {};
+		var numIndexed = 0;
 
 		const positionsObsIndexed = new Array();
 		const positionsObsUnindexed = new Array();
@@ -501,6 +503,8 @@ export class ExperimentViewer{
 						positionsObsIndexed.push(globalPosObs.y);
 						positionsObsIndexed.push(globalPosObs.z);
 						this.bboxMeshesIndexed.push(bboxMesh);
+						indexedMap[numIndexed] = panelReflections[j]["millerIdx"];
+						numIndexed++;
 					}
 					else{
 						positionsObsUnindexed.push(globalPosObs.x);
@@ -583,6 +587,7 @@ export class ExperimentViewer{
 
 			);
 		}
+		this.refl.indexedMap = indexedMap;
 	}
 
 	addReflections(){
@@ -1131,7 +1136,7 @@ export class ExperimentViewer{
 			if (intersects.length > 0) {
 				for (var i = 0; i < intersects.length; i++){
 					const millerIdx = viewer.refl.getMillerIndexById(intersects[i].index); 
-					viewer.appendHeaderText(" (" + millerIdx+")");
+					viewer.appendHeaderText(" (" + millerIdx[0] + ", " + millerIdx[1] + ", " + millerIdx[2] +")");
 				}
 			}
 		}
