@@ -58,6 +58,7 @@ export class ExperimentViewer{
 		this.highlightReflectionMesh = null;
 
 		this.preventMouseClick = false;
+		this.cursorActive = true;
 		this.lastClickedPanelPosition = null
 
 		this.hightlightColor = new THREE.Color(this.colors["highlight"]);
@@ -707,11 +708,14 @@ export class ExperimentViewer{
 	highlightReflection(reflData, focusOnPanel=true){
 
 		const bboxSize = ExperimentViewer.sizes()["highlightBboxSize"];
+		const pos = reflData["panelPos"];
+		const panelName = reflData["name"];
 
 		if (focusOnPanel){
 			var panel = this.panelMeshes[reflData["panelIdx"]];
-			window.viewer.zoomInOnPanel(panel);
+			window.viewer.zoomInOnPanel(panel, 1.1, panelName, pos);
 		}
+
 
 		if (this.highlightReflectionMesh){
 			window.scene.remove(this.highlightReflectionMesh);
@@ -721,7 +725,6 @@ export class ExperimentViewer{
 		}
 
 		const panelData = this.expt.getPanelDataByIdx(reflData["panelIdx"]);
-		const pos = reflData["panelPos"];
 		const bbox = [
 			pos[1] - bboxSize, 
 			pos[1] + bboxSize, 
@@ -1162,6 +1165,7 @@ export class ExperimentViewer{
 		}
 
 		if (this.displayingTextFromHTMLEvent){ return; }
+		if (!this.cursorActive){return;}
 		this.displayDefaultHeaderText();
 		updatePanelInfo(this);
 		updateReflectionInfo(this);
@@ -1253,7 +1257,7 @@ export class ExperimentViewer{
 		} );
 	}
 
-	zoomInOnPanel(panel, fitOffset=1.1){
+	zoomInOnPanel(panel, fitOffset=1.1, panelName=null, panelPos=null){
 
 		const size = new THREE.Vector3();
 		const center = new THREE.Vector3();
@@ -1283,7 +1287,14 @@ export class ExperimentViewer{
 			onUpdate: function() {
 				window.camera.lookAt(target);
 				window.viewer.requestRender();
+			},
+			onComplete: function() {
+				if (panelName != null && panelPos != null){
+					window.viewer.displayHeaderText(panelName + " [" + panelPos[0] + ", " + panelPos[1] + "]");
+				}
+
 			}
+
 		} );
 		window.controls.update();
 	}
@@ -1398,6 +1409,15 @@ export function setupScene(){
 			window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
 		}
 	});
+
+	window.addEventListener('mouseout', function(event) {
+		this.window.viewer.cursorActive=false;
+	});
+
+	window.addEventListener('mouseover', function(event) {
+		this.window.viewer.cursorActive=true;
+	});
+
 	window.addEventListener('keydown', function(event){
 		if (event.key === "s"){
 			window.viewer.toggleSidebar();
