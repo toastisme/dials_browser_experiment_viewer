@@ -63,6 +63,7 @@ export class ExperimentViewer{
 
 		this.hightlightColor = new THREE.Color(this.colors["highlight"]);
 		this.panelColor = new THREE.Color(this.colors["panel"]);
+		this.reflSprite = new THREE.TextureLoader().load("resources/disc.png");
 
 		this.displayingTextFromHTMLEvent = false;
 
@@ -221,6 +222,7 @@ export class ExperimentViewer{
 				const reflMaterialObs = new THREE.PointsMaterial({
 					size: this.reflectionSize.value,
 					transparent:true,
+					map:this.reflSprite,
 					color: this.colors["reflectionObsUnindexed"]
 				});
 				const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
@@ -238,6 +240,7 @@ export class ExperimentViewer{
 				const reflMaterialObs = new THREE.PointsMaterial({
 					size: this.reflectionSize.value,
 					transparent:true,
+					map: this.reflSprite,
 					color: this.colors["reflectionObsIndexed"]
 				});
 				const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
@@ -257,6 +260,7 @@ export class ExperimentViewer{
 			const reflMaterialCal = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
 				transparent:true,
+				map:this.reflSprite,
 				color: this.colors["reflectionCal"]
 			});
 			const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
@@ -535,6 +539,7 @@ export class ExperimentViewer{
 
 				const reflMaterialObsIndexed = new THREE.PointsMaterial({
 					size: this.reflectionSize.value,
+					map: this.reflSprite,
 					transparent:true,
 					color: this.colors["reflectionObsIndexed"]
 				});
@@ -552,6 +557,7 @@ export class ExperimentViewer{
 			const reflMaterialObsUnindexed = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
 				transparent:true,
+				map: this.reflSprite,
 				color: this.colors["reflectionObsUnindexed"]
 			});
 			const pointsObsUnindexed = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
@@ -569,6 +575,7 @@ export class ExperimentViewer{
 			const reflMaterialCal = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
 				transparent:true,
+				map:this.reflSprite,
 				color: this.colors["reflectionCal"]
 			});
 			const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
@@ -665,6 +672,7 @@ export class ExperimentViewer{
 				const reflMaterialObsIndexed = new THREE.PointsMaterial({
 					size: this.reflectionSize.value,
 					transparent:true,
+					map:this.reflSprite,
 					color: this.colors["reflectionObsIndexed"]
 				});
 				const pointsObsIndexed = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
@@ -681,6 +689,7 @@ export class ExperimentViewer{
 			const reflMaterialObsUnindexed = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
 				transparent:true,
+				map:this.reflSprite,
 				color: this.colors["reflectionObsUnindexed"]
 			});
 			const pointsObsUnindexed = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
@@ -698,6 +707,7 @@ export class ExperimentViewer{
 			const reflMaterialCal = new THREE.PointsMaterial({
 				size: this.reflectionSize.value,
 				transparent:true,
+				map:this.reflSprite,
 				color: this.colors["reflectionCal"]
 			});
 			const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
