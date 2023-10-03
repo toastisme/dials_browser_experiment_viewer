@@ -5,7 +5,7 @@
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Experiment</title>
+	<title>DIALS Experiment Viewer</title>
 	<style>body {
   margin: 0;
 }
@@ -694,12 +694,17 @@ var _three = require("three");
 var _orbitControlsJs = require("three/examples/jsm/controls/OrbitControls.js");
 var _gsap = require("gsap");
 var _threeMeshline = require("three.meshline");
+var _exptParser = require("./ExptParser");
 class ExperimentViewer {
-    constructor(exptParser, reflParser, standalone = true){
+    constructor(exptParser, reflParser, isStandalone, colors = null){
         /*
 		 * if isStandalone, the user can add and remove .expt and .refl files
-		 * manually
-		 */ this.isStandalone = standalone;
+		 * manually. Else controlled via websocket
+		 */ this.isStandalone = isStandalone;
+        this.serverWS = null;
+        this.colors = null;
+        if (colors != null) this.colors = colors;
+        else this.colors = ExperimentViewer.defaultColors();
         // Data parsers
         this.expt = exptParser;
         this.refl = reflParser;
@@ -729,15 +734,35 @@ class ExperimentViewer {
         this.beamMeshes = [];
         this.axesMeshes = [];
         this.sampleMesh = null;
-        this.hightlightColor = new _three.Color(ExperimentViewer.colors()["highlight"]);
-        this.panelColor = new _three.Color(ExperimentViewer.colors()["panel"]);
+        this.highlightReflectionMesh = null;
+        this.preventMouseClick = false;
+        this.cursorActive = true;
+        this.lastClickedPanelPosition = null;
+        this.hightlightColor = new _three.Color(this.colors["highlight"]);
+        this.panelColor = new _three.Color(this.colors["panel"]);
+        this.reflSprite = new _three.TextureLoader().load("resources/disc.png");
         this.displayingTextFromHTMLEvent = false;
         this.updateReflectionCheckboxStatus();
         this.setDefaultReflectionsDisplay();
     }
-    static colors() {
+    sendClickedPanelPosition(panelIdx, panelPos, name) {
+        this.lastClickedPanelPosition = {
+            "panelIdx": panelIdx,
+            "panelPos": panelPos,
+            "name": name
+        };
+        const data = JSON.stringify({
+            "channel": "server",
+            "command": "update_lineplot",
+            "panel_idx": panelIdx,
+            "panel_pos": panelPos,
+            "name": name
+        });
+        this.serverWS.send(data);
+    }
+    static defaultColors() {
         return {
-            "background": 0x222222,
+            "background": 0x020817,
             "sample": 0xfdf6e3,
             "reflectionObsUnindexed": 0xFFFFFF,
             "reflectionObsIndexed": 0xe74c3c,
@@ -750,7 +775,8 @@ class ExperimentViewer {
                 0xffaaaa,
                 0xaaffaa,
                 0xaaaaff
-            ]
+            ],
+            "highlightBbox": 0x59b578
         };
     }
     static cameraPositions() {
@@ -764,6 +790,11 @@ class ExperimentViewer {
         return {
             "default": "To view an experiment, drag .expt and .refl files into the browser",
             "defaultWithExpt": null
+        };
+    }
+    static sizes() {
+        return {
+            "highlightBboxSize": 4
         };
     }
     toggleSidebar() {
@@ -806,14 +837,15 @@ class ExperimentViewer {
     }
     updateReflectionSize() {
         if (!this.hasReflectionTable()) return;
-        if (this.refl.containsXYZObs()) {
+        if (this.refl.hasXYZObsData()) {
             if (this.reflPointsObsUnindexed) {
                 const reflGeometryObs = new _three.BufferGeometry();
                 reflGeometryObs.setAttribute("position", new _three.Float32BufferAttribute(this.reflPositionsUnindexed, 3));
                 const reflMaterialObs = new _three.PointsMaterial({
                     size: this.reflectionSize.value,
                     transparent: true,
-                    color: ExperimentViewer.colors()["reflectionObsUnindexed"]
+                    map: this.reflSprite,
+                    color: this.colors["reflectionObsUnindexed"]
                 });
                 const pointsObs = new _three.Points(reflGeometryObs, reflMaterialObs);
                 this.clearReflPointsObsUnindexed();
@@ -829,7 +861,8 @@ class ExperimentViewer {
                 const reflMaterialObs = new _three.PointsMaterial({
                     size: this.reflectionSize.value,
                     transparent: true,
-                    color: ExperimentViewer.colors()["reflectionObsIndexed"]
+                    map: this.reflSprite,
+                    color: this.colors["reflectionObsIndexed"]
                 });
                 const pointsObs = new _three.Points(reflGeometryObs, reflMaterialObs);
                 this.clearReflPointsObsIndexed();
@@ -840,13 +873,14 @@ class ExperimentViewer {
                 this.updateObservedIndexedReflections();
             }
         }
-        if (this.refl.containsXYZCal() && this.reflPositionsCal) {
+        if (this.refl.hasXYZCalData() && this.reflPositionsCal) {
             const reflGeometryCal = new _three.BufferGeometry();
             reflGeometryCal.setAttribute("position", new _three.Float32BufferAttribute(this.reflPositionsCal, 3));
             const reflMaterialCal = new _three.PointsMaterial({
                 size: this.reflectionSize.value,
                 transparent: true,
-                color: ExperimentViewer.colors()["reflectionCal"]
+                map: this.reflSprite,
+                color: this.colors["reflectionCal"]
             });
             const pointsCal = new _three.Points(reflGeometryCal, reflMaterialCal);
             this.clearReflPointsCal();
@@ -885,6 +919,12 @@ class ExperimentViewer {
             this.sampleMesh.geometry.dispose();
             this.sampleMesh.material.dispose();
             this.sampleMesh = null;
+        }
+        if (this.highlightReflectionMesh) {
+            window.scene.remove(this.highlightReflectionMesh);
+            this.highlightReflectionMesh.geometry.dispose();
+            this.highlightReflectionMesh.material.dispose();
+            this.highlightReflectionMesh = null;
         }
         this.expt.clearExperiment();
         this.hideCloseExptButton();
@@ -990,35 +1030,149 @@ class ExperimentViewer {
         if (this.hasReflectionTable() && this.isStandalone) this.showCloseReflButton();
         this.requestRender();
     };
-    addReflections() {
-        function getBboxMesh(bbox, bboxMaterial, viewer, pOrigin, fa, sa, pxSize) {
-            const c1 = viewer.mapPointToGlobal([
-                bbox[0],
-                bbox[2]
-            ], pOrigin, fa, sa, pxSize);
-            const c2 = viewer.mapPointToGlobal([
-                bbox[1],
-                bbox[2]
-            ], pOrigin, fa, sa, pxSize);
-            const c3 = viewer.mapPointToGlobal([
-                bbox[1],
-                bbox[3]
-            ], pOrigin, fa, sa, pxSize);
-            const c4 = viewer.mapPointToGlobal([
-                bbox[0],
-                bbox[3]
-            ], pOrigin, fa, sa, pxSize);
-            const corners = [
-                c1,
-                c2,
-                c3,
-                c4,
-                c1
-            ];
-            const bboxGeometry = new _three.BufferGeometry().setFromPoints(corners);
-            const bboxLines = new _three.Line(bboxGeometry, bboxMaterial);
-            return bboxLines;
+    getBboxMesh(bbox, bboxMaterial, viewer, pOrigin, fa, sa, pxSize) {
+        const c1 = viewer.mapPointToGlobal([
+            bbox[0],
+            bbox[2]
+        ], pOrigin, fa, sa, pxSize);
+        const c2 = viewer.mapPointToGlobal([
+            bbox[1],
+            bbox[2]
+        ], pOrigin, fa, sa, pxSize);
+        const c3 = viewer.mapPointToGlobal([
+            bbox[1],
+            bbox[3]
+        ], pOrigin, fa, sa, pxSize);
+        const c4 = viewer.mapPointToGlobal([
+            bbox[0],
+            bbox[3]
+        ], pOrigin, fa, sa, pxSize);
+        const corners = [
+            c1,
+            c2,
+            c3,
+            c4,
+            c1
+        ];
+        const bboxGeometry = new _three.BufferGeometry().setFromPoints(corners);
+        const bboxLines = new _three.Line(bboxGeometry, bboxMaterial);
+        return bboxLines;
+    }
+    addReflectionsFromData(reflData) {
+        if (!this.hasExperiment()) {
+            console.warn("Tried to add reflections but no experiment has been loaded");
+            this.clearReflectionTable();
+            return;
         }
+        this.clearReflectionTable();
+        this.refl.reflData = reflData;
+        this.refl.refl = "reflData";
+        const indexedMap = {};
+        var numIndexed = 0;
+        const positionsObsIndexed = new Array();
+        const positionsObsUnindexed = new Array();
+        const positionsCal = new Array();
+        const bboxMaterial = new _three.LineBasicMaterial({
+            color: this.colors["bbox"]
+        });
+        const panelKeys = Object.keys(reflData);
+        const refl = reflData[panelKeys[0]][0];
+        const containsXYZObs = "xyzObs" in refl;
+        const containsXYZCal = "xyzCal" in refl;
+        const containsMillerIndices = "millerIdx" in refl;
+        for(var i = 0; i < this.expt.getNumDetectorPanels(); i++){
+            const panelReflections = reflData[panelKeys[i]];
+            const panelData = this.expt.getPanelDataByIdx(i);
+            const fa = panelData["fastAxis"];
+            const sa = panelData["slowAxis"];
+            const pOrigin = panelData["origin"];
+            const pxSize = [
+                panelData["pxSize"].x,
+                panelData["pxSize"].y
+            ];
+            for(var j = 0; j < panelReflections.length; j++){
+                if (containsXYZObs) {
+                    const xyzObs = panelReflections[j]["xyzObs"];
+                    const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
+                    const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
+                    if (containsMillerIndices && panelReflections[j]["indexed"]) {
+                        positionsObsIndexed.push(globalPosObs.x);
+                        positionsObsIndexed.push(globalPosObs.y);
+                        positionsObsIndexed.push(globalPosObs.z);
+                        this.bboxMeshesIndexed.push(bboxMesh);
+                        indexedMap[numIndexed] = panelReflections[j]["millerIdx"];
+                        numIndexed++;
+                    } else {
+                        positionsObsUnindexed.push(globalPosObs.x);
+                        positionsObsUnindexed.push(globalPosObs.y);
+                        positionsObsUnindexed.push(globalPosObs.z);
+                        this.bboxMeshesUnindexed.push(bboxMesh);
+                    }
+                    window.scene.add(bboxMesh);
+                }
+                if (containsXYZCal) {
+                    const xyzCal = panelReflections[j]["xyzCal"];
+                    const globalPosCal = this.mapPointToGlobal(xyzCal, pOrigin, fa, sa, pxSize);
+                    positionsCal.push(globalPosCal.x);
+                    positionsCal.push(globalPosCal.y);
+                    positionsCal.push(globalPosCal.z);
+                }
+            }
+        }
+        if (containsXYZObs) {
+            if (containsMillerIndices) {
+                const reflGeometryObsIndexed = new _three.BufferGeometry();
+                reflGeometryObsIndexed.setAttribute("position", new _three.Float32BufferAttribute(positionsObsIndexed, 3));
+                const reflMaterialObsIndexed = new _three.PointsMaterial({
+                    size: this.reflectionSize.value,
+                    map: this.reflSprite,
+                    transparent: true,
+                    color: this.colors["reflectionObsIndexed"]
+                });
+                const pointsObsIndexed = new _three.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
+                window.scene.add(pointsObsIndexed);
+                this.reflPointsObsIndexed = [
+                    pointsObsIndexed
+                ];
+                this.reflPositionsIndexed = positionsObsIndexed;
+            }
+            const reflGeometryObsUnindexed = new _three.BufferGeometry();
+            reflGeometryObsUnindexed.setAttribute("position", new _three.Float32BufferAttribute(positionsObsUnindexed, 3));
+            const reflMaterialObsUnindexed = new _three.PointsMaterial({
+                size: this.reflectionSize.value,
+                transparent: true,
+                map: this.reflSprite,
+                color: this.colors["reflectionObsUnindexed"]
+            });
+            const pointsObsUnindexed = new _three.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
+            window.scene.add(pointsObsUnindexed);
+            this.reflPointsObsUnindexed = [
+                pointsObsUnindexed
+            ];
+            this.reflPositionsUnindexed = positionsObsUnindexed;
+        }
+        if (containsXYZCal) {
+            const reflGeometryCal = new _three.BufferGeometry();
+            reflGeometryCal.setAttribute("position", new _three.Float32BufferAttribute(positionsCal, 3));
+            const reflMaterialCal = new _three.PointsMaterial({
+                size: this.reflectionSize.value,
+                transparent: true,
+                map: this.reflSprite,
+                color: this.colors["reflectionCal"]
+            });
+            const pointsCal = new _three.Points(reflGeometryCal, reflMaterialCal);
+            window.scene.add(pointsCal);
+            this.reflPointsCal = [
+                pointsCal
+            ];
+            this.reflPositionsCal = positionsCal;
+        }
+        this.updateReflectionCheckboxStatus();
+        this.setDefaultReflectionsDisplay();
+        if (this.lastClickedPanelPosition != null) this.sendClickedPanelPosition(this.lastClickedPanelPosition["panelIdx"], this.lastClickedPanelPosition["panelPos"], this.lastClickedPanelPosition["name"]);
+        this.refl.indexedMap = indexedMap;
+    }
+    addReflections() {
         if (!this.hasReflectionTable()) {
             console.warn("Tried to add reflections but no table has been loaded");
             return;
@@ -1032,7 +1186,7 @@ class ExperimentViewer {
         const positionsObsUnindexed = new Array();
         const positionsCal = new Array();
         const bboxMaterial = new _three.LineBasicMaterial({
-            color: ExperimentViewer.colors()["bbox"]
+            color: this.colors["bbox"]
         });
         const containsXYZObs = this.refl.containsXYZObs();
         const containsXYZCal = this.refl.containsXYZCal();
@@ -1051,7 +1205,7 @@ class ExperimentViewer {
                 if (containsXYZObs) {
                     const xyzObs = panelReflections[j]["xyzObs"];
                     const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
-                    const bboxMesh = getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
+                    const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
                     if (containsMillerIndices && panelReflections[j]["indexed"]) {
                         positionsObsIndexed.push(globalPosObs.x);
                         positionsObsIndexed.push(globalPosObs.y);
@@ -1081,7 +1235,8 @@ class ExperimentViewer {
                 const reflMaterialObsIndexed = new _three.PointsMaterial({
                     size: this.reflectionSize.value,
                     transparent: true,
-                    color: ExperimentViewer.colors()["reflectionObsIndexed"]
+                    map: this.reflSprite,
+                    color: this.colors["reflectionObsIndexed"]
                 });
                 const pointsObsIndexed = new _three.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
                 window.scene.add(pointsObsIndexed);
@@ -1095,7 +1250,8 @@ class ExperimentViewer {
             const reflMaterialObsUnindexed = new _three.PointsMaterial({
                 size: this.reflectionSize.value,
                 transparent: true,
-                color: ExperimentViewer.colors()["reflectionObsUnindexed"]
+                map: this.reflSprite,
+                color: this.colors["reflectionObsUnindexed"]
             });
             const pointsObsUnindexed = new _three.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
             window.scene.add(pointsObsUnindexed);
@@ -1110,7 +1266,8 @@ class ExperimentViewer {
             const reflMaterialCal = new _three.PointsMaterial({
                 size: this.reflectionSize.value,
                 transparent: true,
-                color: ExperimentViewer.colors()["reflectionCal"]
+                map: this.reflSprite,
+                color: this.colors["reflectionCal"]
             });
             const pointsCal = new _three.Points(reflGeometryCal, reflMaterialCal);
             window.scene.add(pointsCal);
@@ -1121,6 +1278,37 @@ class ExperimentViewer {
         }
         this.updateReflectionCheckboxStatus();
         this.setDefaultReflectionsDisplay();
+    }
+    highlightReflection(reflData, focusOnPanel = true) {
+        const bboxSize = ExperimentViewer.sizes()["highlightBboxSize"];
+        const pos = reflData["panelPos"];
+        const panelName = reflData["name"];
+        if (focusOnPanel) {
+            var panel = this.panelMeshes[reflData["panelIdx"]];
+            window.viewer.zoomInOnPanel(panel, 1.1, panelName, pos);
+        }
+        if (this.highlightReflectionMesh) {
+            window.scene.remove(this.highlightReflectionMesh);
+            this.highlightReflectionMesh.geometry.dispose();
+            this.highlightReflectionMesh.material.dispose();
+            this.highlightReflectionMesh = null;
+        }
+        const panelData = this.expt.getPanelDataByIdx(reflData["panelIdx"]);
+        const bbox = [
+            pos[1] - bboxSize,
+            pos[1] + bboxSize,
+            pos[0] - bboxSize,
+            pos[0] + bboxSize
+        ];
+        const bboxMaterial = new _three.LineBasicMaterial({
+            color: this.colors["highlightBbox"]
+        });
+        const mesh = this.getBboxMesh(bbox, bboxMaterial, this, panelData["origin"], panelData["fastAxis"], panelData["slowAxis"], [
+            panelData["pxSize"]["x"],
+            panelData["pxSize"]["y"]
+        ]);
+        window.scene.add(mesh);
+        this.highlightReflectionMesh = mesh;
     }
     mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor = [
         1,
@@ -1207,7 +1395,7 @@ class ExperimentViewer {
         const panelGeometry = new _three.PlaneGeometry(192, 192);
         var panelMaterial;
         if (this.isStandalone) panelMaterial = new _three.MeshPhongMaterial({
-            color: ExperimentViewer.colors()["panel"],
+            color: this.colors["panel"],
             opacity: 0.25,
             transparent: true,
             depthWrite: false
@@ -1251,10 +1439,12 @@ class ExperimentViewer {
             1,
             2
         ];
+        const scaleFactor = 1.01 // ensure reflections appear in front of image
+        ;
         for(var i = 0; i < 12; i += 3){
-            plane.geometry.attributes.position.array[i] = corners[idxs[count]].x;
-            plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y;
-            plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z;
+            plane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
+            plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
+            plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
             count++;
         }
         window.scene.add(plane);
@@ -1263,7 +1453,7 @@ class ExperimentViewer {
         line.setPoints(corners);
         const material = new (0, _threeMeshline.MeshLineMaterial)({
             lineWidth: 7,
-            color: ExperimentViewer.colors()["panel"],
+            color: this.colors["panel"],
             fog: true
         });
         const mesh = new _three.Mesh(line, material);
@@ -1281,7 +1471,7 @@ class ExperimentViewer {
         incidentLine.setPoints(incidentVertices);
         const incidentMaterial = new (0, _threeMeshline.MeshLineMaterial)({
             lineWidth: 5,
-            color: ExperimentViewer.colors()["beam"],
+            color: this.colors["beam"],
             fog: true,
             transparent: true,
             opacity: 0.,
@@ -1299,7 +1489,7 @@ class ExperimentViewer {
         outgoingLine.setPoints(outgoingVertices);
         const outgoingMaterial = new (0, _threeMeshline.MeshLineMaterial)({
             lineWidth: 5,
-            color: ExperimentViewer.colors()["beam"],
+            color: this.colors["beam"],
             transparent: true,
             opacity: .25,
             fog: true,
@@ -1313,7 +1503,7 @@ class ExperimentViewer {
     addSample() {
         const sphereGeometry = new _three.SphereGeometry(5);
         const sphereMaterial = new _three.MeshBasicMaterial({
-            color: ExperimentViewer.colors()["sample"],
+            color: this.colors["sample"],
             transparent: true,
             depthWrite: false
         });
@@ -1352,9 +1542,9 @@ class ExperimentViewer {
             new _three.Vector3(0, 0, 0),
             new _three.Vector3(0, 0, length)
         ];
-        addAxis(this, xVertices, ExperimentViewer.colors()["axes"][0]);
-        addAxis(this, yVertices, ExperimentViewer.colors()["axes"][1]);
-        addAxis(this, zVertices, ExperimentViewer.colors()["axes"][2]);
+        addAxis(this, xVertices, this.colors["axes"][0]);
+        addAxis(this, yVertices, this.colors["axes"][1]);
+        addAxis(this, zVertices, this.colors["axes"][2]);
         this.axesCheckbox.disabled = false;
     }
     setCameraSmooth(position) {
@@ -1409,7 +1599,7 @@ class ExperimentViewer {
         this.displayingTextFromHTMLEvent = false;
     }
     highlightObject(obj) {
-        obj.material.color = new _three.Color(ExperimentViewer.colors()["highlight"]);
+        obj.material.color = new _three.Color(this.colors["highlight"]);
     }
     beamHidden() {
         if (this.beamMeshes.length === 0) return true;
@@ -1419,13 +1609,35 @@ class ExperimentViewer {
         if (this.sampleMesh === null) return true;
         return this.sampleMesh.material.opacity < 0.01;
     }
+    onLeftClick() {
+        if (this.isStandalone) return;
+        if (this.preventMouseClick) return;
+        const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
+        window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+        if (intersects.length > 0) {
+            const name = intersects[0].object.name;
+            const panelIdx = this.expt.getPanelIdxByName(name);
+            const panelPos = this.getPanelPosition(intersects[0].point, name);
+            this.sendClickedPanelPosition(panelIdx, panelPos, name);
+            this.highlightReflection({
+                "panelIdx": panelIdx,
+                "panelPos": panelPos
+            }, false);
+        }
+    }
+    disableMouseClick() {
+        this.preventMouseClick = true;
+    }
+    enableMouseClick() {
+        this.preventMouseClick = false;
+    }
     updateGUIInfo() {
         function updatePanelInfo(viewer) {
             const intersects = window.rayCaster.intersectObjects(viewer.panelMeshes);
             window.rayCaster.setFromCamera(window.mousePosition, window.camera);
             if (intersects.length > 0) {
                 const name = intersects[0].object.name;
-                viewer.displayHeaderText(name + " [" + viewer.getPanelPosition(intersects[0].point, name) + "]");
+                viewer.displayHeaderText(name + " [" + viewer.getPanelPositionAsString(intersects[0].point, name) + "]");
                 viewer.highlightObject(viewer.panelOutlineMeshes[name]);
             }
         }
@@ -1434,7 +1646,7 @@ class ExperimentViewer {
             window.rayCaster.setFromCamera(window.mousePosition, window.camera);
             if (intersects.length > 0) for(var i = 0; i < intersects.length; i++){
                 const millerIdx = viewer.refl.getMillerIndexById(intersects[i].index);
-                viewer.appendHeaderText(" (" + millerIdx + ")");
+                viewer.appendHeaderText(" (" + millerIdx[0] + ", " + millerIdx[1] + ", " + millerIdx[2] + ")");
             }
         }
         function updateBeamInfo(viewer) {
@@ -1459,6 +1671,7 @@ class ExperimentViewer {
             }
         }
         if (this.displayingTextFromHTMLEvent) return;
+        if (!this.cursorActive) return;
         this.displayDefaultHeaderText();
         updatePanelInfo(this);
         updateReflectionInfo(this);
@@ -1472,7 +1685,14 @@ class ExperimentViewer {
         const sa = data["slowAxis"].normalize();
         const panelX = (pos.x * fa.x + pos.y * fa.y + pos.z * fa.z) / data["pxSize"].x;
         const panelY = (pos.x * sa.x + pos.y * sa.y + pos.z * sa.z) / data["pxSize"].y;
-        return ~~-panelX + ", " + ~~-panelY;
+        return [
+            Math.floor(-panelY),
+            Math.floor(-panelX)
+        ];
+    }
+    getPanelPositionAsString(globalPos, panelName) {
+        const [panelX, panelY] = this.getPanelPosition(globalPos, panelName);
+        return panelX + ", " + panelY;
     }
     getPanelCentroid(panelName) {
         return this.expt.getPanelCentroid(panelName);
@@ -1520,7 +1740,7 @@ class ExperimentViewer {
             }
         });
     }
-    zoomInOnPanel(panel, fitOffset = 1.1) {
+    zoomInOnPanel(panel, fitOffset = 1.1, panelName = null, panelPos = null) {
         const size = new _three.Vector3();
         const center = new _three.Vector3();
         const box = new _three.Box3();
@@ -1542,6 +1762,9 @@ class ExperimentViewer {
             onUpdate: function() {
                 window.camera.lookAt(target);
                 window.viewer.requestRender();
+            },
+            onComplete: function() {
+                if (panelName != null && panelPos != null) window.viewer.displayHeaderText(panelName + " [" + panelPos[0] + ", " + panelPos[1] + "]");
             }
         });
         window.controls.update();
@@ -1554,6 +1777,7 @@ class ExperimentViewer {
         window.controls.update();
         window.renderer.render(window.scene, window.camera);
         this.renderRequested = false;
+        window.viewer.enableMouseClick();
     }
     requestRender() {
         if (typeof window !== "undefined" && !this.renderRequested) {
@@ -1568,14 +1792,11 @@ function setupScene() {
 	 */ if (typeof window.viewer === "undefined") return;
     // Renderer
     window.renderer = new _three.WebGLRenderer();
-    window.renderer.setClearColor(ExperimentViewer.colors()["background"]);
+    window.renderer.setClearColor(window.viewer.colors["background"]);
     window.renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(window.renderer.domElement);
-    // Two elements used to write text to the screen
-    headerText = window.document.getElementById("headerText");
-    sidebar = window.document.getElementById("sidebar");
     window.scene = new _three.Scene();
-    window.scene.fog = new _three.Fog(ExperimentViewer.colors()["background"], 500, 3000);
+    window.scene.fog = new _three.Fog(window.viewer.colors["background"], 500, 3000);
     window.camera = new _three.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 100, 10000);
     window.renderer.render(window.scene, window.camera);
     window.rayCaster = new _three.Raycaster(); // used for all raycasting
@@ -1618,8 +1839,17 @@ function setupScene() {
         var panel = window.viewer.getClickedPanelMesh();
         if (panel) window.viewer.zoomInOnPanel(panel);
     });
+    window.addEventListener("click", function(event) {
+        if (event.button === 0) window.viewer.onLeftClick();
+    });
     window.addEventListener("mousedown", function(event) {
         if (event.button == 2) window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
+    });
+    window.addEventListener("mouseout", function(event) {
+        this.window.viewer.cursorActive = false;
+    });
+    window.addEventListener("mouseover", function(event) {
+        this.window.viewer.cursorActive = true;
     });
     window.addEventListener("keydown", function(event) {
         if (event.key === "s") window.viewer.toggleSidebar();
@@ -1630,7 +1860,7 @@ function setupScene() {
     window.viewer.requestRender();
 }
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","gsap":"fPSuC","three.meshline":"4n0f9","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8"}],"ktPTu":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","gsap":"fPSuC","three.meshline":"4n0f9","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8","./ExptParser":"dbzGd"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2023 Three.js Authors
@@ -36821,6 +37051,13 @@ class ExptParser {
         if (fileExt === "expt" && content[0] === "{") return true;
         return false;
     }
+    static isExptJSON(data) {
+        try {
+            return data["expt"]["__id__"] == "ExperimentList";
+        } catch (ex) {
+            return false;
+        }
+    }
     clearExperiment() {
         this.exptJSON = null;
         this.nameIdxMap = {};
@@ -36851,7 +37088,7 @@ class ExptParser {
         });
     };
     parseExperimentJSON(jsonString) {
-        const data = JSON.parse(jsonString);
+        const data = jsonString;
         this.exptJSON = data["expt"];
         this.imageData = data["image_data_2d"];
         this.loadPanelData();
@@ -36921,6 +37158,9 @@ class ExptParser {
         const idx = this.nameIdxMap[name];
         const data = this.getPanelDataByIdx(idx);
         return data;
+    }
+    getPanelIdxByName(name) {
+        return this.nameIdxMap[name];
     }
     getPanelDataByIdx(idx) {
         /**
@@ -37033,6 +37273,7 @@ class ReflParser {
                 resolve(reader.result);
                 const decoded = (0, _msgpack.deserialize)(new Uint8Array(reader.result));
                 this.refl = decoded[2]["data"];
+                console.log("TEST refl", this.refl);
                 this.loadReflectionData();
             };
             reader.readAsArrayBuffer(file);
@@ -37082,19 +37323,19 @@ class ReflParser {
         }
         return arr;
     }
-    getVec6Uint32Array(column_name) {
+    getVec6Int32Array(column_name) {
         const buffer = this.getColumnBuffer(column_name);
         const arr = new Array(buffer.length / 24);
         const dataView = new DataView(buffer.buffer);
         let count = 0;
         for(let i = 0; i < buffer.length; i += 24){
-            const vec = new Uint32Array(6);
-            vec[0] = dataView.getUint32(buffer.byteOffset + i, true);
-            vec[1] = dataView.getUint32(buffer.byteOffset + i + 4, true);
-            vec[2] = dataView.getUint32(buffer.byteOffset + i + 8, true);
-            vec[3] = dataView.getUint32(buffer.byteOffset + i + 12, true);
-            vec[4] = dataView.getUint32(buffer.byteOffset + i + 16, true);
-            vec[5] = dataView.getUint32(buffer.byteOffset + i + 20, true);
+            const vec = new Int32Array(6);
+            vec[0] = dataView.getInt32(buffer.byteOffset + i, true);
+            vec[1] = dataView.getInt32(buffer.byteOffset + i + 4, true);
+            vec[2] = dataView.getInt32(buffer.byteOffset + i + 8, true);
+            vec[3] = dataView.getInt32(buffer.byteOffset + i + 12, true);
+            vec[4] = dataView.getInt32(buffer.byteOffset + i + 16, true);
+            vec[5] = dataView.getInt32(buffer.byteOffset + i + 20, true);
             arr[count] = vec;
             count++;
         }
@@ -37131,7 +37372,7 @@ class ReflParser {
         return this.containsColumn("xyzcal.px");
     }
     getBoundingBoxes() {
-        return this.getVec6Uint32Array("bbox");
+        return this.getVec6Int32Array("bbox");
     }
     containsMillerIndices() {
         return this.containsColumn("miller_index");
@@ -37152,6 +37393,7 @@ class ReflParser {
         if (this.containsXYZCal()) xyzCal = this.getXYZCal();
         if (this.containsMillerIndices()) millerIndices = this.getMillerIndices();
         bboxes = this.getBoundingBoxes();
+        console.log("TEST bboxes ", bboxes);
         console.assert(xyzObs || xyzCal);
         console.assert(bboxes);
         var numUnindexed = 0;

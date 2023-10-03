@@ -139,19 +139,19 @@ export class ReflParser{
 		return arr;
 	}
 
-	getVec6Uint32Array(column_name){
+	getVec6Int32Array(column_name){
 		const buffer = this.getColumnBuffer(column_name);
 		const arr = new Array(buffer.length/(6*4));
 		const dataView = new DataView(buffer.buffer);
 		let count = 0;
 		for (let i = 0; i < buffer.length; i+=24){
-			const vec = new Uint32Array(6);
-			vec[0] = dataView.getUint32(buffer.byteOffset + i, true);
-			vec[1] = dataView.getUint32(buffer.byteOffset + i+4, true);
-			vec[2] = dataView.getUint32(buffer.byteOffset + i+8, true);
-			vec[3] = dataView.getUint32(buffer.byteOffset + i+12, true);
-			vec[4] = dataView.getUint32(buffer.byteOffset + i+16, true);
-			vec[5] = dataView.getUint32(buffer.byteOffset + i+20, true);
+			const vec = new Int32Array(6);
+			vec[0] = dataView.getInt32(buffer.byteOffset + i, true);
+			vec[1] = dataView.getInt32(buffer.byteOffset + i+4, true);
+			vec[2] = dataView.getInt32(buffer.byteOffset + i+8, true);
+			vec[3] = dataView.getInt32(buffer.byteOffset + i+12, true);
+			vec[4] = dataView.getInt32(buffer.byteOffset + i+16, true);
+			vec[5] = dataView.getInt32(buffer.byteOffset + i+20, true);
 			arr[count] = vec;
 			count++;
 		}
@@ -195,7 +195,7 @@ export class ReflParser{
 	}
 
 	getBoundingBoxes(){
-		return this.getVec6Uint32Array("bbox");
+		return this.getVec6Int32Array("bbox");
 	}
 
 	containsMillerIndices(){
