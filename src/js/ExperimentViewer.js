@@ -799,7 +799,7 @@ export class ExperimentViewer{
 			this.calculatedReflsCheckbox.checked = false;
 		}
 		else if (this.reflPointsCal.length > 0){
-			this.showCalculatedReflections(true);
+			this.updateCalculatedReflections(true);
 			this.calculatedReflsCheckbox.checked = true;
 			this.observedIndexedReflsCheckbox.checked = false;
 			this.observedUnindexedReflsCheckbox.checked = false;
