@@ -1275,7 +1275,7 @@ export class ExperimentViewer {
     });
   }
 
-  zoomInOnPanel(panel, fitOffset = 1.1, panelName = null, panelPos = null) {
+  zoomInOnPanel(panel, fitOffset = 0.1, panelName = null, panelPos = null) {
 
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
