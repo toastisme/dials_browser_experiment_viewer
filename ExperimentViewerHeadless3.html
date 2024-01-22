@@ -292,13 +292,13 @@ function updateReflectionSize() {
       this[globalName] = mainExports;
     }
   }
-})({"ge5bQ":[function(require,module,exports) {
+})({"UnLP5":[function(require,module,exports) {
 var global = arguments[3];
 var HMR_HOST = null;
 var HMR_PORT = null;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "d6ea1d42532a7575";
-module.bundle.HMR_BUNDLE_ID = "5ad7148a8777ca9c";
+module.bundle.HMR_BUNDLE_ID = "cd16365b23801c66";
 "use strict";
 /* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, globalThis, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */ /*::
 import type {
@@ -706,7 +706,7 @@ function hmrAccept(bundle, id) {
     });
 }
 
-},{}],"6C5kM":[function(require,module,exports) {
+},{}],"bFEKO":[function(require,module,exports) {
 var _experimentViewerJs = require("./src/js/ExperimentViewer.js");
 var _exptParserJs = require("./src/js/ExptParser.js");
 var _reflParserJs = require("./src/js/ReflParser.js");
@@ -1166,6 +1166,7 @@ class ExperimentViewer {
         const containsXYZCal = "xyzCal" in refl;
         const containsMillerIndices = "millerIdx" in refl;
         for(var i = 0; i < this.expt.getNumDetectorPanels(); i++){
+            console.log("tes ");
             if (!panelKeys.includes(i)) continue;
             const panelReflections = reflData[panelKeys[i]];
             const panelData = this.expt.getPanelDataByIdx(i);
@@ -1826,7 +1827,7 @@ class ExperimentViewer {
             }
         });
     }
-    zoomInOnPanel(panel, fitOffset = 0.1, panelName = null, panelPos = null) {
+    zoomInOnPanel(panel, fitOffset = 1.1, panelName = null, panelPos = null) {
         const size = new _three.Vector3();
         const center = new _three.Vector3();
         const box = new _three.Box3();
@@ -1839,7 +1840,11 @@ class ExperimentViewer {
         const fitWidthDistance = fitHeightDistance / window.camera.aspect;
         const distance = fitOffset * Math.max(fitHeightDistance, fitWidthDistance);
         const direction = center.clone().normalize().multiplyScalar(distance);
-        const target = direction.clone().multiplyScalar(-1);
+        console.log("cameraPos", window.camera.position);
+        console.log("center", center.clone());
+        console.log("direction", direction.clone());
+        const target = center.clone().sub(direction);
+        console.log("target", target.clone());
         (0, _gsap.gsap).to(window.camera.position, {
             duration: 1,
             x: target.x,
@@ -1923,6 +1928,7 @@ function setupScene() {
     });
     window.addEventListener("dblclick", function(event) {
         var panel = window.viewer.getClickedPanelMesh();
+        console.log("TEST2", panel);
         if (panel) window.viewer.zoomInOnPanel(panel);
     });
     window.addEventListener("click", function(event) {
@@ -38058,7 +38064,7 @@ class ReflParser {
     window[window.msgpackJsName || "msgpack"] = msgpack;
 })();
 
-},{}]},["ge5bQ","6C5kM"], "6C5kM", "parcelRequire9102")
+},{}]},["UnLP5","bFEKO"], "bFEKO", "parcelRequire9102")
 
 </script>
 </body>

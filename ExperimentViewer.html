@@ -1342,7 +1342,7 @@ class ExperimentViewer {
             this.updateCalculatedReflections(false);
             this.calculatedReflsCheckbox.checked = false;
         } else if (this.reflPointsCal.length > 0) {
-            this.showCalculatedReflections(true);
+            this.updateCalculatedReflections(true);
             this.calculatedReflsCheckbox.checked = true;
             this.observedIndexedReflsCheckbox.checked = false;
             this.observedUnindexedReflsCheckbox.checked = false;
@@ -37273,7 +37273,6 @@ class ReflParser {
                 resolve(reader.result);
                 const decoded = (0, _msgpack.deserialize)(new Uint8Array(reader.result));
                 this.refl = decoded[2]["data"];
-                console.log("TEST refl", this.refl);
                 this.loadReflectionData();
             };
             reader.readAsArrayBuffer(file);
@@ -37393,7 +37392,6 @@ class ReflParser {
         if (this.containsXYZCal()) xyzCal = this.getXYZCal();
         if (this.containsMillerIndices()) millerIndices = this.getMillerIndices();
         bboxes = this.getBoundingBoxes();
-        console.log("TEST bboxes ", bboxes);
         console.assert(xyzObs || xyzCal);
         console.assert(bboxes);
         var numUnindexed = 0;
