@@ -483,13 +483,11 @@ export class ExperimentViewer {
     const containsXYZCal = "xyzCal" in refl;
     const containsMillerIndices = "millerIdx" in refl;
 
-    for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
-      if (!panelKeys.includes(i)) {
-        continue;
-      }
+    for (var i = 0; i < panelKeys.length; i++) {
+      const panelIdx = parseInt(panelKeys[i])
 
       const panelReflections = reflData[panelKeys[i]];
-      const panelData = this.expt.getPanelDataByIdx(i);
+      const panelData = this.expt.getPanelDataByIdx(panelIdx);
 
       const fa = panelData["fastAxis"];
       const sa = panelData["slowAxis"];
