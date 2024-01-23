@@ -356,6 +356,7 @@ export class ExperimentViewer {
     }
     this.requestRender();
     this.loadingImages=false;
+    this.displayDefaultHeaderText();
   }
 
   showCloseExptButton() {
