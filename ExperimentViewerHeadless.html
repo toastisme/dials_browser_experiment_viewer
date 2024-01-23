@@ -241,6 +241,8 @@
 			case "highlight_reflection":
 				window.viewer.highlightReflection(msg);
 				break;
+			case "loading_images":
+				window.viewer.showLoadingImagesMsg()
 			default:
 				console.warn("Unrecognised command ", command);
 		}

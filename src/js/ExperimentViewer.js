@@ -60,6 +60,7 @@ export class ExperimentViewer {
     this.preventMouseClick = false;
     this.cursorActive = true;
     this.lastClickedPanelPosition = null
+    this.loadingImages = false;
 
     this.hightlightColor = new THREE.Color(this.colors["highlight"]);
     this.panelColor = new THREE.Color(this.colors["panel"]);
@@ -354,6 +355,7 @@ export class ExperimentViewer {
       this.showCloseExptButton();
     }
     this.requestRender();
+    this.loadingImages=false;
   }
 
   showCloseExptButton() {
@@ -1129,6 +1131,11 @@ export class ExperimentViewer {
     this.preventMouseClick = false;
   }
 
+  showLoadingImagesMsg(){
+    this.displayHeaderText("Loading images...");
+    this.loadingImages = true;
+  }
+
   updateGUIInfo() {
 
     function updatePanelInfo(viewer) {
@@ -1182,6 +1189,7 @@ export class ExperimentViewer {
 
     if (this.displayingTextFromHTMLEvent) { return; }
     if (!this.cursorActive) { return; }
+    if (this.loadingImages) { return; }
     this.displayDefaultHeaderText();
     updatePanelInfo(this);
     updateReflectionInfo(this);
@@ -1314,6 +1322,7 @@ export class ExperimentViewer {
     });
     window.controls.update();
   }
+
 
   animate() {
     if (!this.renderRequested) {
