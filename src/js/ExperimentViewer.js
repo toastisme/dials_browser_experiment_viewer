@@ -120,7 +120,7 @@ export class ExperimentViewer {
       ],
       "reflectionObsIndexed": 0xe74c3c,
       "reflectionCal": 0xffaaaa,
-      "panel": 0x119dff,
+      "panel" : 0x5d7d99,
       "highlight": 0xFFFFFF,
       "beam": 0xFFFFFF,
       "bbox": 0xFFFFFF,
@@ -1019,7 +1019,7 @@ export class ExperimentViewer {
       color: this.colors["beam"],
       fog: true,
       transparent: true,
-      opacity: 0.,
+      opacity: 0.25,
       depthWrite: false
     });
     const incidentMesh = new THREE.Mesh(incidentLine, incidentMaterial);
@@ -1041,7 +1041,7 @@ export class ExperimentViewer {
       lineWidth: 5,
       color: this.colors["beam"],
       transparent: true,
-      opacity: .25,
+      opacity: 0.0,
       fog: true,
       depthWrite: false
     });
@@ -1312,8 +1312,8 @@ export class ExperimentViewer {
     const cameraDistance = Math.pow(cameraPos.x, 2) + Math.pow(cameraPos.y, 2) + Math.pow(cameraPos.z, 2);
     var opacity = ((cameraDistance - minCameraDistance) / (maxCameraDistance - minCameraDistance));
     opacity = Math.min(1., Math.max(opacity, 0.))
-    this.beamMeshes[0].material.opacity = opacity;
-    this.beamMeshes[1].material.opacity = opacity * .25;
+    this.beamMeshes[0].material.opacity = opacity * .25;
+    this.beamMeshes[1].material.opacity = opacity;
     this.sampleMesh.material.opacity = opacity;
     for (var i = 0; i < this.axesMeshes.length; i++) {
       this.axesMeshes[i].material.opacity = opacity * .5;
