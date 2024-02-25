@@ -56,6 +56,7 @@ export class ExperimentViewer {
     this.axesMeshes = [];
     this.sampleMesh = null;
     this.highlightReflectionMesh = null;
+    this.visibleExpts = [];
 
     this.preventMouseClick = false;
     this.cursorActive = true;
@@ -93,9 +94,30 @@ export class ExperimentViewer {
 
   static defaultColors() {
     return {
-      "background": 0x020817,
+      "background": 0x222222,
       "sample": 0xfdf6e3,
-      "reflectionObsUnindexed": 0xFFFFFF,
+      "reflectionObsUnindexed": [
+        0x96f97b,
+        0x75bbfd,
+        0xbf77f6,
+        0x13eac9,
+        0xffb07c,
+        0xffd1df,
+        0xd0fefe,
+        0xffff84,
+        0xffffff,
+        0xff9408,
+        0x01f9c6,
+        0xaefd6c,
+        0xfe0002,
+        0x990f4b,
+        0x78d1b6,
+        0xfff917,
+        0xff0789,
+        0xd4ffff,
+        0x69d84f,
+        0x56ae57
+      ],
       "reflectionObsIndexed": 0xe74c3c,
       "reflectionCal": 0xffaaaa,
       "panel": 0x119dff,
@@ -140,11 +162,9 @@ export class ExperimentViewer {
     if (val !== null) {
       this.observedIndexedReflsCheckbox.checked = val;
     }
-    this.reflPointsObsIndexed[0].visible = this.observedIndexedReflsCheckbox.checked;
     const showBbox = this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
-
-    for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
-      this.bboxMeshesIndexed[i].visible = showBbox;
+    for (var i = 0; i < this.reflPointsObsIndexed.length; i++){
+      this.reflPointsObsIndexed[i][0].visible = this.observedIndexedReflsCheckbox.checked && this.visibleExpts[i];
     }
     this.requestRender();
   }
@@ -153,14 +173,13 @@ export class ExperimentViewer {
     if (val !== null) {
       this.observedUnindexedReflsCheckbox.checked = val;
     }
-    this.reflPointsObsUnindexed[0].visible = this.observedUnindexedReflsCheckbox.checked;
     const showBbox = this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
-
-    for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
-      this.bboxMeshesUnindexed[i].visible = showBbox;
+    for (var i = 0; i < this.reflPointsObsUnindexed.length; i++){
+      this.reflPointsObsUnindexed[i][0].visible = this.observedUnindexedReflsCheckbox.checked && this.visibleExpts[i];
     }
     this.requestRender();
   }
+
 
   updateCalculatedReflections(val = null) {
     if (val !== null) {
@@ -178,22 +197,31 @@ export class ExperimentViewer {
     }
     if (this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
       for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
-        this.bboxMeshesIndexed[i].visible = true;
+        for (var j = 0; j < this.bboxMeshesIndexed[i].length; j++){
+          this.bboxMeshesIndexed[i][j].visible = this.visibleExpts[i];
+        }
       }
     }
     else {
       for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
-        this.bboxMeshesIndexed[i].visible = false;
+        for (var j = 0; j < this.bboxMeshesIndexed[i].length; j++){
+          this.bboxMeshesIndexed[i][j].visible = false;
+        }
       }
     }
     if (this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
       for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
-        this.bboxMeshesUnindexed[i].visible = true;
+        for (var j = 0; j < this.bboxMeshesUnindexed[i].length; j++){
+          this.bboxMeshesUnindexed[i][j].visible = this.visibleExpts[i];
+
+        }
       }
     }
     else {
       for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
-        this.bboxMeshesUnindexed[i].visible = false;
+        for (var j = 0; j < this.bboxMeshesUnindexed[i].length; j++){
+          this.bboxMeshesUnindexed[i][j].visible = false;
+        }
       }
     }
     this.requestRender();
@@ -215,39 +243,53 @@ export class ExperimentViewer {
     }
     if (this.refl.hasXYZObsData()) {
       if (this.reflPointsObsUnindexed) {
-        const reflGeometryObs = new THREE.BufferGeometry();
-        reflGeometryObs.setAttribute(
-          "position", new THREE.Float32BufferAttribute(this.reflPositionsUnindexed, 3)
-        );
+        const reflPointsUnindexed = [];
+        for (var i = 0; i < this.reflPositionsUnindexed.length; i++){
+          const reflGeometryObs = new THREE.BufferGeometry();
+          reflGeometryObs.setAttribute(
+            "position", new THREE.Float32BufferAttribute(this.reflPositionsUnindexed[i], 3)
+          );
 
-        const reflMaterialObs = new THREE.PointsMaterial({
-          size: this.reflectionSize.value,
-          transparent: true,
-          map: this.reflSprite,
-          color: this.colors["reflectionObsUnindexed"]
-        });
-        const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
+          const reflMaterialObs = new THREE.PointsMaterial({
+            size: this.reflectionSize.value,
+            transparent: true,
+            map: this.reflSprite,
+            color: this.colors["reflectionObsUnindexed"][i % this.colors["reflectionObsUnindexed"].length],
+          });
+          const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
+          reflPointsUnindexed.push([pointsObs]);
+        }
         this.clearReflPointsObsUnindexed();
-        window.scene.add(pointsObs);
-        this.reflPointsObsUnindexed = [pointsObs];
+        for (var p = 0; p < reflPointsUnindexed.length; p++){
+          window.scene.add(reflPointsUnindexed[p][0]);
+        }
+        this.reflPointsObsUnindexed = reflPointsUnindexed;
         this.updateObservedUnindexedReflections();
       }
       if (this.reflPointsObsIndexed) {
-        const reflGeometryObs = new THREE.BufferGeometry();
-        reflGeometryObs.setAttribute(
-          "position", new THREE.Float32BufferAttribute(this.reflPositionsIndexed, 3)
-        );
+        const reflPointsObsIndexed = [];
 
-        const reflMaterialObs = new THREE.PointsMaterial({
-          size: this.reflectionSize.value,
-          transparent: true,
-          map: this.reflSprite,
-          color: this.colors["reflectionObsIndexed"]
-        });
-        const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
+        for (var i = 0; i < this.reflPositionsIndexed.length; i++){
+          const reflGeometryObs = new THREE.BufferGeometry();
+          reflGeometryObs.setAttribute(
+            "position", new THREE.Float32BufferAttribute(this.reflPositionsIndexed[i], 3)
+          );
+
+          const reflMaterialObs = new THREE.PointsMaterial({
+            size: this.reflectionSize.value,
+            transparent: true,
+            map: this.reflSprite,
+            color: this.colors["reflectionObsIndexed"]
+          });
+          const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
+          reflPointsObsIndexed.push([pointsObs]);
+        }
+
         this.clearReflPointsObsIndexed();
-        window.scene.add(pointsObs);
-        this.reflPointsObsIndexed = [pointsObs];
+        for (var p = 0; p < reflPointsObsIndexed.length; p++){
+          window.scene.add(reflPointsObsIndexed[p][0]);
+        }
+        this.reflPointsObsIndexed = reflPointsObsIndexed;
         this.updateObservedIndexedReflections();
       }
     }
@@ -318,6 +360,7 @@ export class ExperimentViewer {
     this.hideCloseExptButton();
 
     this.clearReflectionTable();
+    this.clearExperimentList();
     this.requestRender();
   }
 
@@ -337,6 +380,7 @@ export class ExperimentViewer {
       this.showCloseExptButton();
     }
     this.requestRender();
+    this.updateExperimentList();
   }
 
   addExperimentFromJSONString = async (jsonString) => {
@@ -357,6 +401,7 @@ export class ExperimentViewer {
     this.requestRender();
     this.loadingImages=false;
     this.displayDefaultHeaderText();
+    this.updateExperimentList();
   }
 
   showCloseExptButton() {
@@ -374,18 +419,18 @@ export class ExperimentViewer {
 
   clearReflPointsObsIndexed() {
     for (var i = 0; i < this.reflPointsObsIndexed.length; i++) {
-      window.scene.remove(this.reflPointsObsIndexed[i]);
-      this.reflPointsObsIndexed[i].geometry.dispose();
-      this.reflPointsObsIndexed[i].material.dispose();
+      window.scene.remove(this.reflPointsObsIndexed[i][0]);
+      this.reflPointsObsIndexed[i][0].geometry.dispose();
+      this.reflPointsObsIndexed[i][0].material.dispose();
     }
     this.reflPointsObsIndexed = [];
   }
 
   clearReflPointsObsUnindexed() {
     for (var i = 0; i < this.reflPointsObsUnindexed.length; i++) {
-      window.scene.remove(this.reflPointsObsUnindexed[i]);
-      this.reflPointsObsUnindexed[i].geometry.dispose();
-      this.reflPointsObsUnindexed[i].material.dispose();
+      window.scene.remove(this.reflPointsObsUnindexed[i][0]);
+      this.reflPointsObsUnindexed[i][0].geometry.dispose();
+      this.reflPointsObsUnindexed[i][0].material.dispose();
     }
     this.reflPointsObsUnindexed = [];
   }
@@ -401,17 +446,21 @@ export class ExperimentViewer {
 
   clearBoundingBoxes() {
     for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
-      window.scene.remove(this.bboxMeshesIndexed[i]);
-      this.bboxMeshesIndexed[i].geometry.dispose();
-      this.bboxMeshesIndexed[i].material.dispose();
+      for (var j = 0; j < this.bboxMeshesIndexed[i].length; j++) {
+        window.scene.remove(this.bboxMeshesIndexed[i][j]);
+        this.bboxMeshesIndexed[i][j].geometry.dispose();
+        this.bboxMeshesIndexed[i][j].material.dispose();
     }
+  }
     this.bboxMeshesIndexed = [];
 
     for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
-      window.scene.remove(this.bboxMeshesUnindexed[i]);
-      this.bboxMeshesUnindexed[i].geometry.dispose();
-      this.bboxMeshesUnindexed[i].material.dispose();
+      for (var j = 0; j < this.bboxMeshesUnindexed[i].length; j++) {
+        window.scene.remove(this.bboxMeshesUnindexed[i][j]);
+        this.bboxMeshesUnindexed[i][j].geometry.dispose();
+        this.bboxMeshesUnindexed[i][j].material.dispose();
     }
+  }
     this.bboxMeshesUnindexed = [];
   }
 
@@ -613,9 +662,24 @@ export class ExperimentViewer {
       return;
     }
 
-    const positionsObsIndexed = new Array();
-    const positionsObsUnindexed = new Array();
-    const positionsCal = new Array();
+    const pointsObsUnindexed = [];
+    const positionsObsUnindexed = [];
+    const positionsObsIndexed = [];
+    const pointsObsIndexed = [];
+    const positionsCal = [];
+    const bboxMeshesIndexed = [];
+    const bboxMeshesUnindexed = [];
+
+
+    for (var i = 0; i < this.expt.numExperiments(); i++){
+      pointsObsUnindexed.push([]);
+      positionsObsUnindexed.push([]);
+      positionsObsIndexed.push([]);
+      pointsObsIndexed.push([]);
+      bboxMeshesIndexed.push([]);
+      bboxMeshesUnindexed.push([]);
+    }
+
     const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["bbox"] });
     const containsXYZObs = this.refl.containsXYZObs();
     const containsXYZCal = this.refl.containsXYZCal();
@@ -624,6 +688,7 @@ export class ExperimentViewer {
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
 
       const panelReflections = this.refl.getReflectionsForPanel(i);
+      if (panelReflections == undefined){continue;}
       const panelData = this.expt.getPanelDataByIdx(i);
 
       const fa = panelData["fastAxis"];
@@ -633,6 +698,8 @@ export class ExperimentViewer {
 
       for (var j = 0; j < panelReflections.length; j++) {
 
+        const exptID = panelReflections[j]["exptID"];
+
         if (containsXYZObs) {
 
           const xyzObs = panelReflections[j]["xyzObs"];
@@ -641,16 +708,16 @@ export class ExperimentViewer {
           const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
 
           if (containsMillerIndices && panelReflections[j]["indexed"]) {
-            positionsObsIndexed.push(globalPosObs.x);
-            positionsObsIndexed.push(globalPosObs.y);
-            positionsObsIndexed.push(globalPosObs.z);
-            this.bboxMeshesIndexed.push(bboxMesh);
+            positionsObsIndexed[exptID].push(globalPosObs.x);
+            positionsObsIndexed[exptID].push(globalPosObs.y);
+            positionsObsIndexed[exptID].push(globalPosObs.z);
+            bboxMeshesIndexed[exptID].push(bboxMesh);
           }
           else {
-            positionsObsUnindexed.push(globalPosObs.x);
-            positionsObsUnindexed.push(globalPosObs.y);
-            positionsObsUnindexed.push(globalPosObs.z);
-            this.bboxMeshesUnindexed.push(bboxMesh);
+            positionsObsUnindexed[exptID].push(globalPosObs.x);
+            positionsObsUnindexed[exptID].push(globalPosObs.y);
+            positionsObsUnindexed[exptID].push(globalPosObs.z);
+            bboxMeshesUnindexed[exptID].push(bboxMesh);
           }
           window.scene.add(bboxMesh);
 
@@ -668,38 +735,45 @@ export class ExperimentViewer {
     if (containsXYZObs) {
       if (containsMillerIndices) {
 
-        const reflGeometryObsIndexed = new THREE.BufferGeometry();
-        reflGeometryObsIndexed.setAttribute(
-          "position", new THREE.Float32BufferAttribute(positionsObsIndexed, 3)
+        for (var exptID = 0; exptID < positionsObsIndexed.length; exptID++){
+          const reflGeometryObsIndexed = new THREE.BufferGeometry();
+          reflGeometryObsIndexed.setAttribute(
+            "position", new THREE.Float32BufferAttribute(positionsObsIndexed[exptID], 3)
+          );
+
+          const reflMaterialObsIndexed = new THREE.PointsMaterial({
+            size: this.reflectionSize.value,
+            transparent: true,
+            map: this.reflSprite,
+            color: this.colors["reflectionObsIndexed"]
+          });
+          const points = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
+          window.scene.add(points);
+          pointsObsIndexed[exptID].push(points);
+        }
+        this.reflPointsObsIndexed = pointsObsIndexed;
+        this.reflPositionsIndexed = positionsObsIndexed;
+        this.bboxMeshesIndexed = bboxMeshesIndexed;
+      }
+      for (var exptID = 0; exptID < positionsObsUnindexed.length; exptID++){
+        const reflGeometryObsUnindexed = new THREE.BufferGeometry();
+        reflGeometryObsUnindexed.setAttribute(
+          "position", new THREE.Float32BufferAttribute(positionsObsUnindexed[exptID], 3)
         );
 
-        const reflMaterialObsIndexed = new THREE.PointsMaterial({
+        const reflMaterialObsUnindexed = new THREE.PointsMaterial({
           size: this.reflectionSize.value,
           transparent: true,
           map: this.reflSprite,
-          color: this.colors["reflectionObsIndexed"]
+          color: this.colors["reflectionObsUnindexed"][exptID % this.colors["reflectionObsUnindexed"].length],
         });
-        const pointsObsIndexed = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
-        window.scene.add(pointsObsIndexed);
-        this.reflPointsObsIndexed = [pointsObsIndexed];
-        this.reflPositionsIndexed = positionsObsIndexed;
-
+        const points = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
+        window.scene.add(points);
+        pointsObsUnindexed[exptID].push(points);
       }
-      const reflGeometryObsUnindexed = new THREE.BufferGeometry();
-      reflGeometryObsUnindexed.setAttribute(
-        "position", new THREE.Float32BufferAttribute(positionsObsUnindexed, 3)
-      );
-
-      const reflMaterialObsUnindexed = new THREE.PointsMaterial({
-        size: this.reflectionSize.value,
-        transparent: true,
-        map: this.reflSprite,
-        color: this.colors["reflectionObsUnindexed"]
-      });
-      const pointsObsUnindexed = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
-      window.scene.add(pointsObsUnindexed);
-      this.reflPointsObsUnindexed = [pointsObsUnindexed];
+      this.reflPointsObsUnindexed = pointsObsUnindexed;
       this.reflPositionsUnindexed = positionsObsUnindexed;
+      this.bboxMeshesUnindexed = bboxMeshesUnindexed;
     }
 
     if (containsXYZCal) {
@@ -804,7 +878,7 @@ export class ExperimentViewer {
     }
     else if (this.reflPointsCal.length > 0) {
       this.updateCalculatedReflections(true);
-      this.calculatedReflsCheckbox.checked = true;
+      this.calculatedReflsCheckbox.checked = false;
       this.observedIndexedReflsCheckbox.checked = false;
       this.observedUnindexedReflsCheckbox.checked = false;
     }
@@ -1150,15 +1224,18 @@ export class ExperimentViewer {
     }
 
     function updateReflectionInfo(viewer) {
-      const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed);
-      window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-      if (intersects.length > 0) {
-        for (var i = 0; i < intersects.length; i++) {
-          const millerIdx = viewer.refl.getMillerIndexById(intersects[i].index);
-          viewer.appendHeaderText(" (" + millerIdx[0] + ", " + millerIdx[1] + ", " + millerIdx[2] + ")");
+      if (!viewer.observedIndexedReflsCheckbox.checked){return;}
+      for (var i = 0; i < viewer.reflPointsObsIndexed.length; i++){
+        const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed[i]);
+        window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+        if (intersects.length > 0) {
+          for (var i = 0; i < intersects.length; i++) {
+            const millerIdx = viewer.refl.getMillerIndexById(intersects[i].index);
+            viewer.appendHeaderText(" (" + millerIdx[0] + ", " + millerIdx[1] + ", " + millerIdx[2] + ")");
+          }
         }
-      }
     }
+  }
 
     function updateBeamInfo(viewer) {
       if (viewer.beamHidden()) {
@@ -1322,6 +1399,121 @@ export class ExperimentViewer {
 
     });
     window.controls.update();
+  }
+
+	toggleExperimentList(){
+		document.getElementById("experimentDropdown").classList.toggle("show");
+    var dropdownIcon = document.getElementById("dropdownIcon");
+    dropdownIcon.classList.toggle("fa-chevron-down");
+    dropdownIcon.classList.toggle("fa-chevron-right"); 
+	}
+
+  toggleExptVisibility(exptIDLabel){
+    var exptID = parseInt(exptIDLabel.split("-").pop());
+    this.visibleExpts[exptID] = !this.visibleExpts[exptID];
+    this.updateObservedIndexedReflections();
+    this.updateObservedUnindexedReflections();
+    this.updateBoundingBoxes();
+    var dropdownIcon = document.getElementById("exptID-dropdown-icon-"+exptID.toString());
+    dropdownIcon.classList.toggle("fa-check");
+  }
+
+  toggleAllExptVisibility(){
+    var dropdownIcon = document.getElementById("exptID-dropdown-icon-all");
+    dropdownIcon.classList.toggle("fa-check");
+    var visible = dropdownIcon.classList.contains("fa-check");
+    for (var exptID = 0; exptID < this.visibleExpts.length; exptID++){
+      this.visibleExpts[exptID] = visible;
+      var dropdownIcon = document.getElementById("exptID-dropdown-icon-"+exptID.toString());
+      if (dropdownIcon.classList.contains("fa-check") !== visible){
+        dropdownIcon.classList.toggle("fa-check");
+      }
+    }
+    this.updateObservedIndexedReflections();
+    this.updateObservedUnindexedReflections();
+    this.updateBoundingBoxes();
+  }
+
+  clearExperimentList(){
+    var dropdownContent = document.getElementById("experimentDropdown");
+    dropdownContent.innerHTML = ""; 
+  }
+
+  updateExperimentList() {
+    var maxLabelSize = 22;
+    var minNumForAllButton = 4;
+
+    var exptIDs = this.expt.getExptIDs();
+    var exptLabels = this.expt.getExptLabels();
+    var addAllButton = exptLabels.length > minNumForAllButton;
+    var firstLabel = null;
+    const visibleExpts = [];
+    var dropdownContent = document.getElementById("experimentDropdown");
+    dropdownContent.innerHTML = ""; 
+
+    for (var i = 0; i < exptIDs.length; i++) {
+        var label = document.createElement("label");
+        label.classList.add("experiment-label"); 
+        const color = this.colors["reflectionObsUnindexed"][exptIDs[i] % this.colors["reflectionObsUnindexed"].length];
+        var hexColor = '#' + color.toString(16).padStart(6, '0');
+        label.style.color = hexColor;
+        
+        var icon = document.createElement("i");
+        icon.classList.add("fa", "fa-check"); 
+        icon.style.float = "right"; 
+        icon.id = "exptID-dropdown-icon-"+exptIDs[i];
+        if (i !== 0){
+          icon.classList.toggle("fa-check");
+        }
+
+        
+        var exptLabel = exptLabels[i];
+        if (exptLabel.length > maxLabelSize){
+          exptLabel = exptLabel.slice(0,19) + "...";
+        }
+        label.textContent = exptLabel;
+        label.id = "exptID-"+exptIDs[i];
+        
+        label.appendChild(icon);
+        
+        label.addEventListener('click', (event) => {
+            this.toggleExptVisibility(event.target.id);
+        });
+
+        if (addAllButton && firstLabel === null){
+          firstLabel = label;
+        }
+
+        dropdownContent.appendChild(label);
+        dropdownContent.appendChild(document.createElement("br"));
+        visibleExpts.push(i === 0 ? true : false);
+    }
+    if (addAllButton){
+      console.assert(firstLabel !== null);
+      var label = document.createElement("label");
+      label.classList.add("experiment-label"); 
+      
+      var icon = document.createElement("i");
+      icon.classList.add("fa", "fa-check"); 
+      icon.style.float = "right"; 
+      icon.id = "exptID-dropdown-icon-all";
+      icon.classList.toggle("fa-check");
+      
+      var exptLabel = "All";
+      label.textContent = exptLabel;
+      label.id = "exptID-all";
+      
+      label.appendChild(icon);
+      
+      label.addEventListener('click', (event) => {
+          this.toggleAllExptVisibility();
+      });
+
+      dropdownContent.insertBefore(label, firstLabel);
+      dropdownContent.insertBefore(label, firstLabel);
+
+    }
+    this.visibleExpts = visibleExpts;
   }
 
 

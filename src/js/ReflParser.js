@@ -111,6 +111,19 @@ export class ReflParser{
 		return arr;
 	}
 
+	getInt32Array(column_name) {
+		const buffer = this.getColumnBuffer(column_name);
+		const dataView = new DataView(buffer.buffer);
+		const arr = new Int32Array(buffer.byteLength / 4);
+		let count = 0;
+		
+		for (let i = 0; i < buffer.byteLength; i += 4) {
+			arr[count] = dataView.getInt32(buffer.byteOffset + i, true); 
+			count++;
+		}
+		return arr;
+	}
+
 	getDoubleArray(column_name){
 		const buffer = this.getColumnBuffer(column_name);
 		const dataView = new DataView(buffer.buffer);
@@ -210,12 +223,25 @@ export class ReflParser{
 		return Math.pow(idx[0], 2) + Math.pow(idx[1], 2) + Math.pow(idx[2], 2) > 1e-3;
 	}
 
+	containsExperimentIDs(){
+		return this.containsColumn("id");
+	}
+
+	getExperimentIDs(){
+		if (this.containsColumn("imageset_id")){
+			return this.getInt32Array("imageset_id");
+		}
+		return this.getInt32Array("id");
+	}
+
 	loadReflectionData(){
 		const panelNums = this.getPanelNumbers();
 		var xyzObs;
 		var xyzCal;
 		var bboxes;
 		var millerIndices;
+		var experimentIDs;
+
 		if (this.containsXYZObs()){
 			xyzObs = this.getXYZObs();
 		}
@@ -225,6 +251,10 @@ export class ReflParser{
 		if (this.containsMillerIndices()){
 			millerIndices = this.getMillerIndices();
 		}
+		if (this.containsExperimentIDs()){
+			experimentIDs =  this.getExperimentIDs();
+		}
+
 		bboxes = this.getBoundingBoxes();
 
 		console.assert(xyzObs || xyzCal);
@@ -238,6 +268,14 @@ export class ReflParser{
 				"bbox" : bboxes[i],
 				"indexed" : false
 			};
+
+			if (experimentIDs != null){
+				refl["exptID"] = experimentIDs[i];
+			}
+			else{
+				refl["exptID"] = 0;
+			}
+
 			if (xyzObs){
 				refl["xyzObs"] = xyzObs[i];
 			}

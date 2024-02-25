@@ -33,6 +33,41 @@ export class ExptParser{
 		}
 	}
 
+	numExperiments(){
+		if (this.exptJSON == null){
+			return 0;
+		}
+		return this.exptJSON["experiment"].length;
+	}
+
+	getExptIDs(){
+		var exptIDs=[];
+		for (var i = 0; i < this.numExperiments(); i++){
+			exptIDs.push(i);
+		}
+		return exptIDs;
+	}
+
+	getImageFilename(idx){
+		const fileIdx = this.exptJSON["experiment"][idx]["imageset"]
+		return this.exptJSON["imageset"][fileIdx]["template"];
+	}
+
+	getExptLabels(){
+		var isWindows = window.navigator.oscpu.indexOf("indow") > -1;
+		var exptLabels = [];
+		for (var i = 0; i < this.numExperiments(); i++){
+			var label = this.getImageFilename(i);
+			if (isWindows){
+				exptLabels.push(label.split("\\").pop());
+			}
+			else{
+				exptLabels.push(label.split("/").pop());
+			}
+		}
+		return exptLabels;
+	}
+
 	clearExperiment(){
 		this.exptJSON = null;
 		this.nameIdxMap = {};
