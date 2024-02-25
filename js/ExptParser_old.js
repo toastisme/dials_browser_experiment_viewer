@@ -9,7 +9,6 @@ export class ExptParser{
 		this.filename = null;
 		this.imageFilenames = null;
 		this.crystalSummary = null;
-		this.imageData = null;
 	}
 
 	hasExptJSON(){
@@ -24,50 +23,6 @@ export class ExptParser{
 		return false;
 	}
 
-	static isExptJSON(data){
-		try{
-			return data["expt"]["__id__"] == "ExperimentList";
-
-		}catch(ex){
-			return false;
-		}
-	}
-
-	numExperiments(){
-		if (this.exptJSON == null){
-			return 0;
-		}
-		return this.exptJSON["experiment"].length;
-	}
-
-	getExptIDs(){
-		var exptIDs=[];
-		for (var i = 0; i < this.numExperiments(); i++){
-			exptIDs.push(i);
-		}
-		return exptIDs;
-	}
-
-	getImageFilename(idx){
-		const fileIdx = this.exptJSON["experiment"][idx]["imageset"]
-		return this.exptJSON["imageset"][fileIdx]["template"];
-	}
-
-	getExptLabels(){
-		var isWindows = window.navigator.oscpu.indexOf("indow") > -1;
-		var exptLabels = [];
-		for (var i = 0; i < this.numExperiments(); i++){
-			var label = this.getImageFilename(i);
-			if (isWindows){
-				exptLabels.push(label.split("\\").pop());
-			}
-			else{
-				exptLabels.push(label.split("/").pop());
-			}
-		}
-		return exptLabels;
-	}
-
 	clearExperiment(){
 		this.exptJSON = null;
 		this.nameIdxMap = {};
@@ -75,7 +30,6 @@ export class ExptParser{
 		this.filename = null;
 		this.imageFilenames = null;
 		this.crystalSummary = null;
-		this.imageData = null;
 	}
 
 	parseExperiment = (file) => {
@@ -100,14 +54,6 @@ export class ExptParser{
 			reader.readAsText(file);    
 		});
 	};
-
-	parseExperimentJSON(jsonString){
-		const data = jsonString;
-		this.exptJSON = data["expt"];
-		this.imageData = data["image_data_2d"];
-		this.loadPanelData();
-		this.loadCrystalSummary();
-	}
 
 	getImageFilenames(){
 		return this.exptJSON["imageset"][0]["template"];
@@ -183,14 +129,11 @@ export class ExptParser{
 		return this.crystalSummary;
 	}
 
+
 	getPanelDataByName(name){
 		const idx = this.nameIdxMap[name];
 		const data = this.getPanelDataByIdx(idx);
 		return data;
-	}
-
-	getPanelIdxByName(name){
-		return this.nameIdxMap[name];
 	}
 
 	getPanelDataByIdx(idx){

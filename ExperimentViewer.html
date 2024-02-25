@@ -27,11 +27,79 @@
 		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes" ,="" checked="false," onclick="window.viewer.updateBoundingBoxes()" disabled="true">
 		<b>axes:</b> <input type="checkbox" id="showAxes" ,="" checked="false," onclick="window.viewer.updateAxes()" disabled="false">
 		<b>reflection size:</b>  <input type="range" min="1" max="15" value="1" class="slider" id="reflectionSize" onmouseup="window.viewer.updateReflectionSize()">
+		 <div class="dropdown">
+			<button onclick="window.viewer.toggleExperimentList()" class="dropbtn"><b>Experiments </b><i class="fa fa-chevron-right" id="dropdownIcon"></i></button>
+			<div id="experimentDropdown" class="dropdown-content">
+			</div>
+		</div> 
 	</sidebar>
 	<footer id="footerText"> </footer>
 	<button class="btn" id="closeExpt" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayImageFilenames() " onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
 	<button class="btn" id="closeRefl" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayNumberOfReflections()" onclick="window.viewer.clearReflectionTable()"><i class="fa fa-trash"></i> refl file</button>
-		<style>#headerText {
+		<style>.experiment-label {
+  color: #fff;
+  cursor: pointer;
+  width: 80%;
+  background-color: #000100b3;
+  border: none;
+  padding: 10px;
+  font-weight: bold;
+  display: block;
+}
+
+.dropbtn {
+  color: #ddd;
+  cursor: pointer;
+  background-color: #000100b3;
+  border-color: #000100b3;
+  border-radius: 10px;
+  margin-left: -6px;
+  padding: 5px;
+  font-family: Tahoma, Verdana, sans-serif;
+  font-size: 16px;
+}
+
+.dropbtn:hover, .dropbtn:focus {
+  background-color: #000100b3;
+}
+
+.dropdown {
+  min-width: 100%;
+  min-height: 100%;
+  display: inline-block;
+  position: relative;
+}
+
+.dropdown-content {
+  min-width: 105%;
+  max-height: 170px;
+  z-index: 1;
+  background-color: #000100b3;
+  border-radius: 10px;
+  margin-left: -8px;
+  display: none;
+  position: absolute;
+  overflow: scroll;
+  box-shadow: 0 8px 16px #0003;
+}
+
+.dropdown-content a {
+  color: #fff;
+  padding: 12px 16px;
+  text-decoration: none;
+  display: block;
+  overflow: scroll;
+}
+
+.dropdown a:hover {
+  background-color: #ddd;
+}
+
+.show {
+  display: block;
+}
+
+#headerText {
   color: #ddd;
   text-align: center;
   z-index: 9;
@@ -264,13 +332,13 @@
       this[globalName] = mainExports;
     }
   }
-})({"aVkSd":[function(require,module,exports) {
+})({"9eOBW":[function(require,module,exports) {
 var global = arguments[3];
 var HMR_HOST = null;
 var HMR_PORT = null;
 var HMR_SECURE = false;
 var HMR_ENV_HASH = "d6ea1d42532a7575";
-module.bundle.HMR_BUNDLE_ID = "25d18592e33b584a";
+module.bundle.HMR_BUNDLE_ID = "d421b2aa17609bf5";
 "use strict";
 /* global HMR_HOST, HMR_PORT, HMR_ENV_HASH, HMR_SECURE, chrome, browser, globalThis, __parcel__import__, __parcel__importScripts__, ServiceWorkerGlobalScope */ /*::
 import type {
@@ -678,7 +746,7 @@ function hmrAccept(bundle, id) {
     });
 }
 
-},{}],"adAxK":[function(require,module,exports) {
+},{}],"9TQAf":[function(require,module,exports) {
 var _experimentViewerJs = require("./src/js/ExperimentViewer.js");
 var _exptParserJs = require("./src/js/ExptParser.js");
 var _reflParserJs = require("./src/js/ReflParser.js");
@@ -698,9 +766,9 @@ var _exptParser = require("./ExptParser");
 class ExperimentViewer {
     constructor(exptParser, reflParser, isStandalone, colors = null){
         /*
-		 * if isStandalone, the user can add and remove .expt and .refl files
-		 * manually. Else controlled via websocket
-		 */ this.isStandalone = isStandalone;
+     * if isStandalone, the user can add and remove .expt and .refl files
+     * manually. Else controlled via websocket
+     */ this.isStandalone = isStandalone;
         this.serverWS = null;
         this.colors = null;
         if (colors != null) this.colors = colors;
@@ -735,9 +803,11 @@ class ExperimentViewer {
         this.axesMeshes = [];
         this.sampleMesh = null;
         this.highlightReflectionMesh = null;
+        this.visibleExpts = [];
         this.preventMouseClick = false;
         this.cursorActive = true;
         this.lastClickedPanelPosition = null;
+        this.loadingImages = false;
         this.hightlightColor = new _three.Color(this.colors["highlight"]);
         this.panelColor = new _three.Color(this.colors["panel"]);
         this.reflSprite = new _three.TextureLoader().load("resources/disc.png");
@@ -762,9 +832,30 @@ class ExperimentViewer {
     }
     static defaultColors() {
         return {
-            "background": 0x020817,
+            "background": 0x222222,
             "sample": 0xfdf6e3,
-            "reflectionObsUnindexed": 0xFFFFFF,
+            "reflectionObsUnindexed": [
+                0x96f97b,
+                0x75bbfd,
+                0xbf77f6,
+                0x13eac9,
+                0xffb07c,
+                0xffd1df,
+                0xd0fefe,
+                0xffff84,
+                0xffffff,
+                0xff9408,
+                0x01f9c6,
+                0xaefd6c,
+                0xfe0002,
+                0x990f4b,
+                0x78d1b6,
+                0xfff917,
+                0xff0789,
+                0xd4ffff,
+                0x69d84f,
+                0x56ae57
+            ],
             "reflectionObsIndexed": 0xe74c3c,
             "reflectionCal": 0xffaaaa,
             "panel": 0x119dff,
@@ -805,16 +896,14 @@ class ExperimentViewer {
     }
     updateObservedIndexedReflections(val = null) {
         if (val !== null) this.observedIndexedReflsCheckbox.checked = val;
-        this.reflPointsObsIndexed[0].visible = this.observedIndexedReflsCheckbox.checked;
         const showBbox = this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
-        for(var i = 0; i < this.bboxMeshesIndexed.length; i++)this.bboxMeshesIndexed[i].visible = showBbox;
+        for(var i = 0; i < this.reflPointsObsIndexed.length; i++)this.reflPointsObsIndexed[i][0].visible = this.observedIndexedReflsCheckbox.checked && this.visibleExpts[i];
         this.requestRender();
     }
     updateObservedUnindexedReflections(val = null) {
         if (val !== null) this.observedUnindexedReflsCheckbox.checked = val;
-        this.reflPointsObsUnindexed[0].visible = this.observedUnindexedReflsCheckbox.checked;
         const showBbox = this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
-        for(var i = 0; i < this.bboxMeshesUnindexed.length; i++)this.bboxMeshesUnindexed[i].visible = showBbox;
+        for(var i = 0; i < this.reflPointsObsUnindexed.length; i++)this.reflPointsObsUnindexed[i][0].visible = this.observedUnindexedReflsCheckbox.checked && this.visibleExpts[i];
         this.requestRender();
     }
     updateCalculatedReflections(val = null) {
@@ -824,10 +913,16 @@ class ExperimentViewer {
     }
     updateBoundingBoxes(val = null) {
         if (val !== null) this.boundingBoxesCheckbox.checked = val;
-        if (this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) for(var i = 0; i < this.bboxMeshesIndexed.length; i++)this.bboxMeshesIndexed[i].visible = true;
-        else for(var i = 0; i < this.bboxMeshesIndexed.length; i++)this.bboxMeshesIndexed[i].visible = false;
-        if (this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) for(var i = 0; i < this.bboxMeshesUnindexed.length; i++)this.bboxMeshesUnindexed[i].visible = true;
-        else for(var i = 0; i < this.bboxMeshesUnindexed.length; i++)this.bboxMeshesUnindexed[i].visible = false;
+        if (this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
+            for(var i = 0; i < this.bboxMeshesIndexed.length; i++)for(var j = 0; j < this.bboxMeshesIndexed[i].length; j++)this.bboxMeshesIndexed[i][j].visible = this.visibleExpts[i];
+        } else {
+            for(var i = 0; i < this.bboxMeshesIndexed.length; i++)for(var j = 0; j < this.bboxMeshesIndexed[i].length; j++)this.bboxMeshesIndexed[i][j].visible = false;
+        }
+        if (this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
+            for(var i = 0; i < this.bboxMeshesUnindexed.length; i++)for(var j = 0; j < this.bboxMeshesUnindexed[i].length; j++)this.bboxMeshesUnindexed[i][j].visible = this.visibleExpts[i];
+        } else {
+            for(var i = 0; i < this.bboxMeshesUnindexed.length; i++)for(var j = 0; j < this.bboxMeshesUnindexed[i].length; j++)this.bboxMeshesUnindexed[i][j].visible = false;
+        }
         this.requestRender();
     }
     updateAxes(val = null) {
@@ -839,37 +934,45 @@ class ExperimentViewer {
         if (!this.hasReflectionTable()) return;
         if (this.refl.hasXYZObsData()) {
             if (this.reflPointsObsUnindexed) {
-                const reflGeometryObs = new _three.BufferGeometry();
-                reflGeometryObs.setAttribute("position", new _three.Float32BufferAttribute(this.reflPositionsUnindexed, 3));
-                const reflMaterialObs = new _three.PointsMaterial({
-                    size: this.reflectionSize.value,
-                    transparent: true,
-                    map: this.reflSprite,
-                    color: this.colors["reflectionObsUnindexed"]
-                });
-                const pointsObs = new _three.Points(reflGeometryObs, reflMaterialObs);
+                const reflPointsUnindexed = [];
+                for(var i = 0; i < this.reflPositionsUnindexed.length; i++){
+                    const reflGeometryObs = new _three.BufferGeometry();
+                    reflGeometryObs.setAttribute("position", new _three.Float32BufferAttribute(this.reflPositionsUnindexed[i], 3));
+                    const reflMaterialObs = new _three.PointsMaterial({
+                        size: this.reflectionSize.value,
+                        transparent: true,
+                        map: this.reflSprite,
+                        color: this.colors["reflectionObsUnindexed"][i % this.colors["reflectionObsUnindexed"].length]
+                    });
+                    const pointsObs = new _three.Points(reflGeometryObs, reflMaterialObs);
+                    reflPointsUnindexed.push([
+                        pointsObs
+                    ]);
+                }
                 this.clearReflPointsObsUnindexed();
-                window.scene.add(pointsObs);
-                this.reflPointsObsUnindexed = [
-                    pointsObs
-                ];
+                for(var p = 0; p < reflPointsUnindexed.length; p++)window.scene.add(reflPointsUnindexed[p][0]);
+                this.reflPointsObsUnindexed = reflPointsUnindexed;
                 this.updateObservedUnindexedReflections();
             }
             if (this.reflPointsObsIndexed) {
-                const reflGeometryObs = new _three.BufferGeometry();
-                reflGeometryObs.setAttribute("position", new _three.Float32BufferAttribute(this.reflPositionsIndexed, 3));
-                const reflMaterialObs = new _three.PointsMaterial({
-                    size: this.reflectionSize.value,
-                    transparent: true,
-                    map: this.reflSprite,
-                    color: this.colors["reflectionObsIndexed"]
-                });
-                const pointsObs = new _three.Points(reflGeometryObs, reflMaterialObs);
+                const reflPointsObsIndexed = [];
+                for(var i = 0; i < this.reflPositionsIndexed.length; i++){
+                    const reflGeometryObs = new _three.BufferGeometry();
+                    reflGeometryObs.setAttribute("position", new _three.Float32BufferAttribute(this.reflPositionsIndexed[i], 3));
+                    const reflMaterialObs = new _three.PointsMaterial({
+                        size: this.reflectionSize.value,
+                        transparent: true,
+                        map: this.reflSprite,
+                        color: this.colors["reflectionObsIndexed"]
+                    });
+                    const pointsObs = new _three.Points(reflGeometryObs, reflMaterialObs);
+                    reflPointsObsIndexed.push([
+                        pointsObs
+                    ]);
+                }
                 this.clearReflPointsObsIndexed();
-                window.scene.add(pointsObs);
-                this.reflPointsObsIndexed = [
-                    pointsObs
-                ];
+                for(var p = 0; p < reflPointsObsIndexed.length; p++)window.scene.add(reflPointsObsIndexed[p][0]);
+                this.reflPointsObsIndexed = reflPointsObsIndexed;
                 this.updateObservedIndexedReflections();
             }
         }
@@ -929,6 +1032,7 @@ class ExperimentViewer {
         this.expt.clearExperiment();
         this.hideCloseExptButton();
         this.clearReflectionTable();
+        this.clearExperimentList();
         this.requestRender();
     }
     addExperiment = async (file)=>{
@@ -943,6 +1047,7 @@ class ExperimentViewer {
         this.showSidebar();
         if (this.isStandalone) this.showCloseExptButton();
         this.requestRender();
+        this.updateExperimentList();
     };
     addExperimentFromJSONString = async (jsonString)=>{
         this.clearExperiment();
@@ -956,6 +1061,9 @@ class ExperimentViewer {
         this.showSidebar();
         if (this.isStandalone) this.showCloseExptButton();
         this.requestRender();
+        this.loadingImages = false;
+        this.displayDefaultHeaderText();
+        this.updateExperimentList();
     };
     showCloseExptButton() {
         this.closeExptButton.style.display = "inline";
@@ -969,17 +1077,17 @@ class ExperimentViewer {
     }
     clearReflPointsObsIndexed() {
         for(var i = 0; i < this.reflPointsObsIndexed.length; i++){
-            window.scene.remove(this.reflPointsObsIndexed[i]);
-            this.reflPointsObsIndexed[i].geometry.dispose();
-            this.reflPointsObsIndexed[i].material.dispose();
+            window.scene.remove(this.reflPointsObsIndexed[i][0]);
+            this.reflPointsObsIndexed[i][0].geometry.dispose();
+            this.reflPointsObsIndexed[i][0].material.dispose();
         }
         this.reflPointsObsIndexed = [];
     }
     clearReflPointsObsUnindexed() {
         for(var i = 0; i < this.reflPointsObsUnindexed.length; i++){
-            window.scene.remove(this.reflPointsObsUnindexed[i]);
-            this.reflPointsObsUnindexed[i].geometry.dispose();
-            this.reflPointsObsUnindexed[i].material.dispose();
+            window.scene.remove(this.reflPointsObsUnindexed[i][0]);
+            this.reflPointsObsUnindexed[i][0].geometry.dispose();
+            this.reflPointsObsUnindexed[i][0].material.dispose();
         }
         this.reflPointsObsUnindexed = [];
     }
@@ -992,16 +1100,16 @@ class ExperimentViewer {
         this.reflPointsCal = [];
     }
     clearBoundingBoxes() {
-        for(var i = 0; i < this.bboxMeshesIndexed.length; i++){
-            window.scene.remove(this.bboxMeshesIndexed[i]);
-            this.bboxMeshesIndexed[i].geometry.dispose();
-            this.bboxMeshesIndexed[i].material.dispose();
+        for(var i = 0; i < this.bboxMeshesIndexed.length; i++)for(var j = 0; j < this.bboxMeshesIndexed[i].length; j++){
+            window.scene.remove(this.bboxMeshesIndexed[i][j]);
+            this.bboxMeshesIndexed[i][j].geometry.dispose();
+            this.bboxMeshesIndexed[i][j].material.dispose();
         }
         this.bboxMeshesIndexed = [];
-        for(var i = 0; i < this.bboxMeshesUnindexed.length; i++){
-            window.scene.remove(this.bboxMeshesUnindexed[i]);
-            this.bboxMeshesUnindexed[i].geometry.dispose();
-            this.bboxMeshesUnindexed[i].material.dispose();
+        for(var i = 0; i < this.bboxMeshesUnindexed.length; i++)for(var j = 0; j < this.bboxMeshesUnindexed[i].length; j++){
+            window.scene.remove(this.bboxMeshesUnindexed[i][j]);
+            this.bboxMeshesUnindexed[i][j].geometry.dispose();
+            this.bboxMeshesUnindexed[i][j].material.dispose();
         }
         this.bboxMeshesUnindexed = [];
     }
@@ -1080,9 +1188,10 @@ class ExperimentViewer {
         const containsXYZObs = "xyzObs" in refl;
         const containsXYZCal = "xyzCal" in refl;
         const containsMillerIndices = "millerIdx" in refl;
-        for(var i = 0; i < this.expt.getNumDetectorPanels(); i++){
+        for(var i = 0; i < panelKeys.length; i++){
+            const panelIdx = parseInt(panelKeys[i]);
             const panelReflections = reflData[panelKeys[i]];
-            const panelData = this.expt.getPanelDataByIdx(i);
+            const panelData = this.expt.getPanelDataByIdx(panelIdx);
             const fa = panelData["fastAxis"];
             const sa = panelData["slowAxis"];
             const pOrigin = panelData["origin"];
@@ -1182,9 +1291,21 @@ class ExperimentViewer {
             this.clearReflectionTable();
             return;
         }
-        const positionsObsIndexed = new Array();
-        const positionsObsUnindexed = new Array();
-        const positionsCal = new Array();
+        const pointsObsUnindexed = [];
+        const positionsObsUnindexed = [];
+        const positionsObsIndexed = [];
+        const pointsObsIndexed = [];
+        const positionsCal = [];
+        const bboxMeshesIndexed = [];
+        const bboxMeshesUnindexed = [];
+        for(var i = 0; i < this.expt.numExperiments(); i++){
+            pointsObsUnindexed.push([]);
+            positionsObsUnindexed.push([]);
+            positionsObsIndexed.push([]);
+            pointsObsIndexed.push([]);
+            bboxMeshesIndexed.push([]);
+            bboxMeshesUnindexed.push([]);
+        }
         const bboxMaterial = new _three.LineBasicMaterial({
             color: this.colors["bbox"]
         });
@@ -1193,6 +1314,7 @@ class ExperimentViewer {
         const containsMillerIndices = this.refl.containsMillerIndices();
         for(var i = 0; i < this.expt.getNumDetectorPanels(); i++){
             const panelReflections = this.refl.getReflectionsForPanel(i);
+            if (panelReflections == undefined) continue;
             const panelData = this.expt.getPanelDataByIdx(i);
             const fa = panelData["fastAxis"];
             const sa = panelData["slowAxis"];
@@ -1202,20 +1324,21 @@ class ExperimentViewer {
                 panelData["pxSize"].y
             ];
             for(var j = 0; j < panelReflections.length; j++){
+                const exptID = panelReflections[j]["exptID"];
                 if (containsXYZObs) {
                     const xyzObs = panelReflections[j]["xyzObs"];
                     const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
                     const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
                     if (containsMillerIndices && panelReflections[j]["indexed"]) {
-                        positionsObsIndexed.push(globalPosObs.x);
-                        positionsObsIndexed.push(globalPosObs.y);
-                        positionsObsIndexed.push(globalPosObs.z);
-                        this.bboxMeshesIndexed.push(bboxMesh);
+                        positionsObsIndexed[exptID].push(globalPosObs.x);
+                        positionsObsIndexed[exptID].push(globalPosObs.y);
+                        positionsObsIndexed[exptID].push(globalPosObs.z);
+                        bboxMeshesIndexed[exptID].push(bboxMesh);
                     } else {
-                        positionsObsUnindexed.push(globalPosObs.x);
-                        positionsObsUnindexed.push(globalPosObs.y);
-                        positionsObsUnindexed.push(globalPosObs.z);
-                        this.bboxMeshesUnindexed.push(bboxMesh);
+                        positionsObsUnindexed[exptID].push(globalPosObs.x);
+                        positionsObsUnindexed[exptID].push(globalPosObs.y);
+                        positionsObsUnindexed[exptID].push(globalPosObs.z);
+                        bboxMeshesUnindexed[exptID].push(bboxMesh);
                     }
                     window.scene.add(bboxMesh);
                 }
@@ -1230,35 +1353,39 @@ class ExperimentViewer {
         }
         if (containsXYZObs) {
             if (containsMillerIndices) {
-                const reflGeometryObsIndexed = new _three.BufferGeometry();
-                reflGeometryObsIndexed.setAttribute("position", new _three.Float32BufferAttribute(positionsObsIndexed, 3));
-                const reflMaterialObsIndexed = new _three.PointsMaterial({
+                for(var exptID = 0; exptID < positionsObsIndexed.length; exptID++){
+                    const reflGeometryObsIndexed = new _three.BufferGeometry();
+                    reflGeometryObsIndexed.setAttribute("position", new _three.Float32BufferAttribute(positionsObsIndexed[exptID], 3));
+                    const reflMaterialObsIndexed = new _three.PointsMaterial({
+                        size: this.reflectionSize.value,
+                        transparent: true,
+                        map: this.reflSprite,
+                        color: this.colors["reflectionObsIndexed"]
+                    });
+                    const points = new _three.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
+                    window.scene.add(points);
+                    pointsObsIndexed[exptID].push(points);
+                }
+                this.reflPointsObsIndexed = pointsObsIndexed;
+                this.reflPositionsIndexed = positionsObsIndexed;
+                this.bboxMeshesIndexed = bboxMeshesIndexed;
+            }
+            for(var exptID = 0; exptID < positionsObsUnindexed.length; exptID++){
+                const reflGeometryObsUnindexed = new _three.BufferGeometry();
+                reflGeometryObsUnindexed.setAttribute("position", new _three.Float32BufferAttribute(positionsObsUnindexed[exptID], 3));
+                const reflMaterialObsUnindexed = new _three.PointsMaterial({
                     size: this.reflectionSize.value,
                     transparent: true,
                     map: this.reflSprite,
-                    color: this.colors["reflectionObsIndexed"]
+                    color: this.colors["reflectionObsUnindexed"][exptID % this.colors["reflectionObsUnindexed"].length]
                 });
-                const pointsObsIndexed = new _three.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
-                window.scene.add(pointsObsIndexed);
-                this.reflPointsObsIndexed = [
-                    pointsObsIndexed
-                ];
-                this.reflPositionsIndexed = positionsObsIndexed;
+                const points = new _three.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
+                window.scene.add(points);
+                pointsObsUnindexed[exptID].push(points);
             }
-            const reflGeometryObsUnindexed = new _three.BufferGeometry();
-            reflGeometryObsUnindexed.setAttribute("position", new _three.Float32BufferAttribute(positionsObsUnindexed, 3));
-            const reflMaterialObsUnindexed = new _three.PointsMaterial({
-                size: this.reflectionSize.value,
-                transparent: true,
-                map: this.reflSprite,
-                color: this.colors["reflectionObsUnindexed"]
-            });
-            const pointsObsUnindexed = new _three.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
-            window.scene.add(pointsObsUnindexed);
-            this.reflPointsObsUnindexed = [
-                pointsObsUnindexed
-            ];
+            this.reflPointsObsUnindexed = pointsObsUnindexed;
             this.reflPositionsUnindexed = positionsObsUnindexed;
+            this.bboxMeshesUnindexed = bboxMeshesUnindexed;
         }
         if (containsXYZCal) {
             const reflGeometryCal = new _three.BufferGeometry();
@@ -1321,9 +1448,9 @@ class ExperimentViewer {
     }
     setDefaultReflectionsDisplay() {
         /**
-		 * If both observed and calculated reflections are available,
-		 * show observed by default.
-		 */ if (!this.hasReflectionTable()) {
+     * If both observed and calculated reflections are available,
+     * show observed by default.
+     */ if (!this.hasReflectionTable()) {
             this.observedIndexedReflsCheckbox.checked = false;
             this.observedUnindexedReflsCheckbox.checked = false;
             this.calculatedReflsCheckbox.checked = false;
@@ -1343,14 +1470,14 @@ class ExperimentViewer {
             this.calculatedReflsCheckbox.checked = false;
         } else if (this.reflPointsCal.length > 0) {
             this.updateCalculatedReflections(true);
-            this.calculatedReflsCheckbox.checked = true;
+            this.calculatedReflsCheckbox.checked = false;
             this.observedIndexedReflsCheckbox.checked = false;
             this.observedUnindexedReflsCheckbox.checked = false;
         }
         /*
-		 * Bboxes off by default as they can be expensive for 
-		 * large numbers of reflections
-		 */ this.updateBoundingBoxes(false);
+     * Bboxes off by default as they can be expensive for 
+     * large numbers of reflections
+     */ this.updateBoundingBoxes(false);
         this.boundingBoxesCheckbox.checked = false;
     }
     updateReflectionCheckboxStatus() {
@@ -1631,6 +1758,10 @@ class ExperimentViewer {
     enableMouseClick() {
         this.preventMouseClick = false;
     }
+    showLoadingImagesMsg() {
+        this.displayHeaderText("Loading images...");
+        this.loadingImages = true;
+    }
     updateGUIInfo() {
         function updatePanelInfo(viewer) {
             const intersects = window.rayCaster.intersectObjects(viewer.panelMeshes);
@@ -1642,11 +1773,14 @@ class ExperimentViewer {
             }
         }
         function updateReflectionInfo(viewer) {
-            const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed);
-            window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-            if (intersects.length > 0) for(var i = 0; i < intersects.length; i++){
-                const millerIdx = viewer.refl.getMillerIndexById(intersects[i].index);
-                viewer.appendHeaderText(" (" + millerIdx[0] + ", " + millerIdx[1] + ", " + millerIdx[2] + ")");
+            if (!viewer.observedIndexedReflsCheckbox.checked) return;
+            for(var i = 0; i < viewer.reflPointsObsIndexed.length; i++){
+                const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed[i]);
+                window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+                if (intersects.length > 0) for(var i = 0; i < intersects.length; i++){
+                    const millerIdx = viewer.refl.getMillerIndexById(intersects[i].index);
+                    viewer.appendHeaderText(" (" + millerIdx[0] + ", " + millerIdx[1] + ", " + millerIdx[2] + ")");
+                }
             }
         }
         function updateBeamInfo(viewer) {
@@ -1672,6 +1806,7 @@ class ExperimentViewer {
         }
         if (this.displayingTextFromHTMLEvent) return;
         if (!this.cursorActive) return;
+        if (this.loadingImages) return;
         this.displayDefaultHeaderText();
         updatePanelInfo(this);
         updateReflectionInfo(this);
@@ -1740,7 +1875,7 @@ class ExperimentViewer {
             }
         });
     }
-    zoomInOnPanel(panel, fitOffset = 1.1, panelName = null, panelPos = null) {
+    zoomInOnPanel(panel, fitOffset = 0.1, panelName = null, panelPos = null) {
         const size = new _three.Vector3();
         const center = new _three.Vector3();
         const box = new _three.Box3();
@@ -1753,7 +1888,7 @@ class ExperimentViewer {
         const fitWidthDistance = fitHeightDistance / window.camera.aspect;
         const distance = fitOffset * Math.max(fitHeightDistance, fitWidthDistance);
         const direction = center.clone().normalize().multiplyScalar(distance);
-        const target = center.clone().sub(direction);
+        const target = direction.clone().multiplyScalar(-1);
         (0, _gsap.gsap).to(window.camera.position, {
             duration: 1,
             x: target.x,
@@ -1768,6 +1903,93 @@ class ExperimentViewer {
             }
         });
         window.controls.update();
+    }
+    toggleExperimentList() {
+        document.getElementById("experimentDropdown").classList.toggle("show");
+        var dropdownIcon = document.getElementById("dropdownIcon");
+        dropdownIcon.classList.toggle("fa-chevron-down");
+        dropdownIcon.classList.toggle("fa-chevron-right");
+    }
+    toggleExptVisibility(exptIDLabel) {
+        var exptID = parseInt(exptIDLabel.split("-").pop());
+        this.visibleExpts[exptID] = !this.visibleExpts[exptID];
+        this.updateObservedIndexedReflections();
+        this.updateObservedUnindexedReflections();
+        this.updateBoundingBoxes();
+        var dropdownIcon = document.getElementById("exptID-dropdown-icon-" + exptID.toString());
+        dropdownIcon.classList.toggle("fa-check");
+    }
+    toggleAllExptVisibility() {
+        var dropdownIcon = document.getElementById("exptID-dropdown-icon-all");
+        dropdownIcon.classList.toggle("fa-check");
+        var visible = dropdownIcon.classList.contains("fa-check");
+        for(var exptID = 0; exptID < this.visibleExpts.length; exptID++){
+            this.visibleExpts[exptID] = visible;
+            var dropdownIcon = document.getElementById("exptID-dropdown-icon-" + exptID.toString());
+            if (dropdownIcon.classList.contains("fa-check") !== visible) dropdownIcon.classList.toggle("fa-check");
+        }
+        this.updateObservedIndexedReflections();
+        this.updateObservedUnindexedReflections();
+        this.updateBoundingBoxes();
+    }
+    clearExperimentList() {
+        var dropdownContent = document.getElementById("experimentDropdown");
+        dropdownContent.innerHTML = "";
+    }
+    updateExperimentList() {
+        var maxLabelSize = 22;
+        var minNumForAllButton = 4;
+        var exptIDs = this.expt.getExptIDs();
+        var exptLabels = this.expt.getExptLabels();
+        var addAllButton = exptLabels.length > minNumForAllButton;
+        var firstLabel = null;
+        const visibleExpts = [];
+        var dropdownContent = document.getElementById("experimentDropdown");
+        dropdownContent.innerHTML = "";
+        for(var i = 0; i < exptIDs.length; i++){
+            var label = document.createElement("label");
+            label.classList.add("experiment-label");
+            const color = this.colors["reflectionObsUnindexed"][exptIDs[i] % this.colors["reflectionObsUnindexed"].length];
+            var hexColor = "#" + color.toString(16).padStart(6, "0");
+            label.style.color = hexColor;
+            var icon = document.createElement("i");
+            icon.classList.add("fa", "fa-check");
+            icon.style.float = "right";
+            icon.id = "exptID-dropdown-icon-" + exptIDs[i];
+            if (i !== 0) icon.classList.toggle("fa-check");
+            var exptLabel = exptLabels[i];
+            if (exptLabel.length > maxLabelSize) exptLabel = exptLabel.slice(0, 19) + "...";
+            label.textContent = exptLabel;
+            label.id = "exptID-" + exptIDs[i];
+            label.appendChild(icon);
+            label.addEventListener("click", (event)=>{
+                this.toggleExptVisibility(event.target.id);
+            });
+            if (addAllButton && firstLabel === null) firstLabel = label;
+            dropdownContent.appendChild(label);
+            dropdownContent.appendChild(document.createElement("br"));
+            visibleExpts.push(i === 0 ? true : false);
+        }
+        if (addAllButton) {
+            console.assert(firstLabel !== null);
+            var label = document.createElement("label");
+            label.classList.add("experiment-label");
+            var icon = document.createElement("i");
+            icon.classList.add("fa", "fa-check");
+            icon.style.float = "right";
+            icon.id = "exptID-dropdown-icon-all";
+            icon.classList.toggle("fa-check");
+            var exptLabel = "All";
+            label.textContent = exptLabel;
+            label.id = "exptID-all";
+            label.appendChild(icon);
+            label.addEventListener("click", (event)=>{
+                this.toggleAllExptVisibility();
+            });
+            dropdownContent.insertBefore(label, firstLabel);
+            dropdownContent.insertBefore(label, firstLabel);
+        }
+        this.visibleExpts = visibleExpts;
     }
     animate() {
         if (!this.renderRequested) return;
@@ -1788,8 +2010,8 @@ class ExperimentViewer {
 }
 function setupScene() {
     /**
-	 * Sets the renderer, camera, controls
-	 */ if (typeof window.viewer === "undefined") return;
+   * Sets the renderer, camera, controls
+   */ if (typeof window.viewer === "undefined") return;
     // Renderer
     window.renderer = new _three.WebGLRenderer();
     window.renderer.setClearColor(window.viewer.colors["background"]);
@@ -1860,7 +2082,7 @@ function setupScene() {
     window.viewer.requestRender();
 }
 
-},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","gsap":"fPSuC","three.meshline":"4n0f9","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8","./ExptParser":"dbzGd"}],"ktPTu":[function(require,module,exports) {
+},{"three":"ktPTu","three/examples/jsm/controls/OrbitControls.js":"7mqRv","gsap":"fPSuC","three.meshline":"4n0f9","./ExptParser":"dbzGd","@parcel/transformer-js/src/esmodule-helpers.js":"fD7H8"}],"ktPTu":[function(require,module,exports) {
 /**
  * @license
  * Copyright 2010-2023 Three.js Authors
@@ -37058,6 +37280,29 @@ class ExptParser {
             return false;
         }
     }
+    numExperiments() {
+        if (this.exptJSON == null) return 0;
+        return this.exptJSON["experiment"].length;
+    }
+    getExptIDs() {
+        var exptIDs = [];
+        for(var i = 0; i < this.numExperiments(); i++)exptIDs.push(i);
+        return exptIDs;
+    }
+    getImageFilename(idx) {
+        const fileIdx = this.exptJSON["experiment"][idx]["imageset"];
+        return this.exptJSON["imageset"][fileIdx]["template"];
+    }
+    getExptLabels() {
+        var isWindows = window.navigator.oscpu.indexOf("indow") > -1;
+        var exptLabels = [];
+        for(var i = 0; i < this.numExperiments(); i++){
+            var label = this.getImageFilename(i);
+            if (isWindows) exptLabels.push(label.split("\\").pop());
+            else exptLabels.push(label.split("/").pop());
+        }
+        return exptLabels;
+    }
     clearExperiment() {
         this.exptJSON = null;
         this.nameIdxMap = {};
@@ -37296,6 +37541,17 @@ class ReflParser {
         }
         return arr;
     }
+    getInt32Array(column_name) {
+        const buffer = this.getColumnBuffer(column_name);
+        const dataView = new DataView(buffer.buffer);
+        const arr = new Int32Array(buffer.byteLength / 4);
+        let count = 0;
+        for(let i = 0; i < buffer.byteLength; i += 4){
+            arr[count] = dataView.getInt32(buffer.byteOffset + i, true);
+            count++;
+        }
+        return arr;
+    }
     getDoubleArray(column_name) {
         const buffer = this.getColumnBuffer(column_name);
         const dataView = new DataView(buffer.buffer);
@@ -37382,15 +37638,24 @@ class ReflParser {
     isValidMillerIndex(idx) {
         return Math.pow(idx[0], 2) + Math.pow(idx[1], 2) + Math.pow(idx[2], 2) > 1e-3;
     }
+    containsExperimentIDs() {
+        return this.containsColumn("id");
+    }
+    getExperimentIDs() {
+        if (this.containsColumn("imageset_id")) return this.getInt32Array("imageset_id");
+        return this.getInt32Array("id");
+    }
     loadReflectionData() {
         const panelNums = this.getPanelNumbers();
         var xyzObs;
         var xyzCal;
         var bboxes;
         var millerIndices;
+        var experimentIDs;
         if (this.containsXYZObs()) xyzObs = this.getXYZObs();
         if (this.containsXYZCal()) xyzCal = this.getXYZCal();
         if (this.containsMillerIndices()) millerIndices = this.getMillerIndices();
+        if (this.containsExperimentIDs()) experimentIDs = this.getExperimentIDs();
         bboxes = this.getBoundingBoxes();
         console.assert(xyzObs || xyzCal);
         console.assert(bboxes);
@@ -37402,6 +37667,8 @@ class ReflParser {
                 "bbox": bboxes[i],
                 "indexed": false
             };
+            if (experimentIDs != null) refl["exptID"] = experimentIDs[i];
+            else refl["exptID"] = 0;
             if (xyzObs) refl["xyzObs"] = xyzObs[i];
             if (xyzCal) refl["xyzCal"] = xyzCal[i];
             if (millerIndices) {
@@ -37972,7 +38239,7 @@ class ReflParser {
     window[window.msgpackJsName || "msgpack"] = msgpack;
 })();
 
-},{}]},["aVkSd","adAxK"], "adAxK", "parcelRequire9102")
+},{}]},["9eOBW","9TQAf"], "9TQAf", "parcelRequire9102")
 
 </script>
 </body>
