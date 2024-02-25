@@ -13,5 +13,3 @@ An open source tool to view [DIALS](https://github.com/dials/dials) [experiment 
 - Hover over beam to see beam direction, and wavelength (if monochromatic)
 - Compare calculated reflections of current model against observed reflections
 
-## Limitations
-- Currently displays only the first experiment in the .expt file
