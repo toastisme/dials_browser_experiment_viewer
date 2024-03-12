@@ -1228,8 +1228,8 @@ export class ExperimentViewer {
         const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed[i]);
         window.rayCaster.setFromCamera(window.mousePosition, window.camera);
         if (intersects.length > 0) {
-          for (var i = 0; i < intersects.length; i++) {
-            const millerIdx = viewer.refl.getMillerIndexById(intersects[i].index);
+          for (var j = 0; j < intersects.length; j++) {
+            const millerIdx = viewer.refl.getMillerIndexById(intersects[j].index);
             viewer.appendHeaderText(" (" + millerIdx[0] + ", " + millerIdx[1] + ", " + millerIdx[2] + ")");
           }
         }
