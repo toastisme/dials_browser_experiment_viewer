@@ -72,11 +72,74 @@
 		<b>reflection size:</b>  <input type="range" min="1" max="25" value="7" 
 		class="slider" id="reflectionSize" onclick="window.viewer.disableMouseClick()"
 		onmouseup="updateReflectionSize()">
+		 <div class="dropdown">
+			<button onclick="window.viewer.toggleExperimentList()" class="dropbtn"><b>Experiments </b><i class="fa fa-chevron-right" id="dropdownIcon"></i></button>
+			<div id="experimentDropdown" class="dropdown-content">
+			</div>
+		</div> 
 	</sidebar>
 	<footer id="footerText"> </footer>
 	<button class="btn" id="closeExpt" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayImageFilenames() "onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
 	<button class="btn" id="closeRefl" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayNumberOfReflections()" onclick="window.viewer.clearReflectionTable()"><i class="fa fa-trash"></i> refl file</button>
 		<style>
+		.experiment-label {
+			display: block;
+			background-color: rgba(0, 1, 0, 0.7);
+			color: white;
+			font-weight: bold;
+			padding: 10px;
+			cursor: pointer;
+			border: none;
+			width: 80%; 
+		}
+		.dropbtn {
+		background-color: rgba(0,1,0,0.7);
+		color: #ddd;
+		font-family: Tahoma, Verdana, sans-serif;
+		padding: 16px;
+		margin-left: -6px;
+		font-size: 16px;
+		border-radius: 10px;
+		border-color:rgba(0,1,0,0.7);
+		padding: 5px 5px;
+		cursor: pointer;
+		}
+
+		.dropbtn:hover, .dropbtn:focus {
+		background-color: rgba(0,1,0,0.7);
+		}
+
+		.dropdown {
+		position: relative;
+		display: inline-block;
+		min-width: 100%;
+		min-height: 100%;
+		}
+
+		.dropdown-content {
+		display: none;
+		position: absolute;
+		background-color: rgba(0,1,0,0.7);
+		min-width: 105%;
+		max-height: 170px;
+		margin-left: -8px;
+		overflow: scroll;
+		border-radius: 10px;
+		box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+		z-index: 1;
+		}
+
+		.dropdown-content a {
+		color: white;
+		padding: 12px 16px;
+		text-decoration: none;
+		display: block;
+		overflow: scroll;
+		}
+
+		.dropdown a:hover {background-color: #ddd;}
+
+		.show {display: block;}
 		#headerText {
 			font-size: 16px;
 			font-family: Tahoma, Verdana, sans-serif;
@@ -177,7 +240,28 @@
 	const colors = {
 			"background": 0x020817,
 			"sample" : 0xfdf6e3,
-			"reflectionObsUnindexed" : 0xFFFFFF,
+			"reflectionObsUnindexed": [
+				0x96f97b,
+				0x75bbfd,
+				0xbf77f6,
+				0x13eac9,
+				0xffb07c,
+				0xffd1df,
+				0xd0fefe,
+				0xffff84,
+				0xffffff,
+				0xff9408,
+				0x01f9c6,
+				0xaefd6c,
+				0xfe0002,
+				0x990f4b,
+				0x78d1b6,
+				0xfff917,
+				0xff0789,
+				0xd4ffff,
+				0x69d84f,
+				0x56ae57
+			],
 			"reflectionObsIndexed" : 0xe74c3c,
 			"reflectionCal" : 0xffaaaa,
 			"panel" : 0x5d7d99,
@@ -217,7 +301,6 @@
 
 		console.log("msg received", event.data);
 		const msg = JSON.parse(event.data);
-
 		if (!isExperimentViewerMsg(msg)){
 			return;
 		}

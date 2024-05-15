@@ -104,9 +104,10 @@ export class ExptParser{
 	parseExperimentJSON(jsonString){
 		const data = jsonString;
 		this.exptJSON = data["expt"];
-		this.imageData = data["image_data_2d"];
-		this.loadPanelData();
+		this.imageData = data["image_data_2d"][0];
+		this.imageSize = data["image_data_2d"][1];
 		this.loadCrystalSummary();
+		this.loadPanelData();
 	}
 
 	getImageFilenames(){
@@ -225,7 +226,7 @@ export class ExptParser{
 			beamData["direction"][2]
 		);
 	}
-
+	
 	getNumDetectorPanels(){
 		return this.getDetectorPanelData().length;
 	}

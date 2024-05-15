@@ -44,6 +44,7 @@ export class ExperimentViewer {
     // Bookkeeping for meshes
     this.panelOutlineMeshes = {};
     this.panelMeshes = [];
+    this.allPanelMeshes = [];
     this.reflPointsObsUnindexed = [];
     this.reflPositionsUnindexed = [];
     this.reflPointsObsIndexed = [];
@@ -56,7 +57,7 @@ export class ExperimentViewer {
     this.axesMeshes = [];
     this.sampleMesh = null;
     this.highlightReflectionMesh = null;
-    this.visibleExpts = [];
+    this.visibleExptID = 0;
 
     this.preventMouseClick = false;
     this.cursorActive = true;
@@ -157,6 +158,20 @@ export class ExperimentViewer {
   showSidebar() {
     this.sidebar.style.display = 'block';
   }
+  
+  updatePanelMeshes(){
+    this.panelMeshes = [];
+
+    for (var i = 0; i < this.allPanelMeshes.length; i++){
+      for (var j = 0; j < this.allPanelMeshes[i].length; j++){
+        this.allPanelMeshes[i][j].visible = (i === this.visibleExptID);
+      }
+      if (i === this.visibleExptID){
+        this.panelMeshes = this.allPanelMeshes[i];
+      }
+    }
+    this.requestRender();
+  }
 
   updateObservedIndexedReflections(val = null) {
     if (val !== null) {
@@ -164,7 +179,7 @@ export class ExperimentViewer {
     }
     const showBbox = this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
     for (var i = 0; i < this.reflPointsObsIndexed.length; i++){
-      this.reflPointsObsIndexed[i][0].visible = this.observedIndexedReflsCheckbox.checked && this.visibleExpts[i];
+      this.reflPointsObsIndexed[i][0].visible = this.observedIndexedReflsCheckbox.checked && this.visibleExptID === i;
     }
     this.requestRender();
   }
@@ -175,7 +190,7 @@ export class ExperimentViewer {
     }
     const showBbox = this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
     for (var i = 0; i < this.reflPointsObsUnindexed.length; i++){
-      this.reflPointsObsUnindexed[i][0].visible = this.observedUnindexedReflsCheckbox.checked && this.visibleExpts[i];
+      this.reflPointsObsUnindexed[i][0].visible = this.observedUnindexedReflsCheckbox.checked && this.visibleExptID === i;
     }
     this.requestRender();
   }
@@ -198,7 +213,7 @@ export class ExperimentViewer {
     if (this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
       for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
         for (var j = 0; j < this.bboxMeshesIndexed[i].length; j++){
-          this.bboxMeshesIndexed[i][j].visible = this.visibleExpts[i];
+          this.bboxMeshesIndexed[i][j].visible = this.visibleExptID === i;
         }
       }
     }
@@ -212,7 +227,7 @@ export class ExperimentViewer {
     if (this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
       for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
         for (var j = 0; j < this.bboxMeshesUnindexed[i].length; j++){
-          this.bboxMeshesUnindexed[i][j].visible = this.visibleExpts[i];
+          this.bboxMeshesUnindexed[i][j].visible = this.visibleExptID === i;
 
         }
       }
@@ -329,11 +344,12 @@ export class ExperimentViewer {
     }
     this.panelOutlineMeshes = {};
 
-    for (var i = 0; i < this.panelMeshes.length; i++) {
+    for (var i = 0; i < this.allPanelMeshes.length; i++) {
       window.scene.remove(this.panelMeshes[i]);
       this.panelMeshes[i].geometry.dispose();
       this.panelMeshes[i].material.dispose();
     }
+    this.allPanelMeshes = [];
     this.panelMeshes = [];
 
     for (var i = 0; i < this.beamMeshes.length; i++) {
@@ -370,7 +386,9 @@ export class ExperimentViewer {
     await this.expt.parseExperiment(file);
     console.assert(this.hasExperiment());
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
-      this.addDetectorPanelOutline(i);
+      for (var j = 0; j < this.expt.numExperiments(); j++){
+        this.addDetectorPanelOutline(i, j);
+      }
     }
     this.addBeam();
     this.addSample();
@@ -381,6 +399,7 @@ export class ExperimentViewer {
     }
     this.requestRender();
     this.updateExperimentList();
+    this.updatePanelMeshes();
   }
 
   addExperimentFromJSONString = async (jsonString) => {
@@ -388,8 +407,15 @@ export class ExperimentViewer {
     this.clearReflectionTable();
     await this.expt.parseExperimentJSON(jsonString);
     console.assert(this.hasExperiment());
+    
+    this.allPanelMeshes = [];
+    for (var i = 0; i < this.expt.numExperiments(); i++){
+      this.allPanelMeshes.push([]);
+    }
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
-      this.addDetectorPanelOutline(i);
+      for (var j = 0; j < this.expt.numExperiments(); j++){
+        this.addDetectorPanelOutline(i, j);
+      }
     }
     this.addBeam();
     this.addSample();
@@ -402,6 +428,7 @@ export class ExperimentViewer {
     this.loadingImages=false;
     this.displayDefaultHeaderText();
     this.updateExperimentList();
+    this.updatePanelMeshes();
   }
 
   showCloseExptButton() {
@@ -523,10 +550,25 @@ export class ExperimentViewer {
     const indexedMap = {};
     var numIndexed = 0;
 
-    const positionsObsIndexed = new Array();
-    const positionsObsUnindexed = new Array();
-    const positionsCal = new Array();
     const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["bbox"] });
+
+    const pointsObsUnindexed = [];
+    const positionsObsUnindexed = [];
+    const positionsObsIndexed = [];
+    const pointsObsIndexed = [];
+    const positionsCal = [];
+    const bboxMeshesIndexed = [];
+    const bboxMeshesUnindexed = [];
+
+
+    for (var i = 0; i < this.expt.numExperiments(); i++){
+      pointsObsUnindexed.push([]);
+      positionsObsUnindexed.push([]);
+      positionsObsIndexed.push([]);
+      pointsObsIndexed.push([]);
+      bboxMeshesIndexed.push([]);
+      bboxMeshesUnindexed.push([]);
+    }
 
     const panelKeys = Object.keys(reflData);
     const refl = reflData[panelKeys[0]][0];
@@ -539,6 +581,7 @@ export class ExperimentViewer {
       const panelIdx = parseInt(panelKeys[i])
 
       const panelReflections = reflData[panelKeys[i]];
+      if (panelReflections === undefined){continue; }
       const panelData = this.expt.getPanelDataByIdx(panelIdx);
 
       const fa = panelData["fastAxis"];
@@ -548,6 +591,8 @@ export class ExperimentViewer {
 
       for (var j = 0; j < panelReflections.length; j++) {
 
+        const exptID = panelReflections[j]["exptID"];
+
         if (containsXYZObs) {
 
           const xyzObs = panelReflections[j]["xyzObs"];
@@ -556,18 +601,18 @@ export class ExperimentViewer {
           const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
 
           if (containsMillerIndices && panelReflections[j]["indexed"]) {
-            positionsObsIndexed.push(globalPosObs.x);
-            positionsObsIndexed.push(globalPosObs.y);
-            positionsObsIndexed.push(globalPosObs.z);
-            this.bboxMeshesIndexed.push(bboxMesh);
+            positionsObsIndexed[exptID].push(globalPosObs.x);
+            positionsObsIndexed[exptID].push(globalPosObs.y);
+            positionsObsIndexed[exptID].push(globalPosObs.z);
+            bboxMeshesIndexed[exptID].push(bboxMesh);
             indexedMap[numIndexed] = panelReflections[j]["millerIdx"];
             numIndexed++;
           }
           else {
-            positionsObsUnindexed.push(globalPosObs.x);
-            positionsObsUnindexed.push(globalPosObs.y);
-            positionsObsUnindexed.push(globalPosObs.z);
-            this.bboxMeshesUnindexed.push(bboxMesh);
+            positionsObsUnindexed[exptID].push(globalPosObs.x);
+            positionsObsUnindexed[exptID].push(globalPosObs.y);
+            positionsObsUnindexed[exptID].push(globalPosObs.z);
+            bboxMeshesUnindexed[exptID].push(bboxMesh);
           }
           window.scene.add(bboxMesh);
 
@@ -585,38 +630,47 @@ export class ExperimentViewer {
     if (containsXYZObs) {
       if (containsMillerIndices) {
 
-        const reflGeometryObsIndexed = new THREE.BufferGeometry();
-        reflGeometryObsIndexed.setAttribute(
-          "position", new THREE.Float32BufferAttribute(positionsObsIndexed, 3)
-        );
+        for (var exptID = 0; exptID < positionsObsIndexed.length; exptID++){
+          const reflGeometryObsIndexed = new THREE.BufferGeometry();
+          reflGeometryObsIndexed.setAttribute(
+            "position", new THREE.Float32BufferAttribute(positionsObsIndexed[exptID], 3)
+          );
 
-        const reflMaterialObsIndexed = new THREE.PointsMaterial({
-          size: this.reflectionSize.value,
-          map: this.reflSprite,
-          transparent: true,
-          color: this.colors["reflectionObsIndexed"]
-        });
-        const pointsObsIndexed = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
-        window.scene.add(pointsObsIndexed);
-        this.reflPointsObsIndexed = [pointsObsIndexed];
+          const reflMaterialObsIndexed = new THREE.PointsMaterial({
+            size: this.reflectionSize.value,
+            transparent: true,
+            map: this.reflSprite,
+            color: this.colors["reflectionObsIndexed"]
+          });
+          const points = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
+          window.scene.add(points);
+          pointsObsIndexed[exptID].push(points);
+        }
+        this.reflPointsObsIndexed = pointsObsIndexed;
         this.reflPositionsIndexed = positionsObsIndexed;
+        this.bboxMeshesIndexed = bboxMeshesIndexed;
 
       }
-      const reflGeometryObsUnindexed = new THREE.BufferGeometry();
-      reflGeometryObsUnindexed.setAttribute(
-        "position", new THREE.Float32BufferAttribute(positionsObsUnindexed, 3)
-      );
+      for (var exptID = 0; exptID < positionsObsUnindexed.length; exptID++){
+        const reflGeometryObsUnindexed = new THREE.BufferGeometry();
+        reflGeometryObsUnindexed.setAttribute(
+          "position", new THREE.Float32BufferAttribute(positionsObsUnindexed[exptID], 3)
+        );
 
-      const reflMaterialObsUnindexed = new THREE.PointsMaterial({
-        size: this.reflectionSize.value,
-        transparent: true,
-        map: this.reflSprite,
-        color: this.colors["reflectionObsUnindexed"]
-      });
-      const pointsObsUnindexed = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
-      window.scene.add(pointsObsUnindexed);
-      this.reflPointsObsUnindexed = [pointsObsUnindexed];
+        const reflMaterialObsUnindexed = new THREE.PointsMaterial({
+          size: this.reflectionSize.value,
+          transparent: true,
+          map: this.reflSprite,
+          color: this.colors["reflectionObsUnindexed"][exptID % this.colors["reflectionObsUnindexed"].length],
+        });
+        const points = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
+        window.scene.add(points);
+        pointsObsUnindexed[exptID].push(points);
+      }
+
+      this.reflPointsObsUnindexed = pointsObsUnindexed;
       this.reflPositionsUnindexed = positionsObsUnindexed;
+      this.bboxMeshesUnindexed = bboxMeshesUnindexed;
     }
 
     if (containsXYZCal) {
@@ -905,10 +959,10 @@ export class ExperimentViewer {
     this.boundingBoxesCheckbox.disabled = !this.refl.hasBboxData();
   }
 
-  getPanelTexture(idx) {
+  getPanelTexture(idx, exptID) {
 
-    const imageData = this.expt.imageData[0][idx];
-    const panelSize = this.expt.imageData[1];
+    const imageData = this.expt.imageData[exptID][idx];
+    const panelSize = this.expt.imageSize;
 
     var canvas = document.createElement('canvas');
     canvas.width = panelSize[0];
@@ -933,8 +987,8 @@ export class ExperimentViewer {
     return texture;
 
   }
-
-  addDetectorPanelOutline(idx) {
+  
+  addDetectorPanelOutline(idx, exptID) {
 
     var corners = this.expt.getDetectorPanelCorners(idx);
     corners.push(corners[0]);
@@ -953,7 +1007,7 @@ export class ExperimentViewer {
     else {
       var uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
       panelGeometry.setAttribute('uvs', new THREE.BufferAttribute(uvs, 2));
-      const panelTexture = this.getPanelTexture(idx);
+      const panelTexture = this.getPanelTexture(idx, exptID);
       panelMaterial = new THREE.MeshBasicMaterial({
         map: panelTexture
       })
@@ -985,7 +1039,7 @@ export class ExperimentViewer {
     }
 
     window.scene.add(plane);
-    this.panelMeshes.push(plane);
+    this.allPanelMeshes[exptID].push(plane);
 
     const line = new MeshLine();
     line.setPoints(corners);
@@ -1407,47 +1461,46 @@ export class ExperimentViewer {
     dropdownIcon.classList.toggle("fa-chevron-down");
     dropdownIcon.classList.toggle("fa-chevron-right"); 
 	}
-
+  
   toggleExptVisibility(exptIDLabel){
     var exptID = parseInt(exptIDLabel.split("-").pop());
-    this.visibleExpts[exptID] = !this.visibleExpts[exptID];
-    this.updateObservedIndexedReflections();
-    this.updateObservedUnindexedReflections();
-    this.updateBoundingBoxes();
     var dropdownIcon = document.getElementById("exptID-dropdown-icon-"+exptID.toString());
-    dropdownIcon.classList.toggle("fa-check");
-  }
+    if (dropdownIcon.classList.contains("fa-check")){
+      this.visibleExptID = -1;
+    }
+    else{
+      this.visibleExptID = exptID;
+    }
 
-  toggleAllExptVisibility(){
-    var dropdownIcon = document.getElementById("exptID-dropdown-icon-all");
-    dropdownIcon.classList.toggle("fa-check");
-    var visible = dropdownIcon.classList.contains("fa-check");
-    for (var exptID = 0; exptID < this.visibleExpts.length; exptID++){
-      this.visibleExpts[exptID] = visible;
-      var dropdownIcon = document.getElementById("exptID-dropdown-icon-"+exptID.toString());
-      if (dropdownIcon.classList.contains("fa-check") !== visible){
-        dropdownIcon.classList.toggle("fa-check");
+    for (var i = 0; i < this.expt.numExperiments(); i++){
+      if (i === exptID){
+        continue;
+      }
+      var otherDropdownIcon = document.getElementById("exptID-dropdown-icon-"+i.toString());
+      if (otherDropdownIcon.classList.contains("fa-check")){
+        otherDropdownIcon.classList.toggle("fa-check");
       }
     }
+
+    dropdownIcon.classList.toggle("fa-check");
+    this.updatePanelMeshes();
     this.updateObservedIndexedReflections();
     this.updateObservedUnindexedReflections();
     this.updateBoundingBoxes();
   }
-
+  
   clearExperimentList(){
     var dropdownContent = document.getElementById("experimentDropdown");
-    dropdownContent.innerHTML = ""; 
+    if (dropdownContent !== null){
+      dropdownContent.innerHTML = ""; 
+    }
   }
 
   updateExperimentList() {
     var maxLabelSize = 22;
-    var minNumForAllButton = 4;
 
     var exptIDs = this.expt.getExptIDs();
     var exptLabels = this.expt.getExptLabels();
-    var addAllButton = exptLabels.length > minNumForAllButton;
-    var firstLabel = null;
-    const visibleExpts = [];
     var dropdownContent = document.getElementById("experimentDropdown");
     dropdownContent.innerHTML = ""; 
 
@@ -1480,40 +1533,9 @@ export class ExperimentViewer {
             this.toggleExptVisibility(event.target.id);
         });
 
-        if (addAllButton && firstLabel === null){
-          firstLabel = label;
-        }
-
         dropdownContent.appendChild(label);
         dropdownContent.appendChild(document.createElement("br"));
-        visibleExpts.push(i === 0 ? true : false);
     }
-    if (addAllButton){
-      console.assert(firstLabel !== null);
-      var label = document.createElement("label");
-      label.classList.add("experiment-label"); 
-      
-      var icon = document.createElement("i");
-      icon.classList.add("fa", "fa-check"); 
-      icon.style.float = "right"; 
-      icon.id = "exptID-dropdown-icon-all";
-      icon.classList.toggle("fa-check");
-      
-      var exptLabel = "All";
-      label.textContent = exptLabel;
-      label.id = "exptID-all";
-      
-      label.appendChild(icon);
-      
-      label.addEventListener('click', (event) => {
-          this.toggleAllExptVisibility();
-      });
-
-      dropdownContent.insertBefore(label, firstLabel);
-      dropdownContent.insertBefore(label, firstLabel);
-
-    }
-    this.visibleExpts = visibleExpts;
   }
 
 
