@@ -87,7 +87,8 @@ export class ExperimentViewer {
         "command": "update_lineplot",
         "panel_idx": panelIdx,
         "panel_pos": panelPos,
-        "name": name
+        "name": name,
+        "expt_id": this.visibleExptID
       }
     );
     this.serverWS.send(data);
