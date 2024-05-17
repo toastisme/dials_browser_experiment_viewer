@@ -57,6 +57,9 @@ export class ExperimentViewer {
     this.axesMeshes = [];
     this.sampleMesh = null;
     this.highlightReflectionMesh = null;
+    this.createReflectionMesh = null;
+    this.createReflectionOrigin = null;
+    this.creatingReflection = false;
     this.visibleExptID = 0;
 
     this.preventMouseClick = false;
@@ -1241,6 +1244,10 @@ export class ExperimentViewer {
   onLeftClick() {
     if (this.isStandalone) { return; }
     if (this.preventMouseClick) { return; }
+    if (this.creatingReflection){
+      window.viewer.disableReflectionCreation();
+      return;
+    }
     const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
     if (intersects.length > 0) {
@@ -1539,10 +1546,101 @@ export class ExperimentViewer {
     }
   }
 
+  enableReflectionCreation(){
+    if (this.preventMouseClick) { return; }
+    const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
+    window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+    if (intersects.length === 0){ return; }
+
+    window.controls.enabled = false;
+    this.creatingReflection = true;
+    const name = intersects[0].object.name;
+    const panelIdx = this.expt.getPanelIdxByName(name);
+    const panelPos = this.getPanelPosition(intersects[0].point, name);
+    this.createReflectionOrigin = panelPos;
+
+    const panelData = this.expt.getPanelDataByIdx(panelIdx);
+    const bbox = [
+      panelPos[1],
+      panelPos[1],
+      panelPos[0],
+      panelPos[0]
+    ]
+
+    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["highlightBbox"] });
+
+    const mesh = this.getBboxMesh(
+      bbox,
+      bboxMaterial,
+      this,
+      panelData["origin"],
+      panelData["fastAxis"],
+      panelData["slowAxis"],
+      [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
+    );
+
+    window.scene.add(mesh);
+    this.createReflectionMesh = mesh;
+  }
+
+  disableReflectionCreation(){
+    window.controls.enabled = true;
+    this.creatingReflection = false;
+    if (this.createReflectionMesh) {
+      window.scene.remove(this.createReflectionMesh);
+      this.createReflectionMesh.geometry.dispose();
+      this.createReflectionMesh.material.dispose();
+      this.createReflectionMesh = null;
+    }
+    this.createReflectionOrigin = null;
+  }
+
+  updateNewReflection(){
+    const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
+    window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+    if (intersects.length === 0){ return; }
+    if (this.createReflectionMesh) {
+      window.scene.remove(this.createReflectionMesh);
+      this.createReflectionMesh.geometry.dispose();
+      this.createReflectionMesh.material.dispose();
+      this.createReflectionMesh = null;
+    }
+
+    const name = intersects[0].object.name;
+    const panelIdx = this.expt.getPanelIdxByName(name);
+    const panelPos = this.getPanelPosition(intersects[0].point, name);
+
+    const panelData = this.expt.getPanelDataByIdx(panelIdx);
+    const bbox = [
+      this.createReflectionOrigin[1],
+      panelPos[1],
+      this.createReflectionOrigin[0],
+      panelPos[0]
+    ]
+
+    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["highlightBbox"] });
+
+    const mesh = this.getBboxMesh(
+      bbox,
+      bboxMaterial,
+      this,
+      panelData["origin"],
+      panelData["fastAxis"],
+      panelData["slowAxis"],
+      [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
+    );
+
+    window.scene.add(mesh);
+    this.createReflectionMesh = mesh;
+  }
+
 
   animate() {
     if (!this.renderRequested) {
       return;
+    }
+    if (this.creatingReflection){
+      this.updateNewReflection();
     }
     window.viewer.resetPanelColors();
     window.viewer.updateOriginObjectsOpacity();
@@ -1646,6 +1744,9 @@ export function setupScene() {
   });
 
   window.addEventListener('mousedown', function(event) {
+    if (event.button === 0 && event.shiftKey) {
+      window.viewer.enableReflectionCreation();
+    }
     if (event.button == 2) {
       window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
     }
