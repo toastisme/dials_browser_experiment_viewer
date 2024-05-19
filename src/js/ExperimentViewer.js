@@ -60,6 +60,7 @@ export class ExperimentViewer {
     this.createReflectionMesh = null;
     this.createReflectionOrigin = null;
     this.createReflectionPanel = null;
+    this.createReflectionPanelName = null;
     this.createReflectionBbox = null;
     this.creatingReflection = false;
     this.drawingReflection = false;
@@ -133,7 +134,8 @@ export class ExperimentViewer {
       "beam": 0xFFFFFF,
       "bbox": 0xFFFFFF,
       "axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
-      "highlightBbox": 0x59b578
+      "highlightBbox": 0x59b578,
+      "createNewReflectionBbox" : 0xffb07c
     };
   }
 
@@ -863,13 +865,22 @@ export class ExperimentViewer {
 
     const bboxSize = ExperimentViewer.sizes()["highlightBboxSize"];
     const pos = reflData["panelPos"];
-    const panelName = reflData["name"];
+    if ("focusOnPanel" in reflData){
+      focusOnPanel = reflData["focusOnPanel"];
+    }
 
     if (focusOnPanel) {
+      const panelName = reflData["name"];
       var panel = this.panelMeshes[reflData["panelIdx"]];
       window.viewer.zoomInOnPanel(panel, 1.1, panelName, pos);
     }
 
+    if (this.createReflectionMesh) {
+      window.scene.remove(this.createReflectionMesh);
+      this.createReflectionMesh.geometry.dispose();
+      this.createReflectionMesh.material.dispose();
+      this.createReflectionMesh = null;
+    }
 
     if (this.highlightReflectionMesh) {
       window.scene.remove(this.highlightReflectionMesh);
@@ -1570,6 +1581,7 @@ export class ExperimentViewer {
     const panelPos = this.getPanelPosition(intersects[0].point, name);
     this.createReflectionOrigin = panelPos;
     this.createReflectionPanel = panelIdx;
+    this.createReflectionPanelName = name;
 
     const panelData = this.expt.getPanelDataByIdx(panelIdx);
     const bbox = [
@@ -1579,7 +1591,7 @@ export class ExperimentViewer {
       panelPos[0]
     ]
 
-    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["highlightBbox"] });
+    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["createNewReflectionBbox"] });
 
     const mesh = this.getBboxMesh(
       bbox,
@@ -1597,13 +1609,20 @@ export class ExperimentViewer {
 
   onEndDrawingReflection(){
     window.viewer.drawingReflection=false;
-    this.serverWS.send({
+    if (this.highlightReflectionMesh) {
+      window.scene.remove(this.highlightReflectionMesh);
+      this.highlightReflectionMesh.geometry.dispose();
+      this.highlightReflectionMesh.material.dispose();
+      this.highlightReflectionMesh = null;
+    }
+    this.serverWS.send(JSON.stringify({
       "channel": "server",
       "command": "new_reflection_xy",
-      "panel_idx": this.createReflectionOrigin,
+      "panel_idx": this.createReflectionPanel,
       "expt_id": this.visibleExptID,
-      "bbox": this.createReflectionBbox
-    });
+      "bbox": this.createReflectionBbox,
+      "panel_name": this.createReflectionPanelName
+    }));
   }
 
   disableReflectionCreation(){
@@ -1617,11 +1636,12 @@ export class ExperimentViewer {
     }
     this.createReflectionOrigin = null;
     this.createReflectionPanel = null;
+    this.createReflectionPanelName = null;
     this.createReflectionBbox = null;
-    this.serverWS.send({
+    this.serverWS.send(JSON.stringify({
       "channel": "server",
       "command": "cancel_new_reflection"
-    });
+    }));
   }
 
   updateNewReflection(){
@@ -1643,12 +1663,12 @@ export class ExperimentViewer {
     const bbox = [
       this.createReflectionOrigin[1],
       panelPos[1],
+      panelPos[0],
       this.createReflectionOrigin[0],
-      panelPos[0]
     ]
     this.createReflectionBbox = bbox;
 
-    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["highlightBbox"] });
+    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["createNewReflectionBbox"] });
 
     const mesh = this.getBboxMesh(
       bbox,
@@ -1769,7 +1789,7 @@ export function setupScene() {
 
   window.addEventListener('click', function(event) {
     if (event.button === 0) {
-    if (event.shiftKey && window.viewer.drawingReflection){
+    if (event.altKey && window.viewer.drawingReflection){
         window.viewer.onEndDrawingReflection();
     }
     else{
@@ -1779,7 +1799,7 @@ export function setupScene() {
   });
 
   window.addEventListener('mousedown', function(event) {
-    if (event.button === 0 && event.shiftKey) {
+    if (event.button === 0 && event.altKey) {
       window.viewer.enableReflectionCreation();
     }
     if (event.button == 2) {
