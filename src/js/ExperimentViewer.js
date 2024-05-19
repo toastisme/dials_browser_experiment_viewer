@@ -59,7 +59,10 @@ export class ExperimentViewer {
     this.highlightReflectionMesh = null;
     this.createReflectionMesh = null;
     this.createReflectionOrigin = null;
+    this.createReflectionPanel = null;
+    this.createReflectionBbox = null;
     this.creatingReflection = false;
+    this.drawingReflection = false;
     this.visibleExptID = 0;
 
     this.preventMouseClick = false;
@@ -1244,7 +1247,7 @@ export class ExperimentViewer {
   onLeftClick() {
     if (this.isStandalone) { return; }
     if (this.preventMouseClick) { return; }
-    if (this.creatingReflection){
+    if (this.creatingReflection && !this.drawingReflection){
       window.viewer.disableReflectionCreation();
       return;
     }
@@ -1552,12 +1555,21 @@ export class ExperimentViewer {
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
     if (intersects.length === 0){ return; }
 
+    if (this.createReflectionMesh) {
+      window.scene.remove(this.createReflectionMesh);
+      this.createReflectionMesh.geometry.dispose();
+      this.createReflectionMesh.material.dispose();
+      this.createReflectionMesh = null;
+    }
+
     window.controls.enabled = false;
     this.creatingReflection = true;
+    this.drawingReflection = true;
     const name = intersects[0].object.name;
     const panelIdx = this.expt.getPanelIdxByName(name);
     const panelPos = this.getPanelPosition(intersects[0].point, name);
     this.createReflectionOrigin = panelPos;
+    this.createReflectionPanel = panelIdx;
 
     const panelData = this.expt.getPanelDataByIdx(panelIdx);
     const bbox = [
@@ -1583,6 +1595,17 @@ export class ExperimentViewer {
     this.createReflectionMesh = mesh;
   }
 
+  onEndDrawingReflection(){
+    window.viewer.drawingReflection=false;
+    this.serverWS.send({
+      "channel": "server",
+      "command": "new_reflection_xy",
+      "panel_idx": this.createReflectionOrigin,
+      "expt_id": this.visibleExptID,
+      "bbox": this.createReflectionBbox
+    });
+  }
+
   disableReflectionCreation(){
     window.controls.enabled = true;
     this.creatingReflection = false;
@@ -1593,6 +1616,12 @@ export class ExperimentViewer {
       this.createReflectionMesh = null;
     }
     this.createReflectionOrigin = null;
+    this.createReflectionPanel = null;
+    this.createReflectionBbox = null;
+    this.serverWS.send({
+      "channel": "server",
+      "command": "cancel_new_reflection"
+    });
   }
 
   updateNewReflection(){
@@ -1617,6 +1646,7 @@ export class ExperimentViewer {
       this.createReflectionOrigin[0],
       panelPos[0]
     ]
+    this.createReflectionBbox = bbox;
 
     const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["highlightBbox"] });
 
@@ -1639,7 +1669,7 @@ export class ExperimentViewer {
     if (!this.renderRequested) {
       return;
     }
-    if (this.creatingReflection){
+    if (this.drawingReflection){
       this.updateNewReflection();
     }
     window.viewer.resetPanelColors();
@@ -1739,7 +1769,12 @@ export function setupScene() {
 
   window.addEventListener('click', function(event) {
     if (event.button === 0) {
+    if (event.shiftKey && window.viewer.drawingReflection){
+        window.viewer.onEndDrawingReflection();
+    }
+    else{
       window.viewer.onLeftClick();
+    }
     }
   });
 
