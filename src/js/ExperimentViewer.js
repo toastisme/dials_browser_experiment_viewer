@@ -4,6 +4,55 @@ import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import { ExptParser } from './ExptParser';
 
+class UserReflection{
+  constructor(origin, panelName, lineColor){
+    this.positions = [origin];
+    this.panelName = panelName;
+    this.lineMesh = null;
+    this.bboxMesh = null;
+    this.lineMaterial = new THREE.LineBasicMaterial({ color: lineColor });
+  }
+  
+  addBboxMesh(mesh){
+    this.clearLineMesh();
+    this.bboxMesh = mesh;
+    window.scene.add(mesh);
+  }
+  
+  clearLineMesh(){
+    if (this.lineMesh) {
+      window.scene.remove(this.lineMesh);
+      this.lineMesh.geometry.dispose();
+      this.lineMesh.material.dispose();
+      this.lineMesh = null;
+    }
+  }
+  
+  clearBboxMesh(){
+    if (this.bboxMesh) {
+      window.scene.remove(this.bboxMesh);
+      this.bboxMesh.geometry.dispose();
+      this.bboxMesh.material.dispose();
+      this.bboxMesh = null;
+    }
+  }
+
+  clear(){
+    this.clearLineMesh();
+    this.clearBboxMesh();
+  }
+  
+  updateUserOutline(newPos){
+    this.positions.push(newPos);
+    this.clearLineMesh();
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints(this.positions);
+    this.lineMesh = new THREE.Line(lineGeometry, this.lineMaterial);
+    window.scene.add(this.lineMesh);
+  }
+
+}
+
+
 export class ExperimentViewer {
   constructor(exptParser, reflParser, isStandalone, colors = null) {
 
@@ -58,12 +107,9 @@ export class ExperimentViewer {
     this.sampleMesh = null;
     this.highlightReflectionMesh = null;
     this.createReflectionMesh = null;
-    this.createReflectionOrigin = null;
-    this.createReflectionPanel = null;
-    this.createReflectionPanelName = null;
-    this.createReflectionBbox = null;
     this.creatingReflection = false;
     this.drawingReflection = false;
+    this.userReflection = null;
     this.visibleExptID = 0;
 
     this.preventMouseClick = false;
@@ -875,11 +921,9 @@ export class ExperimentViewer {
       window.viewer.zoomInOnPanel(panel, 1.1, panelName, pos);
     }
 
-    if (this.createReflectionMesh) {
-      window.scene.remove(this.createReflectionMesh);
-      this.createReflectionMesh.geometry.dispose();
-      this.createReflectionMesh.material.dispose();
-      this.createReflectionMesh = null;
+    if (this.userReflection) {
+      this.userReflection.clear();
+      this.userReflection = null;
     }
 
     if (this.highlightReflectionMesh) {
@@ -1565,46 +1609,21 @@ export class ExperimentViewer {
     const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
     if (intersects.length === 0){ return; }
-
-    if (this.createReflectionMesh) {
-      window.scene.remove(this.createReflectionMesh);
-      this.createReflectionMesh.geometry.dispose();
-      this.createReflectionMesh.material.dispose();
-      this.createReflectionMesh = null;
+    
+    if (this.userReflection){
+      this.userReflection.clearLineMesh();
+      this.userReflection.clearBboxMesh();
+      this.userReflection = null;
     }
 
     window.controls.enabled = false;
     this.creatingReflection = true;
     this.drawingReflection = true;
+
     const name = intersects[0].object.name;
     const panelIdx = this.expt.getPanelIdxByName(name);
-    const panelPos = this.getPanelPosition(intersects[0].point, name);
-    this.createReflectionOrigin = panelPos;
-    this.createReflectionPanel = panelIdx;
-    this.createReflectionPanelName = name;
-
-    const panelData = this.expt.getPanelDataByIdx(panelIdx);
-    const bbox = [
-      panelPos[1],
-      panelPos[1],
-      panelPos[0],
-      panelPos[0]
-    ]
-
-    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["createNewReflectionBbox"] });
-
-    const mesh = this.getBboxMesh(
-      bbox,
-      bboxMaterial,
-      this,
-      panelData["origin"],
-      panelData["fastAxis"],
-      panelData["slowAxis"],
-      [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
-    );
-
-    window.scene.add(mesh);
-    this.createReflectionMesh = mesh;
+    this.userReflection = new UserReflection(
+      intersects[0].point, name, this.colors["createNewReflectionBbox"]);
   }
 
   onEndDrawingReflection(){
@@ -1615,29 +1634,54 @@ export class ExperimentViewer {
       this.highlightReflectionMesh.material.dispose();
       this.highlightReflectionMesh = null;
     }
+    var panelPositions = [];
+    for (var i = 0; i < this.userReflection.positions.length; i++){
+      panelPositions.push(
+        this.getPanelPosition(this.userReflection.positions[i],
+          this.userReflection.panelName
+        )
+      );
+    }
+    
+    const xValues = panelPositions.map(position => position[0]);
+    const yValues = panelPositions.map(position => position[1]);
+    
+    const minX = Math.min(...xValues);
+    const maxX = Math.max(...xValues);
+    const minY = Math.min(...yValues);
+    const maxY = Math.max(...yValues);
+
+    const bbox = [minY, maxY, maxX, minX];
+    const panelIdx = this.expt.getPanelIdxByName(this.userReflection.panelName);
+    const panelData = this.expt.getPanelDataByIdx(panelIdx);
+    const mesh = this.getBboxMesh(
+      bbox,
+      this.userReflection.lineMaterial,
+      this,
+      panelData["origin"],
+      panelData["fastAxis"],
+      panelData["slowAxis"],
+      [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
+    );
+    this.userReflection.addBboxMesh(mesh);
+    
     this.serverWS.send(JSON.stringify({
       "channel": "server",
       "command": "new_reflection_xy",
-      "panel_idx": this.createReflectionPanel,
+      "panel_idx": panelIdx,
       "expt_id": this.visibleExptID,
-      "bbox": this.createReflectionBbox,
-      "panel_name": this.createReflectionPanelName
+      "bbox": bbox,
+      "panel_name": this.userReflection.panelName
     }));
   }
 
   disableReflectionCreation(){
     window.controls.enabled = true;
     this.creatingReflection = false;
-    if (this.createReflectionMesh) {
-      window.scene.remove(this.createReflectionMesh);
-      this.createReflectionMesh.geometry.dispose();
-      this.createReflectionMesh.material.dispose();
-      this.createReflectionMesh = null;
+    if (this.userReflection){
+      this.userReflection.clear();
+      this.userReflection = null;
     }
-    this.createReflectionOrigin = null;
-    this.createReflectionPanel = null;
-    this.createReflectionPanelName = null;
-    this.createReflectionBbox = null;
     this.serverWS.send(JSON.stringify({
       "channel": "server",
       "command": "cancel_new_reflection"
@@ -1648,42 +1692,10 @@ export class ExperimentViewer {
     const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
     if (intersects.length === 0){ return; }
-    if (this.createReflectionMesh) {
-      window.scene.remove(this.createReflectionMesh);
-      this.createReflectionMesh.geometry.dispose();
-      this.createReflectionMesh.material.dispose();
-      this.createReflectionMesh = null;
+    if (this.userReflection){
+      this.userReflection.updateUserOutline(intersects[0].point);
     }
-
-    const name = intersects[0].object.name;
-    const panelIdx = this.expt.getPanelIdxByName(name);
-    const panelPos = this.getPanelPosition(intersects[0].point, name);
-
-    const panelData = this.expt.getPanelDataByIdx(panelIdx);
-    const bbox = [
-      this.createReflectionOrigin[1],
-      panelPos[1],
-      panelPos[0],
-      this.createReflectionOrigin[0],
-    ]
-    this.createReflectionBbox = bbox;
-
-    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["createNewReflectionBbox"] });
-
-    const mesh = this.getBboxMesh(
-      bbox,
-      bboxMaterial,
-      this,
-      panelData["origin"],
-      panelData["fastAxis"],
-      panelData["slowAxis"],
-      [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
-    );
-
-    window.scene.add(mesh);
-    this.createReflectionMesh = mesh;
   }
-
 
   animate() {
     if (!this.renderRequested) {
