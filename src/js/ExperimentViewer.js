@@ -399,11 +399,12 @@ export class ExperimentViewer {
     }
     this.panelOutlineMeshes = {};
 
-    for (var i = 0; i < this.allPanelMeshes.length; i++) {
-      window.scene.remove(this.panelMeshes[i]);
-      this.panelMeshes[i].geometry.dispose();
-      this.panelMeshes[i].material.dispose();
+    for (var i = 0; i < this.panelMeshes.length; i++) {
+        window.scene.remove(this.panelMeshes[i]);
+        this.panelMeshes[i].geometry.dispose();
+        this.panelMeshes[i].material.dispose();
     }
+
     this.allPanelMeshes = [];
     this.panelMeshes = [];
 
