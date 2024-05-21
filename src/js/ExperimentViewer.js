@@ -115,7 +115,7 @@ export class ExperimentViewer {
     this.preventMouseClick = false;
     this.cursorActive = true;
     this.lastClickedPanelPosition = null
-    this.loadingImages = false;
+    this.loading = false;
 
     this.hightlightColor = new THREE.Color(this.colors["highlight"]);
     this.panelColor = new THREE.Color(this.colors["panel"]);
@@ -480,7 +480,7 @@ export class ExperimentViewer {
       this.showCloseExptButton();
     }
     this.requestRender();
-    this.loadingImages=false;
+    this.loading=false;
     this.displayDefaultHeaderText();
     this.updateExperimentList();
     this.updatePanelMeshes();
@@ -757,6 +757,8 @@ export class ExperimentViewer {
       );
     }
     this.refl.indexedMap = indexedMap;
+    this.loading=false;
+    this.requestRender();
   }
 
   addReflections() {
@@ -905,6 +907,7 @@ export class ExperimentViewer {
 
     this.updateReflectionCheckboxStatus();
     this.setDefaultReflectionsDisplay();
+    this.loading=false;
   }
 
   highlightReflection(reflData, focusOnPanel = true) {
@@ -1328,7 +1331,12 @@ export class ExperimentViewer {
 
   showLoadingImagesMsg(){
     this.displayHeaderText("Loading images...");
-    this.loadingImages = true;
+    this.loading= true;
+  }
+
+  showLoadingReflectionMsg(){
+    this.displayHeaderText("Loading reflection...");
+    this.loading= true;
   }
 
   updateGUIInfo() {
@@ -1387,7 +1395,7 @@ export class ExperimentViewer {
 
     if (this.displayingTextFromHTMLEvent) { return; }
     if (!this.cursorActive) { return; }
-    if (this.loadingImages) { return; }
+    if (this.loading) { return; }
     this.displayDefaultHeaderText();
     updatePanelInfo(this);
     updateReflectionInfo(this);

@@ -326,7 +326,11 @@
 				window.viewer.highlightReflection(msg);
 				break;
 			case "loading_images":
-				window.viewer.showLoadingImagesMsg()
+				window.viewer.showLoadingImagesMsg();
+				break;
+			case "loading_reflection":
+				window.viewer.showLoadingReflectionMsg()
+				break;
 			default:
 				console.warn("Unrecognised command ", command);
 		}

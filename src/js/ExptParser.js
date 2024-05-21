@@ -54,7 +54,7 @@ export class ExptParser{
 	}
 
 	getExptLabels(){
-		var isWindows = window.navigator.oscpu.indexOf("indow") > -1;
+		var isWindows = (window.navigator.userAgent.indexOf("Windows") !== -1);
 		var exptLabels = [];
 		for (var i = 0; i < this.numExperiments(); i++){
 			var label = this.getImageFilename(i);
