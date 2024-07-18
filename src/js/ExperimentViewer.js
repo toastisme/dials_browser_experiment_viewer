@@ -1027,32 +1027,34 @@ export class ExperimentViewer {
   }
 
   getPanelTexture(idx, exptID) {
-    
     const imageData = this.expt.imageData[exptID][idx];
     const panelSize = this.expt.imageSize;
-    
+  
     var canvas = document.createElement('canvas');
     canvas.width = panelSize[0];
     canvas.height = panelSize[1];
     var context = canvas.getContext('2d');
     context.fillRect(0, 0, canvas.width, canvas.height);
-    const contextData = context.getImageData(
-      0, 0, canvas.width, canvas.height
-    );
+    const contextData = context.getImageData(0, 0, canvas.width, canvas.height);
     const data = contextData.data;
-    var idx = 0
-    for (var i = 0; i < data.length; i += 4) {
-      data[i] = imageData[idx] * 255; // red
-      data[i + 1] = imageData[idx] * 255; // green
-      data[i + 2] = imageData[idx] * 255; // blue
-      idx++;
+  
+    var dataIdx = 0;
+    for (var y = 0; y < panelSize[1]; y++) {
+      for (var x = 0; x < panelSize[0]; x++) {
+        const value = imageData[y][x] * 255;
+        data[dataIdx] = value;     // red
+        data[dataIdx + 1] = value; // green
+        data[dataIdx + 2] = value; // blue
+        data[dataIdx + 3] = 255;   // alpha
+        dataIdx += 4;
+      }
     }
+  
     context.putImageData(contextData, 0, 0);
-
+  
     var texture = new THREE.Texture(canvas);
     texture.needsUpdate = true;
     return texture;
-
   }
   
   addDetectorPanel(idx, exptID) {
