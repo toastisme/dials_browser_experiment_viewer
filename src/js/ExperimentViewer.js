@@ -443,7 +443,7 @@ export class ExperimentViewer {
     console.assert(this.hasExperiment());
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
       for (var j = 0; j < this.expt.numExperiments(); j++){
-        this.addDetectorPanelOutline(i, j);
+        this.addDetectorPanel(i, j);
       }
     }
     this.addBeam();
@@ -458,10 +458,11 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-  addExperimentFromJSONString = async (jsonString) => {
+  addExperimentFromJSONString = async (jsonString, imageData) => {
     this.clearExperiment();
     this.clearReflectionTable();
     await this.expt.parseExperimentJSON(jsonString);
+    await this.expt.parseImageData(imageData);
     console.assert(this.hasExperiment());
     
     this.allPanelMeshes = [];
@@ -470,7 +471,7 @@ export class ExperimentViewer {
     }
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
       for (var j = 0; j < this.expt.numExperiments(); j++){
-        this.addDetectorPanelOutline(i, j);
+        this.addDetectorPanel(i, j);
       }
     }
     this.addBeam();
@@ -486,7 +487,7 @@ export class ExperimentViewer {
     this.updateExperimentList();
     this.updatePanelMeshes();
   }
-
+  
   showCloseExptButton() {
     this.closeExptButton.style.display = "inline";
     this.closeExptButton.innerHTML = "<b>" + this.expt.filename + ' <i class="fa fa-trash"></i>';
@@ -1026,10 +1027,10 @@ export class ExperimentViewer {
   }
 
   getPanelTexture(idx, exptID) {
-
+    
     const imageData = this.expt.imageData[exptID][idx];
     const panelSize = this.expt.imageSize;
-
+    
     var canvas = document.createElement('canvas');
     canvas.width = panelSize[0];
     canvas.height = panelSize[1];
@@ -1054,7 +1055,7 @@ export class ExperimentViewer {
 
   }
   
-  addDetectorPanelOutline(idx, exptID) {
+  addDetectorPanel(idx, exptID) {
 
     var corners = this.expt.getDetectorPanelCorners(idx);
     corners.push(corners[0]);

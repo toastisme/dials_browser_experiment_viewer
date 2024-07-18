@@ -26,7 +26,7 @@ export class ExptParser{
 
 	static isExptJSON(data){
 		try{
-			return data["expt"]["__id__"] == "ExperimentList";
+			return data["__id__"] == "ExperimentList";
 
 		}catch(ex){
 			return false;
@@ -103,11 +103,14 @@ export class ExptParser{
 
 	parseExperimentJSON(jsonString){
 		const data = jsonString;
-		this.exptJSON = data["expt"];
-		this.imageData = data["image_data_2d"][0];
-		this.imageSize = data["image_data_2d"][1];
+		this.exptJSON = data;
+		this.imageSize = data["detector"][0]["panels"][0]["image_size"];
 		this.loadCrystalSummary();
 		this.loadPanelData();
+	}
+	
+	parseImageData(imageData){
+		this.imageData = imageData;
 	}
 
 	getImageFilenames(){
