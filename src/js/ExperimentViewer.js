@@ -4,22 +4,22 @@ import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import { ExptParser } from './ExptParser';
 
-class UserReflection{
-  constructor(origin, panelName, lineColor){
+class UserReflection {
+  constructor(origin, panelName, lineColor) {
     this.positions = [origin];
     this.panelName = panelName;
     this.lineMesh = null;
     this.bboxMesh = null;
     this.lineMaterial = new THREE.LineBasicMaterial({ color: lineColor });
   }
-  
-  addBboxMesh(mesh){
+
+  addBboxMesh(mesh) {
     this.clearLineMesh();
     this.bboxMesh = mesh;
     window.scene.add(mesh);
   }
-  
-  clearLineMesh(){
+
+  clearLineMesh() {
     if (this.lineMesh) {
       window.scene.remove(this.lineMesh);
       this.lineMesh.geometry.dispose();
@@ -27,8 +27,8 @@ class UserReflection{
       this.lineMesh = null;
     }
   }
-  
-  clearBboxMesh(){
+
+  clearBboxMesh() {
     if (this.bboxMesh) {
       window.scene.remove(this.bboxMesh);
       this.bboxMesh.geometry.dispose();
@@ -37,12 +37,12 @@ class UserReflection{
     }
   }
 
-  clear(){
+  clear() {
     this.clearLineMesh();
     this.clearBboxMesh();
   }
-  
-  updateUserOutline(newPos){
+
+  updateUserOutline(newPos) {
     this.positions.push(newPos);
     this.clearLineMesh();
     const lineGeometry = new THREE.BufferGeometry().setFromPoints(this.positions);
@@ -86,6 +86,7 @@ export class ExperimentViewer {
     this.observedIndexedReflsCheckbox = document.getElementById("observedIndexedReflections");
     this.observedUnindexedReflsCheckbox = document.getElementById("observedUnindexedReflections");
     this.calculatedReflsCheckbox = document.getElementById("calculatedReflections");
+    this.integratedReflsCheckbox = document.getElementById("integratedReflections");
     this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
     this.axesCheckbox = document.getElementById("showAxes");
     this.reflectionSize = document.getElementById("reflectionSize");
@@ -98,6 +99,8 @@ export class ExperimentViewer {
     this.reflPositionsUnindexed = [];
     this.reflPointsObsIndexed = [];
     this.reflPositionsIndexed = [];
+    this.reflPointsIntegrated = [];
+    this.reflPositionsIntegrated = [];
     this.reflPointsCal = [];
     this.reflPositionsCal = []
     this.bboxMeshesUnindexed = [];
@@ -175,13 +178,14 @@ export class ExperimentViewer {
       ],
       "reflectionObsIndexed": 0xe74c3c,
       "reflectionCal": 0xffaaaa,
-      "panel" : 0x5d7d99,
+			"reflectionIntegrated" : 0xff9c1d,
+      "panel": 0x5d7d99,
       "highlight": 0xFFFFFF,
       "beam": 0xFFFFFF,
       "bbox": 0xFFFFFF,
       "axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
       "highlightBbox": 0x59b578,
-      "createNewReflectionBbox" : 0xffb07c
+      "createNewReflectionBbox": 0xffb07c
     };
   }
 
@@ -213,15 +217,15 @@ export class ExperimentViewer {
   showSidebar() {
     this.sidebar.style.display = 'block';
   }
-  
-  updatePanelMeshes(){
+
+  updatePanelMeshes() {
     this.panelMeshes = [];
 
-    for (var i = 0; i < this.allPanelMeshes.length; i++){
-      for (var j = 0; j < this.allPanelMeshes[i].length; j++){
+    for (var i = 0; i < this.allPanelMeshes.length; i++) {
+      for (var j = 0; j < this.allPanelMeshes[i].length; j++) {
         this.allPanelMeshes[i][j].visible = (i === this.visibleExptID);
       }
-      if (i === this.visibleExptID){
+      if (i === this.visibleExptID) {
         this.panelMeshes = this.allPanelMeshes[i];
       }
     }
@@ -232,8 +236,7 @@ export class ExperimentViewer {
     if (val !== null) {
       this.observedIndexedReflsCheckbox.checked = val;
     }
-    const showBbox = this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
-    for (var i = 0; i < this.reflPointsObsIndexed.length; i++){
+    for (var i = 0; i < this.reflPointsObsIndexed.length; i++) {
       this.reflPointsObsIndexed[i][0].visible = this.observedIndexedReflsCheckbox.checked && this.visibleExptID === i;
     }
     this.requestRender();
@@ -243,8 +246,7 @@ export class ExperimentViewer {
     if (val !== null) {
       this.observedUnindexedReflsCheckbox.checked = val;
     }
-    const showBbox = this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked;
-    for (var i = 0; i < this.reflPointsObsUnindexed.length; i++){
+    for (var i = 0; i < this.reflPointsObsUnindexed.length; i++) {
       this.reflPointsObsUnindexed[i][0].visible = this.observedUnindexedReflsCheckbox.checked && this.visibleExptID === i;
     }
     this.requestRender();
@@ -261,27 +263,37 @@ export class ExperimentViewer {
     this.requestRender();
   }
 
+  updateIntegratedReflections(val = null) {
+    if (val !== null) {
+      this.integratedReflsCheckbox.checked = val;
+    }
+    for (var i = 0; i < this.reflPointsIntegrated.length; i++) {
+      this.reflPointsIntegrated[i].visible = this.integratedReflsCheckbox.checked;
+    }
+    this.requestRender();
+  }
+
   updateBoundingBoxes(val = null) {
     if (val !== null) {
       this.boundingBoxesCheckbox.checked = val;
     }
     if (this.observedIndexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
       for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
-        for (var j = 0; j < this.bboxMeshesIndexed[i].length; j++){
+        for (var j = 0; j < this.bboxMeshesIndexed[i].length; j++) {
           this.bboxMeshesIndexed[i][j].visible = this.visibleExptID === i;
         }
       }
     }
     else {
       for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
-        for (var j = 0; j < this.bboxMeshesIndexed[i].length; j++){
+        for (var j = 0; j < this.bboxMeshesIndexed[i].length; j++) {
           this.bboxMeshesIndexed[i][j].visible = false;
         }
       }
     }
     if (this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
       for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
-        for (var j = 0; j < this.bboxMeshesUnindexed[i].length; j++){
+        for (var j = 0; j < this.bboxMeshesUnindexed[i].length; j++) {
           this.bboxMeshesUnindexed[i][j].visible = this.visibleExptID === i;
 
         }
@@ -289,7 +301,7 @@ export class ExperimentViewer {
     }
     else {
       for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
-        for (var j = 0; j < this.bboxMeshesUnindexed[i].length; j++){
+        for (var j = 0; j < this.bboxMeshesUnindexed[i].length; j++) {
           this.bboxMeshesUnindexed[i][j].visible = false;
         }
       }
@@ -314,7 +326,7 @@ export class ExperimentViewer {
     if (this.refl.hasXYZObsData()) {
       if (this.reflPointsObsUnindexed) {
         const reflPointsUnindexed = [];
-        for (var i = 0; i < this.reflPositionsUnindexed.length; i++){
+        for (var i = 0; i < this.reflPositionsUnindexed.length; i++) {
           const reflGeometryObs = new THREE.BufferGeometry();
           reflGeometryObs.setAttribute(
             "position", new THREE.Float32BufferAttribute(this.reflPositionsUnindexed[i], 3)
@@ -330,7 +342,7 @@ export class ExperimentViewer {
           reflPointsUnindexed.push([pointsObs]);
         }
         this.clearReflPointsObsUnindexed();
-        for (var p = 0; p < reflPointsUnindexed.length; p++){
+        for (var p = 0; p < reflPointsUnindexed.length; p++) {
           window.scene.add(reflPointsUnindexed[p][0]);
         }
         this.reflPointsObsUnindexed = reflPointsUnindexed;
@@ -339,7 +351,7 @@ export class ExperimentViewer {
       if (this.reflPointsObsIndexed) {
         const reflPointsObsIndexed = [];
 
-        for (var i = 0; i < this.reflPositionsIndexed.length; i++){
+        for (var i = 0; i < this.reflPositionsIndexed.length; i++) {
           const reflGeometryObs = new THREE.BufferGeometry();
           reflGeometryObs.setAttribute(
             "position", new THREE.Float32BufferAttribute(this.reflPositionsIndexed[i], 3)
@@ -356,12 +368,31 @@ export class ExperimentViewer {
         }
 
         this.clearReflPointsObsIndexed();
-        for (var p = 0; p < reflPointsObsIndexed.length; p++){
+        for (var p = 0; p < reflPointsObsIndexed.length; p++) {
           window.scene.add(reflPointsObsIndexed[p][0]);
         }
         this.reflPointsObsIndexed = reflPointsObsIndexed;
         this.updateObservedIndexedReflections();
       }
+    }
+
+    if (this.reflPointsIntegrated) {
+      const reflGeometryIntegrated = new THREE.BufferGeometry();
+      reflGeometryIntegrated.setAttribute(
+        "position", new THREE.Float32BufferAttribute(this.reflPositionsIntegrated, 3)
+      );
+
+      const reflMaterialIntegrated = new THREE.PointsMaterial({
+        size: this.reflectionSize.value,
+        transparent: true,
+        map: this.reflSprite,
+        color: this.colors["reflectionIntegrated"]
+      });
+      const pointsIntegrated = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
+      this.clearReflPointsIntegrated();
+      window.scene.add(pointsIntegrated);
+      this.reflPointsIntegrated = [pointsIntegrated];
+      this.updateIntegratedReflections();
     }
 
     if (this.refl.hasXYZCalData() && this.reflPositionsCal) {
@@ -400,9 +431,9 @@ export class ExperimentViewer {
     this.panelOutlineMeshes = {};
 
     for (var i = 0; i < this.panelMeshes.length; i++) {
-        window.scene.remove(this.panelMeshes[i]);
-        this.panelMeshes[i].geometry.dispose();
-        this.panelMeshes[i].material.dispose();
+      window.scene.remove(this.panelMeshes[i]);
+      this.panelMeshes[i].geometry.dispose();
+      this.panelMeshes[i].material.dispose();
     }
 
     this.allPanelMeshes = [];
@@ -442,7 +473,7 @@ export class ExperimentViewer {
     await this.expt.parseExperiment(file);
     console.assert(this.hasExperiment());
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
-      for (var j = 0; j < this.expt.numExperiments(); j++){
+      for (var j = 0; j < this.expt.numExperiments(); j++) {
         this.addDetectorPanel(i, j);
       }
     }
@@ -464,13 +495,13 @@ export class ExperimentViewer {
     await this.expt.parseExperimentJSON(jsonString);
     await this.expt.parseImageData(imageData);
     console.assert(this.hasExperiment());
-    
+
     this.allPanelMeshes = [];
-    for (var i = 0; i < this.expt.numExperiments(); i++){
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
       this.allPanelMeshes.push([]);
     }
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
-      for (var j = 0; j < this.expt.numExperiments(); j++){
+      for (var j = 0; j < this.expt.numExperiments(); j++) {
         this.addDetectorPanel(i, j);
       }
     }
@@ -482,12 +513,12 @@ export class ExperimentViewer {
       this.showCloseExptButton();
     }
     this.requestRender();
-    this.loading=false;
+    this.loading = false;
     this.displayDefaultHeaderText();
     this.updateExperimentList();
     this.updatePanelMeshes();
   }
-  
+
   showCloseExptButton() {
     this.closeExptButton.style.display = "inline";
     this.closeExptButton.innerHTML = "<b>" + this.expt.filename + ' <i class="fa fa-trash"></i>';
@@ -508,6 +539,15 @@ export class ExperimentViewer {
       this.reflPointsObsIndexed[i][0].material.dispose();
     }
     this.reflPointsObsIndexed = [];
+  }
+
+  clearReflPointsIntegrated() {
+    for (var i = 0; i < this.reflPointsIntegrated.length; i++) {
+      window.scene.remove(this.reflPointsIntegrated[i][0]);
+      this.reflPointsIntegrated[i][0].geometry.dispose();
+      this.reflPointsIntegrated[i][0].material.dispose();
+    }
+    this.reflPointsIntegrated = [];
   }
 
   clearReflPointsObsUnindexed() {
@@ -534,8 +574,8 @@ export class ExperimentViewer {
         window.scene.remove(this.bboxMeshesIndexed[i][j]);
         this.bboxMeshesIndexed[i][j].geometry.dispose();
         this.bboxMeshesIndexed[i][j].material.dispose();
+      }
     }
-  }
     this.bboxMeshesIndexed = [];
 
     for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
@@ -543,8 +583,8 @@ export class ExperimentViewer {
         window.scene.remove(this.bboxMeshesUnindexed[i][j]);
         this.bboxMeshesUnindexed[i][j].geometry.dispose();
         this.bboxMeshesUnindexed[i][j].material.dispose();
+      }
     }
-  }
     this.bboxMeshesUnindexed = [];
   }
 
@@ -614,11 +654,12 @@ export class ExperimentViewer {
     const positionsObsIndexed = [];
     const pointsObsIndexed = [];
     const positionsCal = [];
+    const positionsIntegrated = [];
     const bboxMeshesIndexed = [];
     const bboxMeshesUnindexed = [];
 
 
-    for (var i = 0; i < this.expt.numExperiments(); i++){
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
       pointsObsUnindexed.push([]);
       positionsObsUnindexed.push([]);
       positionsObsIndexed.push([]);
@@ -638,7 +679,7 @@ export class ExperimentViewer {
       const panelIdx = parseInt(panelKeys[i])
 
       const panelReflections = reflData[panelKeys[i]];
-      if (panelReflections === undefined){continue; }
+      if (panelReflections === undefined) { continue; }
       const panelData = this.expt.getPanelDataByIdx(panelIdx);
 
       const fa = panelData["fastAxis"];
@@ -680,6 +721,11 @@ export class ExperimentViewer {
           positionsCal.push(globalPosCal.x);
           positionsCal.push(globalPosCal.y);
           positionsCal.push(globalPosCal.z);
+          if ("summedIntensity" in panelReflections[j]) {
+            positionsIntegrated.push(globalPosCal.x);
+            positionsIntegrated.push(globalPosCal.y);
+            positionsIntegrated.push(globalPosCal.z);
+          }
         }
       }
     }
@@ -687,7 +733,7 @@ export class ExperimentViewer {
     if (containsXYZObs) {
       if (containsMillerIndices) {
 
-        for (var exptID = 0; exptID < positionsObsIndexed.length; exptID++){
+        for (var exptID = 0; exptID < positionsObsIndexed.length; exptID++) {
           const reflGeometryObsIndexed = new THREE.BufferGeometry();
           reflGeometryObsIndexed.setAttribute(
             "position", new THREE.Float32BufferAttribute(positionsObsIndexed[exptID], 3)
@@ -708,7 +754,7 @@ export class ExperimentViewer {
         this.bboxMeshesIndexed = bboxMeshesIndexed;
 
       }
-      for (var exptID = 0; exptID < positionsObsUnindexed.length; exptID++){
+      for (var exptID = 0; exptID < positionsObsUnindexed.length; exptID++) {
         const reflGeometryObsUnindexed = new THREE.BufferGeometry();
         reflGeometryObsUnindexed.setAttribute(
           "position", new THREE.Float32BufferAttribute(positionsObsUnindexed[exptID], 3)
@@ -746,6 +792,25 @@ export class ExperimentViewer {
       window.scene.add(pointsCal);
       this.reflPointsCal = [pointsCal];
       this.reflPositionsCal = positionsCal;
+
+      if (positionsIntegrated.length !== 0) {
+        const reflGeometryIntegrated = new THREE.BufferGeometry();
+        reflGeometryIntegrated.setAttribute(
+          "position", new THREE.Float32BufferAttribute(positionsIntegrated, 3)
+        );
+
+        const reflMaterialIntegrated = new THREE.PointsMaterial({
+          size: this.reflectionSize.value,
+          transparent: true,
+          map: this.reflSprite,
+          color: this.colors["reflectionIntegrated"]
+        });
+        const pointsIntegrated = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
+        window.scene.add(pointsIntegrated);
+        this.reflPointsIntegrated = [pointsIntegrated];
+        this.reflPositionsIntegrated = positionsIntegrated;
+
+      }
     }
 
     this.updateReflectionCheckboxStatus();
@@ -759,7 +824,7 @@ export class ExperimentViewer {
       );
     }
     this.refl.indexedMap = indexedMap;
-    this.loading=false;
+    this.loading = false;
     this.requestRender();
   }
 
@@ -784,7 +849,7 @@ export class ExperimentViewer {
     const bboxMeshesUnindexed = [];
 
 
-    for (var i = 0; i < this.expt.numExperiments(); i++){
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
       pointsObsUnindexed.push([]);
       positionsObsUnindexed.push([]);
       positionsObsIndexed.push([]);
@@ -801,7 +866,7 @@ export class ExperimentViewer {
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
 
       const panelReflections = this.refl.getReflectionsForPanel(i);
-      if (panelReflections == undefined){continue;}
+      if (panelReflections == undefined) { continue; }
       const panelData = this.expt.getPanelDataByIdx(i);
 
       const fa = panelData["fastAxis"];
@@ -848,7 +913,7 @@ export class ExperimentViewer {
     if (containsXYZObs) {
       if (containsMillerIndices) {
 
-        for (var exptID = 0; exptID < positionsObsIndexed.length; exptID++){
+        for (var exptID = 0; exptID < positionsObsIndexed.length; exptID++) {
           const reflGeometryObsIndexed = new THREE.BufferGeometry();
           reflGeometryObsIndexed.setAttribute(
             "position", new THREE.Float32BufferAttribute(positionsObsIndexed[exptID], 3)
@@ -868,7 +933,7 @@ export class ExperimentViewer {
         this.reflPositionsIndexed = positionsObsIndexed;
         this.bboxMeshesIndexed = bboxMeshesIndexed;
       }
-      for (var exptID = 0; exptID < positionsObsUnindexed.length; exptID++){
+      for (var exptID = 0; exptID < positionsObsUnindexed.length; exptID++) {
         const reflGeometryObsUnindexed = new THREE.BufferGeometry();
         reflGeometryObsUnindexed.setAttribute(
           "position", new THREE.Float32BufferAttribute(positionsObsUnindexed[exptID], 3)
@@ -909,14 +974,14 @@ export class ExperimentViewer {
 
     this.updateReflectionCheckboxStatus();
     this.setDefaultReflectionsDisplay();
-    this.loading=false;
+    this.loading = false;
   }
 
   highlightReflection(reflData, focusOnPanel = true) {
 
     const bboxSize = ExperimentViewer.sizes()["highlightBboxSize"];
     const pos = reflData["panelPos"];
-    if ("focusOnPanel" in reflData){
+    if ("focusOnPanel" in reflData) {
       focusOnPanel = reflData["focusOnPanel"];
     }
 
@@ -1017,19 +1082,21 @@ export class ExperimentViewer {
       this.observedIndexedReflsCheckbox.disabled = true;
       this.observedUnindexedReflsCheckbox.disabled = true;
       this.calculatedReflsCheckbox.disabled = true;
+      this.integratedReflsCheckbox.disabled = true;
       this.boundingBoxesCheckbox.disabled = true;
       return;
     }
     this.observedUnindexedReflsCheckbox.disabled = !this.refl.hasXYZObsData();
     this.observedIndexedReflsCheckbox.disabled = !this.refl.hasMillerIndicesData();
     this.calculatedReflsCheckbox.disabled = !this.refl.hasXYZCalData();
+    this.integratedReflsCheckbox.disabled = !this.refl.hasIntegratedData();
     this.boundingBoxesCheckbox.disabled = !this.refl.hasBboxData();
   }
 
   getPanelTexture(idx, exptID) {
     const imageData = this.expt.imageData[exptID][idx];
     const panelSize = this.expt.imageSize;
-  
+
     var canvas = document.createElement('canvas');
     canvas.width = panelSize[0];
     canvas.height = panelSize[1];
@@ -1037,7 +1104,7 @@ export class ExperimentViewer {
     context.fillRect(0, 0, canvas.width, canvas.height);
     const contextData = context.getImageData(0, 0, canvas.width, canvas.height);
     const data = contextData.data;
-  
+
     var dataIdx = 0;
     for (var y = 0; y < panelSize[1]; y++) {
       for (var x = 0; x < panelSize[0]; x++) {
@@ -1049,14 +1116,14 @@ export class ExperimentViewer {
         dataIdx += 4;
       }
     }
-  
+
     context.putImageData(contextData, 0, 0);
-  
+
     var texture = new THREE.Texture(canvas);
     texture.needsUpdate = true;
     return texture;
   }
-  
+
   addDetectorPanel(idx, exptID) {
 
     var corners = this.expt.getDetectorPanelCorners(idx);
@@ -1309,7 +1376,7 @@ export class ExperimentViewer {
   onLeftClick() {
     if (this.isStandalone) { return; }
     if (this.preventMouseClick) { return; }
-    if (this.creatingReflection && !this.drawingReflection){
+    if (this.creatingReflection && !this.drawingReflection) {
       window.viewer.disableReflectionCreation();
       return;
     }
@@ -1333,14 +1400,14 @@ export class ExperimentViewer {
     this.preventMouseClick = false;
   }
 
-  showLoadingImagesMsg(){
+  showLoadingImagesMsg() {
     this.displayHeaderText("Loading images...");
-    this.loading= true;
+    this.loading = true;
   }
 
-  showLoadingReflectionMsg(){
+  showLoadingReflectionMsg() {
     this.displayHeaderText("Loading reflection...");
-    this.loading= true;
+    this.loading = true;
   }
 
   updateGUIInfo() {
@@ -1356,8 +1423,8 @@ export class ExperimentViewer {
     }
 
     function updateReflectionInfo(viewer) {
-      if (!viewer.observedIndexedReflsCheckbox.checked){return;}
-      for (var i = 0; i < viewer.reflPointsObsIndexed.length; i++){
+      if (!viewer.observedIndexedReflsCheckbox.checked) { return; }
+      for (var i = 0; i < viewer.reflPointsObsIndexed.length; i++) {
         const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed[i]);
         window.rayCaster.setFromCamera(window.mousePosition, window.camera);
         if (intersects.length > 0) {
@@ -1366,8 +1433,8 @@ export class ExperimentViewer {
             viewer.appendHeaderText(" (" + millerIdx[0] + ", " + millerIdx[1] + ", " + millerIdx[2] + ")");
           }
         }
+      }
     }
-  }
 
     function updateBeamInfo(viewer) {
       if (viewer.beamHidden()) {
@@ -1484,7 +1551,7 @@ export class ExperimentViewer {
       x: -pos.x,
       y: -pos.y,
       z: -pos.z,
-      onUpdate: function() {
+      onUpdate: function () {
         window.camera.lookAt(pos);
         window.viewer.requestRender();
       }
@@ -1518,11 +1585,11 @@ export class ExperimentViewer {
       x: target.x,
       y: target.y,
       z: target.z,
-      onUpdate: function() {
+      onUpdate: function () {
         window.camera.lookAt(target);
         window.viewer.requestRender();
       },
-      onComplete: function() {
+      onComplete: function () {
         if (panelName != null && panelPos != null) {
           window.viewer.displayHeaderText(panelName + " [" + panelPos[0] + ", " + panelPos[1] + "]");
         }
@@ -1533,29 +1600,29 @@ export class ExperimentViewer {
     window.controls.update();
   }
 
-	toggleExperimentList(){
-		document.getElementById("experimentDropdown").classList.toggle("show");
+  toggleExperimentList() {
+    document.getElementById("experimentDropdown").classList.toggle("show");
     var dropdownIcon = document.getElementById("dropdownIcon");
     dropdownIcon.classList.toggle("fa-chevron-down");
-    dropdownIcon.classList.toggle("fa-chevron-right"); 
-	}
-  
-  toggleExptVisibility(exptIDLabel){
+    dropdownIcon.classList.toggle("fa-chevron-right");
+  }
+
+  toggleExptVisibility(exptIDLabel) {
     var exptID = parseInt(exptIDLabel.split("-").pop());
-    var dropdownIcon = document.getElementById("exptID-dropdown-icon-"+exptID.toString());
-    if (dropdownIcon.classList.contains("fa-check")){
+    var dropdownIcon = document.getElementById("exptID-dropdown-icon-" + exptID.toString());
+    if (dropdownIcon.classList.contains("fa-check")) {
       this.visibleExptID = -1;
     }
-    else{
+    else {
       this.visibleExptID = exptID;
     }
 
-    for (var i = 0; i < this.expt.numExperiments(); i++){
-      if (i === exptID){
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
+      if (i === exptID) {
         continue;
       }
-      var otherDropdownIcon = document.getElementById("exptID-dropdown-icon-"+i.toString());
-      if (otherDropdownIcon.classList.contains("fa-check")){
+      var otherDropdownIcon = document.getElementById("exptID-dropdown-icon-" + i.toString());
+      if (otherDropdownIcon.classList.contains("fa-check")) {
         otherDropdownIcon.classList.toggle("fa-check");
       }
     }
@@ -1566,11 +1633,11 @@ export class ExperimentViewer {
     this.updateObservedUnindexedReflections();
     this.updateBoundingBoxes();
   }
-  
-  clearExperimentList(){
+
+  clearExperimentList() {
     var dropdownContent = document.getElementById("experimentDropdown");
-    if (dropdownContent !== null){
-      dropdownContent.innerHTML = ""; 
+    if (dropdownContent !== null) {
+      dropdownContent.innerHTML = "";
     }
   }
 
@@ -1580,49 +1647,49 @@ export class ExperimentViewer {
     var exptIDs = this.expt.getExptIDs();
     var exptLabels = this.expt.getExptLabels();
     var dropdownContent = document.getElementById("experimentDropdown");
-    dropdownContent.innerHTML = ""; 
+    dropdownContent.innerHTML = "";
 
     for (var i = 0; i < exptIDs.length; i++) {
-        var label = document.createElement("label");
-        label.classList.add("experiment-label"); 
-        const color = this.colors["reflectionObsUnindexed"][exptIDs[i] % this.colors["reflectionObsUnindexed"].length];
-        var hexColor = '#' + color.toString(16).padStart(6, '0');
-        label.style.color = hexColor;
-        
-        var icon = document.createElement("i");
-        icon.classList.add("fa", "fa-check"); 
-        icon.style.float = "right"; 
-        icon.id = "exptID-dropdown-icon-"+exptIDs[i];
-        if (i !== 0){
-          icon.classList.toggle("fa-check");
-        }
+      var label = document.createElement("label");
+      label.classList.add("experiment-label");
+      const color = this.colors["reflectionObsUnindexed"][exptIDs[i] % this.colors["reflectionObsUnindexed"].length];
+      var hexColor = '#' + color.toString(16).padStart(6, '0');
+      label.style.color = hexColor;
 
-        
-        var exptLabel = exptLabels[i];
-        if (exptLabel.length > maxLabelSize){
-          exptLabel = exptLabel.slice(0,19) + "...";
-        }
-        label.textContent = exptLabel;
-        label.id = "exptID-"+exptIDs[i];
-        
-        label.appendChild(icon);
-        
-        label.addEventListener('click', (event) => {
-            this.toggleExptVisibility(event.target.id);
-        });
+      var icon = document.createElement("i");
+      icon.classList.add("fa", "fa-check");
+      icon.style.float = "right";
+      icon.id = "exptID-dropdown-icon-" + exptIDs[i];
+      if (i !== 0) {
+        icon.classList.toggle("fa-check");
+      }
 
-        dropdownContent.appendChild(label);
-        dropdownContent.appendChild(document.createElement("br"));
+
+      var exptLabel = exptLabels[i];
+      if (exptLabel.length > maxLabelSize) {
+        exptLabel = exptLabel.slice(0, 19) + "...";
+      }
+      label.textContent = exptLabel;
+      label.id = "exptID-" + exptIDs[i];
+
+      label.appendChild(icon);
+
+      label.addEventListener('click', (event) => {
+        this.toggleExptVisibility(event.target.id);
+      });
+
+      dropdownContent.appendChild(label);
+      dropdownContent.appendChild(document.createElement("br"));
     }
   }
 
-  enableReflectionCreation(){
+  enableReflectionCreation() {
     if (this.preventMouseClick) { return; }
     const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-    if (intersects.length === 0){ return; }
-    
-    if (this.userReflection){
+    if (intersects.length === 0) { return; }
+
+    if (this.userReflection) {
       this.userReflection.clearLineMesh();
       this.userReflection.clearBboxMesh();
       this.userReflection = null;
@@ -1638,8 +1705,8 @@ export class ExperimentViewer {
       intersects[0].point, name, this.colors["createNewReflectionBbox"]);
   }
 
-  onEndDrawingReflection(){
-    window.viewer.drawingReflection=false;
+  onEndDrawingReflection() {
+    window.viewer.drawingReflection = false;
     if (this.highlightReflectionMesh) {
       window.scene.remove(this.highlightReflectionMesh);
       this.highlightReflectionMesh.geometry.dispose();
@@ -1647,17 +1714,17 @@ export class ExperimentViewer {
       this.highlightReflectionMesh = null;
     }
     var panelPositions = [];
-    for (var i = 0; i < this.userReflection.positions.length; i++){
+    for (var i = 0; i < this.userReflection.positions.length; i++) {
       panelPositions.push(
         this.getPanelPosition(this.userReflection.positions[i],
           this.userReflection.panelName
         )
       );
     }
-    
+
     const xValues = panelPositions.map(position => position[0]);
     const yValues = panelPositions.map(position => position[1]);
-    
+
     const minX = Math.min(...xValues);
     const maxX = Math.max(...xValues);
     const minY = Math.min(...yValues);
@@ -1676,7 +1743,7 @@ export class ExperimentViewer {
       [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
     );
     this.userReflection.addBboxMesh(mesh);
-    
+
     this.serverWS.send(JSON.stringify({
       "channel": "server",
       "command": "new_reflection_xy",
@@ -1687,10 +1754,10 @@ export class ExperimentViewer {
     }));
   }
 
-  disableReflectionCreation(){
+  disableReflectionCreation() {
     window.controls.enabled = true;
     this.creatingReflection = false;
-    if (this.userReflection){
+    if (this.userReflection) {
       this.userReflection.clear();
       this.userReflection = null;
     }
@@ -1700,11 +1767,11 @@ export class ExperimentViewer {
     }));
   }
 
-  updateNewReflection(){
+  updateNewReflection() {
     const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-    if (intersects.length === 0){ return; }
-    if (this.userReflection){
+    if (intersects.length === 0) { return; }
+    if (this.userReflection) {
       this.userReflection.updateUserOutline(intersects[0].point);
     }
   }
@@ -1713,7 +1780,7 @@ export class ExperimentViewer {
     if (!this.renderRequested) {
       return;
     }
-    if (this.drawingReflection){
+    if (this.drawingReflection) {
       this.updateNewReflection();
     }
     window.viewer.resetPanelColors();
@@ -1765,17 +1832,17 @@ export function setupScene() {
   window.controls.maxDistance = 3000;
   window.controls.enablePan = false;
   window.controls.update();
-  window.controls.addEventListener("change", function() { window.viewer.requestRender(); });
+  window.controls.addEventListener("change", function () { window.viewer.requestRender(); });
 
   // Events
   window.mousePosition = new THREE.Vector2();
-  window.addEventListener("mousemove", function(e) {
+  window.addEventListener("mousemove", function (e) {
     window.mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
     window.mousePosition.y = - (e.clientY / window.innerHeight) * 2 + 1;
     window.viewer.requestRender();
   });
 
-  window.addEventListener("resize", function() {
+  window.addEventListener("resize", function () {
     window.camera.aspect = window.innerWidth / window.innerHeight;
     window.camera.updateProjectionMatrix();
     window.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1790,7 +1857,7 @@ export function setupScene() {
     event.preventDefault();
   });
 
-  window.addEventListener('drop', function(event) {
+  window.addEventListener('drop', function (event) {
 
     event.preventDefault();
     event.stopPropagation();
@@ -1804,25 +1871,25 @@ export function setupScene() {
     }
   });
 
-  window.addEventListener('dblclick', function(event) {
+  window.addEventListener('dblclick', function (event) {
     var panel = window.viewer.getClickedPanelMesh();
     if (panel) {
       window.viewer.zoomInOnPanel(panel);
     }
   });
 
-  window.addEventListener('click', function(event) {
+  window.addEventListener('click', function (event) {
     if (event.button === 0) {
-    if (event.altKey && window.viewer.drawingReflection){
+      if (event.altKey && window.viewer.drawingReflection) {
         window.viewer.onEndDrawingReflection();
-    }
-    else{
-      window.viewer.onLeftClick();
-    }
+      }
+      else {
+        window.viewer.onLeftClick();
+      }
     }
   });
 
-  window.addEventListener('mousedown', function(event) {
+  window.addEventListener('mousedown', function (event) {
     if (event.button === 0 && event.altKey) {
       window.viewer.enableReflectionCreation();
     }
@@ -1831,15 +1898,15 @@ export function setupScene() {
     }
   });
 
-  window.addEventListener('mouseout', function(event) {
+  window.addEventListener('mouseout', function (event) {
     this.window.viewer.cursorActive = false;
   });
 
-  window.addEventListener('mouseover', function(event) {
+  window.addEventListener('mouseover', function (event) {
     this.window.viewer.cursorActive = true;
   });
 
-  window.addEventListener('keydown', function(event) {
+  window.addEventListener('keydown', function (event) {
     if (event.key === "s") {
       window.viewer.toggleSidebar();
     }

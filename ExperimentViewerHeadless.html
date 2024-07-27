@@ -33,6 +33,11 @@
 				window.viewer.updateCalculatedReflections()
 			}
 
+			function updateIntegratedReflections(){
+				window.viewer.disableMouseClick(); 
+				window.viewer.updateIntegratedReflections()
+			}
+
 			function updateBoundingBoxes(){
 				window.viewer.disableMouseClick();
 				window.viewer.updateBoundingBoxes();
@@ -65,11 +70,14 @@
 		<span style="color: #ffaaaa"><b>calculated reflections:</b> </span><input type="checkbox" 
 		id="calculatedReflections", checked=false, 
 		onclick="updateCalculatedReflections()", disabled=true><br>
+		<span style="color: #ff9c1d"><b>integrated reflections:</b> </span><input type="checkbox" 
+		id="integratedReflections", checked=false, 
+		onclick="updateIntegratedReflections()", disabled=true><br>
 		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes", 
 		checked=false, onclick="updateBoundingBoxes()", disabled=true><br>
 		<b>axes:</b> <input type="checkbox" id="showAxes", 
 		checked=false, onclick="updateAxes()", disabled=false><br>
-		<b>reflection size:</b>  <input type="range" min="1" max="25" value="7" 
+		<b>reflection size:</b>  <input type="range" min="1" max="25" value="15" 
 		class="slider" id="reflectionSize" onclick="window.viewer.disableMouseClick()"
 		onmouseup="updateReflectionSize()">
 		 <div class="dropdown">
@@ -264,6 +272,7 @@
 			],
 			"reflectionObsIndexed" : 0xe74c3c,
 			"reflectionCal" : 0xffaaaa,
+			"reflectionIntegrated" : 0xff9c1d,
 			"panel" : 0x5d7d99,
 			"highlight" : 0xFFFFFF,
 			"beam" : 0xFFFFFF,

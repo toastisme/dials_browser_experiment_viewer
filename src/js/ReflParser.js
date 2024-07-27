@@ -46,6 +46,18 @@ export class ReflParser{
 		return true;
 	}
 
+	hasIntegratedData(){
+		if (!this.hasXYZCalData()){
+			return false;
+		}
+		for (var i in this.reflData){
+			if (("summedIntensity" in this.reflData[i][0])){
+				return true;
+			}
+		}
+		return false;
+	}
+
 	hasBboxData(){
 		if (!this.hasReflTable()){
 			return false;
