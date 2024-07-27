@@ -178,7 +178,7 @@ export class ExperimentViewer {
       ],
       "reflectionObsIndexed": 0xe74c3c,
       "reflectionCal": 0xffaaaa,
-			"reflectionIntegrated" : 0xff9c1d,
+			"reflectionIntegrated" : 0xffc25c,
       "panel": 0x5d7d99,
       "highlight": 0xFFFFFF,
       "beam": 0xFFFFFF,
@@ -1046,6 +1046,7 @@ export class ExperimentViewer {
       this.observedIndexedReflsCheckbox.checked = false;
       this.observedUnindexedReflsCheckbox.checked = false;
       this.calculatedReflsCheckbox.checked = false;
+      this.integratedReflsCheckbox.checked = false;
       this.boundingBoxesCheckbox.checked = false;
       return;
     }
