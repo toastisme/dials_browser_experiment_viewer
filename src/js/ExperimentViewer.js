@@ -592,6 +592,7 @@ export class ExperimentViewer {
     this.clearReflPointsObsIndexed();
     this.clearReflPointsObsUnindexed();
     this.clearReflPointsCal();
+    this.clearReflPointsIntegrated();
     this.clearBoundingBoxes();
     this.refl.clearReflectionTable();
     this.updateReflectionCheckboxStatus();
@@ -815,6 +816,7 @@ export class ExperimentViewer {
 
     this.updateReflectionCheckboxStatus();
     this.setDefaultReflectionsDisplay();
+    this.updateReflectionVisibility();
     if (this.lastClickedPanelPosition != null) {
       this.sendClickedPanelPosition(
         this.lastClickedPanelPosition["panelIdx"],
@@ -1037,11 +1039,6 @@ export class ExperimentViewer {
 
   setDefaultReflectionsDisplay() {
 
-    /**
-     * If both observed and calculated reflections are available,
-     * show observed by default.
-     */
-
     if (!this.hasReflectionTable()) {
       this.observedIndexedReflsCheckbox.checked = false;
       this.observedUnindexedReflsCheckbox.checked = false;
@@ -1052,22 +1049,16 @@ export class ExperimentViewer {
     }
 
     if (this.reflPointsObsIndexed.length > 0) {
-      this.updateObservedIndexedReflections(true);
       this.observedIndexedReflsCheckbox.checked = true;
-      this.updateCalculatedReflections(false);
-      this.calculatedReflsCheckbox.checked = false;
     }
     if (this.reflPointsObsUnindexed.length > 0) {
-      this.updateObservedUnindexedReflections(true);
       this.observedUnindexedReflsCheckbox.checked = true;
-      this.updateCalculatedReflections(false);
-      this.calculatedReflsCheckbox.checked = false;
     }
-    else if (this.reflPointsCal.length > 0) {
-      this.updateCalculatedReflections(true);
-      this.calculatedReflsCheckbox.checked = false;
-      this.observedIndexedReflsCheckbox.checked = false;
-      this.observedUnindexedReflsCheckbox.checked = false;
+    if (this.reflPointsCal.length > 0) {
+      this.calculatedReflsCheckbox.checked = true;
+    }
+    if (this.reflPointsIntegrated.length > 0){
+      this.integratedReflsCheckbox.checked = true;
     }
     /*
      * Bboxes off by default as they can be expensive for 
@@ -1076,6 +1067,13 @@ export class ExperimentViewer {
     this.updateBoundingBoxes(false);
     this.boundingBoxesCheckbox.checked = false;
 
+  }
+
+  updateReflectionVisibility(){
+    this.updateObservedIndexedReflections();
+    this.updateObservedUnindexedReflections();
+    this.updateCalculatedReflections();
+    this.updateIntegratedReflections();
   }
 
   updateReflectionCheckboxStatus() {
