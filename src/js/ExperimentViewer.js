@@ -465,6 +465,9 @@ export class ExperimentViewer {
     this.clearReflectionTable();
     this.clearExperimentList();
     this.requestRender();
+    this.updateReflectionCheckboxStatus();
+    this.setDefaultReflectionsDisplay();
+    
   }
 
   addExperiment = async (file) => {
@@ -541,15 +544,6 @@ export class ExperimentViewer {
     this.reflPointsObsIndexed = [];
   }
 
-  clearReflPointsIntegrated() {
-    for (var i = 0; i < this.reflPointsIntegrated.length; i++) {
-      window.scene.remove(this.reflPointsIntegrated[i][0]);
-      this.reflPointsIntegrated[i][0].geometry.dispose();
-      this.reflPointsIntegrated[i][0].material.dispose();
-    }
-    this.reflPointsIntegrated = [];
-  }
-
   clearReflPointsObsUnindexed() {
     for (var i = 0; i < this.reflPointsObsUnindexed.length; i++) {
       window.scene.remove(this.reflPointsObsUnindexed[i][0]);
@@ -566,6 +560,15 @@ export class ExperimentViewer {
       this.reflPointsCal[i].material.dispose();
     }
     this.reflPointsCal = [];
+  }
+
+  clearReflPointsIntegrated() {
+    for (var i = 0; i < this.reflPointsIntegrated.length; i++) {
+      window.scene.remove(this.reflPointsIntegrated[i]);
+      this.reflPointsIntegrated[i].geometry.dispose();
+      this.reflPointsIntegrated[i].material.dispose();
+    }
+    this.reflPointsIntegrated = [];
   }
 
   clearBoundingBoxes() {
