@@ -522,6 +522,27 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
+  updateImageData = async (imageData) =>{
+    console.assert(this.hasExperiment());
+    await this.expt.parseImageData(imageData);
+    for (var i = 0; i < this.panelMeshes.length; i++) {
+      window.scene.remove(this.panelMeshes[i]);
+      this.panelMeshes[i].geometry.dispose();
+      this.panelMeshes[i].material.dispose();
+    }
+    this.allPanelMeshes = [];
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
+      this.allPanelMeshes.push([]);
+    }
+    for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
+      for (var j = 0; j < this.expt.numExperiments(); j++) {
+        this.addDetectorPanel(i, j);
+      }
+    }
+    this.requestRender()
+    this.loading=false;
+  }
+
   showCloseExptButton() {
     this.closeExptButton.style.display = "inline";
     this.closeExptButton.innerHTML = "<b>" + this.expt.filename + ' <i class="fa fa-trash"></i>';
