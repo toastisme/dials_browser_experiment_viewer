@@ -1638,6 +1638,11 @@ export class ExperimentViewer {
     }
     else {
       this.visibleExptID = exptID;
+      this.serverWS.send(JSON.stringify({
+        "channel": "server",
+        "command": "update_experiment_description",
+        "expt_id": exptID
+      }));
     }
 
     for (var i = 0; i < this.expt.numExperiments(); i++) {
