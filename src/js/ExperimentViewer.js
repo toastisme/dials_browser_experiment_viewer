@@ -126,7 +126,7 @@ export class ExperimentViewer {
 
     this.displayingTextFromHTMLEvent = false;
 
-    this.updateReflectionCheckboxStatus();
+    this.updateReflectionCheckboxEnabledStatus();
     this.setDefaultReflectionsDisplay();
 
   }
@@ -178,7 +178,7 @@ export class ExperimentViewer {
       ],
       "reflectionObsIndexed": 0xe74c3c,
       "reflectionCal": 0xffaaaa,
-			"reflectionIntegrated" : 0xffc25c,
+      "reflectionIntegrated": 0xffc25c,
       "panel": 0x5d7d99,
       "highlight": 0xFFFFFF,
       "beam": 0xFFFFFF,
@@ -465,9 +465,9 @@ export class ExperimentViewer {
     this.clearReflectionTable();
     this.clearExperimentList();
     this.requestRender();
-    this.updateReflectionCheckboxStatus();
+    this.updateReflectionCheckboxEnabledStatus();
     this.setDefaultReflectionsDisplay();
-    
+
   }
 
   addExperiment = async (file) => {
@@ -522,7 +522,7 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-  updateImageData = async (imageData) =>{
+  updateImageData = async (imageData) => {
     console.assert(this.hasExperiment());
     await this.expt.parseImageData(imageData);
     for (var i = 0; i < this.panelMeshes.length; i++) {
@@ -540,7 +540,7 @@ export class ExperimentViewer {
       }
     }
     this.requestRender()
-    this.loading=false;
+    this.loading = false;
   }
 
   showCloseExptButton() {
@@ -619,7 +619,7 @@ export class ExperimentViewer {
     this.clearReflPointsIntegrated();
     this.clearBoundingBoxes();
     this.refl.clearReflectionTable();
-    this.updateReflectionCheckboxStatus();
+    this.updateReflectionCheckboxEnabledStatus();
     this.setDefaultReflectionsDisplay();
     this.hideCloseReflButton();
     this.requestRender();
@@ -838,7 +838,7 @@ export class ExperimentViewer {
       }
     }
 
-    this.updateReflectionCheckboxStatus();
+    this.updateReflectionCheckboxEnabledStatus();
     this.setDefaultReflectionsDisplay();
     this.updateReflectionVisibility();
     if (this.lastClickedPanelPosition != null) {
@@ -998,7 +998,7 @@ export class ExperimentViewer {
       this.reflPositionsCal = positionsCal;
     }
 
-    this.updateReflectionCheckboxStatus();
+    this.updateReflectionCheckboxEnabledStatus();
     this.setDefaultReflectionsDisplay();
     this.loading = false;
   }
@@ -1078,12 +1078,6 @@ export class ExperimentViewer {
     if (this.reflPointsObsUnindexed.length > 0) {
       this.observedUnindexedReflsCheckbox.checked = true;
     }
-    if (this.reflPointsCal.length > 0) {
-      this.calculatedReflsCheckbox.checked = true;
-    }
-    if (this.reflPointsIntegrated.length > 0){
-      this.integratedReflsCheckbox.checked = true;
-    }
     /*
      * Bboxes off by default as they can be expensive for 
      * large numbers of reflections
@@ -1093,14 +1087,14 @@ export class ExperimentViewer {
 
   }
 
-  updateReflectionVisibility(){
+  updateReflectionVisibility() {
     this.updateObservedIndexedReflections();
     this.updateObservedUnindexedReflections();
     this.updateCalculatedReflections();
     this.updateIntegratedReflections();
   }
 
-  updateReflectionCheckboxStatus() {
+  updateReflectionCheckboxEnabledStatus() {
     if (!this.hasReflectionTable()) {
       this.observedIndexedReflsCheckbox.disabled = true;
       this.observedUnindexedReflsCheckbox.disabled = true;
