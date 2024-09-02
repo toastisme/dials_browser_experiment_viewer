@@ -346,6 +346,11 @@
 			case "loading_reflection":
 				window.viewer.showLoadingReflectionMsg()
 				break;
+			case "select_expt":
+				console.assert("expt_id" in msg);
+				const exptID = Number(msg["expt_id"]);
+				window.viewer.selectExpt(exptID);
+				break;
 			default:
 				console.warn("Unrecognised command ", command);
 		}

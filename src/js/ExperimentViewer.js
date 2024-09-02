@@ -1624,6 +1624,28 @@ export class ExperimentViewer {
     dropdownIcon.classList.toggle("fa-chevron-right");
   }
 
+  selectExpt(exptID){
+    if (this.visibleExptID === exptID){
+      return;
+    }
+    this.visibleExptID = exptID;
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
+      if (i === exptID) {
+        continue;
+      }
+      var otherDropdownIcon = document.getElementById("exptID-dropdown-icon-" + i.toString());
+      if (otherDropdownIcon.classList.contains("fa-check")) {
+        otherDropdownIcon.classList.toggle("fa-check");
+      }
+    }
+
+    dropdownIcon.classList.toggle("fa-check");
+    this.updatePanelMeshes();
+    this.updateObservedIndexedReflections();
+    this.updateObservedUnindexedReflections();
+    this.updateBoundingBoxes();
+  }
+
   toggleExptVisibility(exptIDLabel) {
     var exptID = parseInt(exptIDLabel.split("-").pop());
     var dropdownIcon = document.getElementById("exptID-dropdown-icon-" + exptID.toString());
