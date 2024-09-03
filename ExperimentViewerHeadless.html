@@ -14,7 +14,7 @@
 </head>
 <body>
 	<header id="headerText"> </header>
-	<sidebar id="sidebar"> 
+	<sidebar id="sidebar" style="width: 230px; padding: 10px;"> 
 		<script>
 			// Wrapper functions to prevent mouse events triggering underneath sidebar
 
@@ -60,7 +60,7 @@
 		<b>double left click</b> = focus on panel <br>
 		<b>right click</b> = reset view <br>
 		<b>mouse wheel</b> = zoom<br>
-		----------------------------------------------------<br>
+		------------------------------------------------------<br>
 		<b>unindexed reflections:</b> <input type="checkbox" 
 		id="observedUnindexedReflections", checked=false, 
 		onclick="updateObservedUnindexedReflections()", disabled=true><br>
@@ -81,7 +81,7 @@
 		class="slider" id="reflectionSize" onclick="window.viewer.disableMouseClick()"
 		onmouseup="updateReflectionSize()">
 		 <div class="dropdown">
-			<button onclick="window.viewer.toggleExperimentList()" class="dropbtn"><b>Experiments </b><i class="fa fa-chevron-right" id="dropdownIcon"></i></button>
+			<button onclick="window.viewer.toggleExperimentList()" class="dropbtn"><b>Orientations </b><i class="fa fa-chevron-right" id="dropdownIcon"></i></button>
 			<div id="experimentDropdown" class="dropdown-content">
 			</div>
 		</div> 
@@ -349,6 +349,7 @@
 			case "select_expt":
 				console.assert("expt_id" in msg);
 				const exptID = Number(msg["expt_id"]);
+				console.assert(typeof exptID === "number" && !Number.isNan(exptID));
 				window.viewer.selectExpt(exptID);
 				break;
 			default:
