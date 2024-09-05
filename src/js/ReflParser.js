@@ -219,6 +219,10 @@ export class ReflParser{
 		return this.containsColumn("xyzcal.px");
 	}
 
+	containsBoundingBoxes(){
+		return this.containsColumn("bbox");
+	}
+
 	getBoundingBoxes(){
 		return this.getVec6Int32Array("bbox");
 	}
@@ -266,8 +270,10 @@ export class ReflParser{
 		if (this.containsExperimentIDs()){
 			experimentIDs =  this.getExperimentIDs();
 		}
+		if (this.containsBoundingBoxes()){
+			bboxes = this.getBoundingBoxes();
+		}
 
-		bboxes = this.getBoundingBoxes();
 
 		console.assert(xyzObs || xyzCal);
 		console.assert(bboxes);
@@ -277,9 +283,11 @@ export class ReflParser{
 		for (var i = 0; i < panelNums.length; i++){
 			const panel = panelNums[i];
 			const refl = {
-				"bbox" : bboxes[i],
 				"indexed" : false
 			};
+			if (bboxes != null){
+				refl["bbox"] = bboxes[i];
+			}
 
 			if (experimentIDs != null){
 				refl["exptID"] = experimentIDs[i];

@@ -349,7 +349,7 @@
 			case "select_expt":
 				console.assert("expt_id" in msg);
 				const exptID = Number(msg["expt_id"]);
-				console.assert(typeof exptID === "number" && !Number.isNan(exptID));
+				console.assert(typeof exptID === "number" && !Number.isNaN(exptID));
 				window.viewer.selectExpt(exptID);
 				break;
 			default:

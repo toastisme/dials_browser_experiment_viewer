@@ -888,6 +888,7 @@ export class ExperimentViewer {
     const containsXYZObs = this.refl.containsXYZObs();
     const containsXYZCal = this.refl.containsXYZCal();
     const containsMillerIndices = this.refl.containsMillerIndices();
+    const containsBboxes = this.refl.containsBboxes();
 
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
 
