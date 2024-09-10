@@ -282,85 +282,87 @@
 			"createNewReflectionBbox" : 0xffb07c
 	};
 
-	window.viewer = new ExperimentViewer(
-		new ExptParser(), 
-		new ReflParser(), 
-		false,
-		colors
-	);
-	window.viewer.serverWS = new WebSocket(serverWSAddr);
+	window.onload = function(){
+		window.viewer = new ExperimentViewer(
+			new ExptParser(), 
+			new ReflParser(), 
+			false,
+			colors
+		);
+		window.viewer.serverWS = new WebSocket(serverWSAddr);
 
-	window.viewer.serverWS.onopen = () => {
-		console.log('Experiment viewer opened Connection to server');
+		window.viewer.serverWS.onopen = () => {
+			console.log('Experiment viewer opened Connection to server');
 
-      window.viewer.serverWS.send(JSON.stringify({
-        "channel": "server",
-        "command": "record_connection", 
-        "id": "experiment_viewer"
-        }
-      ));
-
-
-	};
-
-	window.viewer.serverWS.onclose = () => {
-		console.log('Experiment viewer closed Connection to server');
-	};
-
-	window.viewer.serverWS.onmessage = (event) => {
-
-		console.log("msg received", event.data);
-		const msg = JSON.parse(event.data);
-		if (!isExperimentViewerMsg(msg)){
-			return;
-		}
-
-		const command = msg["command"];
-
-		switch(command){
-			case "update_experiment":
-				console.assert("image_data" in msg, "image data not found when calling update_experiment");
-				console.assert("expt" in msg, "expt not found when calling update_experiment");
-				const exptJSON = msg["expt"];
-				console.assert(ExptParser.isExptJSON(exptJSON), "expt is not recognised as an expt JSON string");
-				window.viewer.addExperimentFromJSONString(exptJSON, msg["image_data"]);
-				break;
-			case "update_image_data":
-				console.assert("image_data" in msg, "image data not found when calling update_image_data");
-				window.viewer.updateImageData(msg["image_data"])
-				break;
-			case "clear_experiment":
-				window.viewer.clearExperiment();
-				break;
-			case "update_reflection_table":
-				delete msg["command"];
-				delete msg["channel"];
-				window.viewer.addReflectionsFromData(msg);
-				break;
-			case "highlight_reflection":
-				window.viewer.highlightReflection(msg);
-				break;
-			case "loading_images":
-				window.viewer.showLoadingImagesMsg();
-				break;
-			case "loading_reflection":
-				window.viewer.showLoadingReflectionMsg()
-				break;
-			case "select_expt":
-				console.assert("expt_id" in msg);
-				const exptID = Number(msg["expt_id"]);
-				console.assert(typeof exptID === "number" && !Number.isNaN(exptID));
-				window.viewer.selectExpt(exptID);
-				break;
-			default:
-				console.warn("Unrecognised command ", command);
-		}
+		window.viewer.serverWS.send(JSON.stringify({
+			"channel": "server",
+			"command": "record_connection", 
+			"id": "experiment_viewer"
+			}
+		));
 
 
+		};
 
-	};
+		window.viewer.serverWS.onclose = () => {
+			console.log('Experiment viewer closed Connection to server');
+		};
 
-	setupScene();
+		window.viewer.serverWS.onmessage = (event) => {
+
+			console.log("msg received", event.data);
+			const msg = JSON.parse(event.data);
+			if (!isExperimentViewerMsg(msg)){
+				return;
+			}
+
+			const command = msg["command"];
+
+			switch(command){
+				case "update_experiment":
+					console.assert("image_data" in msg, "image data not found when calling update_experiment");
+					console.assert("expt" in msg, "expt not found when calling update_experiment");
+					const exptJSON = msg["expt"];
+					console.assert(ExptParser.isExptJSON(exptJSON), "expt is not recognised as an expt JSON string");
+					window.viewer.addExperimentFromJSONString(exptJSON, msg["image_data"]);
+					break;
+				case "update_image_data":
+					console.assert("image_data" in msg, "image data not found when calling update_image_data");
+					window.viewer.updateImageData(msg["image_data"])
+					break;
+				case "clear_experiment":
+					window.viewer.clearExperiment();
+					break;
+				case "update_reflection_table":
+					delete msg["command"];
+					delete msg["channel"];
+					window.viewer.addReflectionsFromData(msg);
+					break;
+				case "highlight_reflection":
+					window.viewer.highlightReflection(msg);
+					break;
+				case "loading_images":
+					window.viewer.showLoadingImagesMsg();
+					break;
+				case "loading_reflection":
+					window.viewer.showLoadingReflectionMsg()
+					break;
+				case "select_expt":
+					console.assert("expt_id" in msg);
+					const exptID = Number(msg["expt_id"]);
+					console.assert(typeof exptID === "number" && !Number.isNaN(exptID));
+					window.viewer.selectExpt(exptID);
+					break;
+				default:
+					console.warn("Unrecognised command ", command);
+			}
+
+
+
+		};
+
+		setupScene();
+	}
 	</script>
 </body>
 </html>
