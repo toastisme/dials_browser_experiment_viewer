@@ -90,6 +90,7 @@ export class ExperimentViewer {
     this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
     this.axesCheckbox = document.getElementById("showAxes");
     this.reflectionSize = document.getElementById("reflectionSize");
+    this.userContrast = document.getElementById("userContrast");
 
     // Bookkeeping for meshes
     this.panelOutlineMeshes = {};
@@ -1111,6 +1112,29 @@ export class ExperimentViewer {
     this.boundingBoxesCheckbox.disabled = !this.refl.hasBboxData();
   }
 
+  updatePanelTextures(){
+    if (this.allPanelMeshes.length === 0){return;}
+    if (this.visibleExptID === undefined){ return;}
+
+    // Update visible exptID first
+    for (let i = 0; i < this.allPanelMeshes[this.visibleExptID].length; i++){
+      const newTexture = this.getPanelTexture(i, this.visibleExptID);
+      this.allPanelMeshes[this.visibleExptID][i].material.map = newTexture;
+      this.allPanelMeshes[this.visibleExptID][i].material.map.needsUpdate = true;
+    }
+
+    if (this.allPanelMeshes.length === 1){return;}
+
+    for (let exptID = 0; exptID < this.allPanelMeshes.length; exptID++){
+      if (exptID === this.visibleExptID){continue;}
+      for (let i = 0; i < this.allPanelMeshes[exptID].length; i++){
+        const newTexture = this.getPanelTexture(i, exptID);
+        this.allPanelMeshes[exptID][i].material.map = newTexture;
+        this.allPanelMeshes[exptID][i].material.map.needsUpdate = true;
+      }
+    }
+  }
+
   getPanelTexture(idx, exptID) {
     const imageData = this.expt.imageData[exptID][idx];
     const panelSize = this.expt.imageSize;
@@ -1126,7 +1150,9 @@ export class ExperimentViewer {
     var dataIdx = 0;
     for (var y = 0; y < panelSize[1]; y++) {
       for (var x = 0; x < panelSize[0]; x++) {
-        const value = imageData[y][x] * 255;
+        let value = imageData[y][x] * this.userContrast.value *  255;
+        value = Math.min(255, Math.max(0, value));
+
         data[dataIdx] = value;     // red
         data[dataIdx + 1] = value; // green
         data[dataIdx + 2] = value; // blue
