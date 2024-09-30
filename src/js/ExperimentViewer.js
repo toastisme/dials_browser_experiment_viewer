@@ -88,7 +88,6 @@ export class ExperimentViewer {
     this.calculatedReflsCheckbox = document.getElementById("calculatedReflections");
     this.integratedReflsCheckbox = document.getElementById("integratedReflections");
     this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
-    this.axesCheckbox = document.getElementById("showAxes");
     this.reflectionSize = document.getElementById("reflectionSize");
     this.userContrast = document.getElementById("userContrast");
 
@@ -311,11 +310,11 @@ export class ExperimentViewer {
   }
 
   updateAxes(val = null) {
-    if (val !== null) {
-      this.axesCheckbox.checked = val;
+    if (val === null) {
+      return;
     }
     for (var i = 0; i < this.axesMeshes.length; i++) {
-      this.axesMeshes[i].visible = this.axesCheckbox.checked;
+      this.axesMeshes[i].visible = val;
     }
     this.requestRender();
   }
@@ -1325,7 +1324,6 @@ export class ExperimentViewer {
     addAxis(this, xVertices, this.colors["axes"][0]);
     addAxis(this, yVertices, this.colors["axes"][1]);
     addAxis(this, zVertices, this.colors["axes"][2]);
-    this.axesCheckbox.disabled = false;
   }
 
   setCameraSmooth(position) {
