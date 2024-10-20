@@ -258,7 +258,7 @@ export class ExperimentViewer {
       this.calculatedReflsCheckbox.checked = val;
     }
     for (var i = 0; i < this.reflPointsCal.length; i++) {
-      this.reflPointsCal[i].visible = this.calculatedReflsCheckbox.checked;
+      this.reflPointsCal[i][0].visible = this.calculatedReflsCheckbox.checked && this.visibleExptID === i;
     }
     this.requestRender();
   }
@@ -268,7 +268,7 @@ export class ExperimentViewer {
       this.integratedReflsCheckbox.checked = val;
     }
     for (var i = 0; i < this.reflPointsIntegrated.length; i++) {
-      this.reflPointsIntegrated[i].visible = this.integratedReflsCheckbox.checked;
+      this.reflPointsIntegrated[i][0].visible = this.integratedReflsCheckbox.checked && this.visibleExptID === i;
     }
     this.requestRender();
   }
@@ -376,42 +376,55 @@ export class ExperimentViewer {
       }
     }
 
-    if (this.reflPointsIntegrated) {
-      const reflGeometryIntegrated = new THREE.BufferGeometry();
-      reflGeometryIntegrated.setAttribute(
-        "position", new THREE.Float32BufferAttribute(this.reflPositionsIntegrated, 3)
-      );
-
-      const reflMaterialIntegrated = new THREE.PointsMaterial({
-        size: this.reflectionSize.value,
-        transparent: true,
-        map: this.reflSprite,
-        color: this.colors["reflectionIntegrated"]
-      });
-      const pointsIntegrated = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
-      this.clearReflPointsIntegrated();
-      window.scene.add(pointsIntegrated);
-      this.reflPointsIntegrated = [pointsIntegrated];
-      this.updateIntegratedReflections();
-    }
-
     if (this.refl.hasXYZCalData() && this.reflPositionsCal) {
-      const reflGeometryCal = new THREE.BufferGeometry();
-      reflGeometryCal.setAttribute(
-        "position", new THREE.Float32BufferAttribute(this.reflPositionsCal, 3)
-      );
+      const reflPointsCal = [];
+      for (let i = 0; i < this.reflPositionsCal.length; i++){
+        const reflGeometryCal = new THREE.BufferGeometry();
+        reflGeometryCal.setAttribute(
+          "position", new THREE.Float32BufferAttribute(this.reflPositionsCal[i], 3)
+        );
 
-      const reflMaterialCal = new THREE.PointsMaterial({
-        size: this.reflectionSize.value,
-        transparent: true,
-        map: this.reflSprite,
-        color: this.colors["reflectionCal"]
-      });
-      const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
+        const reflMaterialCal = new THREE.PointsMaterial({
+          size: this.reflectionSize.value,
+          transparent: true,
+          map: this.reflSprite,
+          color: this.colors["reflectionCal"]
+        });
+        const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
+        reflPointsCal.push([pointsCal]);
+      }
       this.clearReflPointsCal();
-      window.scene.add(pointsCal);
-      this.reflPointsCal = [pointsCal];
+      for (let p = 0; p < reflPointsCal.length; p++){
+        window.scene.add(reflPointsCal[p][0]);
+      }
+      this.reflPointsCal = reflPointsCal;
       this.updateCalculatedReflections();
+
+      if (this.reflPointsIntegrated) {
+        const reflPointsIntegrated = [];
+        for (let i = 0; i < this.reflPositionsIntegrated.length; i++){
+          const reflGeometryIntegrated = new THREE.BufferGeometry();
+          reflGeometryIntegrated.setAttribute(
+            "position", new THREE.Float32BufferAttribute(this.reflPositionsIntegrated[i], 3)
+          );
+
+          const reflMaterialIntegrated = new THREE.PointsMaterial({
+            size: this.reflectionSize.value,
+            transparent: true,
+            map: this.reflSprite,
+            color: this.colors["reflectionIntegrated"]
+          });
+          const pointsIntegrated = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
+          reflPointsIntegrated.push([pointsIntegrated]);
+        }
+
+        this.clearReflPointsIntegrated();
+        for (let p = 0; p < reflPointsIntegrated.length; p++) {
+          window.scene.add(reflPointsIntegrated[p][0]);
+        }
+        this.reflPointsIntegrated = reflPointsIntegrated;
+        this.updateIntegratedReflections();
+      }
     }
     this.requestRender();
 
@@ -576,18 +589,18 @@ export class ExperimentViewer {
 
   clearReflPointsCal() {
     for (var i = 0; i < this.reflPointsCal.length; i++) {
-      window.scene.remove(this.reflPointsCal[i]);
-      this.reflPointsCal[i].geometry.dispose();
-      this.reflPointsCal[i].material.dispose();
+      window.scene.remove(this.reflPointsCal[i][0]);
+      this.reflPointsCal[i][0].geometry.dispose();
+      this.reflPointsCal[i][0].material.dispose();
     }
     this.reflPointsCal = [];
   }
 
   clearReflPointsIntegrated() {
     for (var i = 0; i < this.reflPointsIntegrated.length; i++) {
-      window.scene.remove(this.reflPointsIntegrated[i]);
-      this.reflPointsIntegrated[i].geometry.dispose();
-      this.reflPointsIntegrated[i].material.dispose();
+      window.scene.remove(this.reflPointsIntegrated[i][0]);
+      this.reflPointsIntegrated[i][0].geometry.dispose();
+      this.reflPointsIntegrated[i][0].material.dispose();
     }
     this.reflPointsIntegrated = [];
   }
@@ -678,7 +691,9 @@ export class ExperimentViewer {
     const positionsObsUnindexed = [];
     const positionsObsIndexed = [];
     const pointsObsIndexed = [];
+    const pointsCal = [];
     const positionsCal = [];
+    const pointsIntegrated = [];
     const positionsIntegrated = [];
     const bboxMeshesIndexed = [];
     const bboxMeshesUnindexed = [];
@@ -689,6 +704,10 @@ export class ExperimentViewer {
       positionsObsUnindexed.push([]);
       positionsObsIndexed.push([]);
       pointsObsIndexed.push([]);
+      pointsCal.push([]);
+      positionsCal.push([]);
+      pointsIntegrated.push([]);
+      positionsIntegrated.push([]);
       bboxMeshesIndexed.push([]);
       bboxMeshesUnindexed.push([]);
     }
@@ -743,13 +762,13 @@ export class ExperimentViewer {
         if (containsXYZCal) {
           const xyzCal = panelReflections[j]["xyzCal"];
           const globalPosCal = this.mapPointToGlobal(xyzCal, pOrigin, fa, sa, pxSize);
-          positionsCal.push(globalPosCal.x);
-          positionsCal.push(globalPosCal.y);
-          positionsCal.push(globalPosCal.z);
+          positionsCal[exptID].push(globalPosCal.x);
+          positionsCal[exptID].push(globalPosCal.y);
+          positionsCal[exptID].push(globalPosCal.z);
           if ("summedIntensity" in panelReflections[j]) {
-            positionsIntegrated.push(globalPosCal.x);
-            positionsIntegrated.push(globalPosCal.y);
-            positionsIntegrated.push(globalPosCal.z);
+            positionsIntegrated[exptID].push(globalPosCal.x);
+            positionsIntegrated[exptID].push(globalPosCal.y);
+            positionsIntegrated[exptID].push(globalPosCal.z);
           }
         }
       }
@@ -802,37 +821,44 @@ export class ExperimentViewer {
     }
 
     if (containsXYZCal) {
-      const reflGeometryCal = new THREE.BufferGeometry();
-      reflGeometryCal.setAttribute(
-        "position", new THREE.Float32BufferAttribute(positionsCal, 3)
-      );
-
-      const reflMaterialCal = new THREE.PointsMaterial({
-        size: this.reflectionSize.value,
-        transparent: true,
-        map: this.reflSprite,
-        color: this.colors["reflectionCal"]
-      });
-      const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
-      window.scene.add(pointsCal);
-      this.reflPointsCal = [pointsCal];
-      this.reflPositionsCal = positionsCal;
-
-      if (positionsIntegrated.length !== 0) {
-        const reflGeometryIntegrated = new THREE.BufferGeometry();
-        reflGeometryIntegrated.setAttribute(
-          "position", new THREE.Float32BufferAttribute(positionsIntegrated, 3)
+      for (var exptID = 0; exptID < positionsCal.length; exptID++) {
+        const reflGeometryCal = new THREE.BufferGeometry();
+        reflGeometryCal.setAttribute(
+          "position", new THREE.Float32BufferAttribute(positionsCal[exptID], 3)
         );
 
-        const reflMaterialIntegrated = new THREE.PointsMaterial({
+        const reflMaterialCal = new THREE.PointsMaterial({
           size: this.reflectionSize.value,
           transparent: true,
           map: this.reflSprite,
-          color: this.colors["reflectionIntegrated"]
+          color: this.colors["reflectionCal"]
         });
-        const pointsIntegrated = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
-        window.scene.add(pointsIntegrated);
-        this.reflPointsIntegrated = [pointsIntegrated];
+        const points = new THREE.Points(reflGeometryCal, reflMaterialCal);
+        window.scene.add(points);
+        pointsCal[exptID].push(points);
+      }
+      this.reflPointsCal = pointsCal;
+      this.reflPositionsCal = positionsCal;
+
+
+      if (positionsIntegrated.length !== 0) {
+        for (var exptID = 0; exptID < positionsIntegrated.length; exptID++) {
+          const reflGeometryIntegrated = new THREE.BufferGeometry();
+          reflGeometryIntegrated.setAttribute(
+            "position", new THREE.Float32BufferAttribute(positionsIntegrated[exptID], 3)
+          );
+
+          const reflMaterialIntegrated = new THREE.PointsMaterial({
+            size: this.reflectionSize.value,
+            transparent: true,
+            map: this.reflSprite,
+            color: this.colors["reflectionIntegrated"]
+          });
+          const points = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
+          window.scene.add(points);
+          pointsIntegrated[exptID].push(points);
+        }
+        this.reflPointsIntegrated = pointsIntegrated;
         this.reflPositionsIntegrated = positionsIntegrated;
 
       }
@@ -1668,6 +1694,8 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
     this.updateObservedIndexedReflections();
     this.updateObservedUnindexedReflections();
+    this.updateCalculatedReflections();
+    this.updateIntegratedReflections();
     this.updateBoundingBoxes();
   }
 
@@ -1700,6 +1728,8 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
     this.updateObservedIndexedReflections();
     this.updateObservedUnindexedReflections();
+    this.updateCalculatedReflections();
+    this.updateIntegratedReflections();
     this.updateBoundingBoxes();
   }
 
