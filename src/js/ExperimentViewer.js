@@ -1146,26 +1146,29 @@ export class ExperimentViewer {
   }
 
   updatePanelTextures(){
-    if (this.allPanelMeshes.length === 0){return;}
+    if (Object.keys(this.allPanelMeshes).length === 0){return;}
     if (this.visibleExptID === undefined){ return;}
 
     // Update visible exptID first
-    for (let i = 0; i < this.allPanelMeshes[this.visibleExptID].length; i++){
+    for (const i of Object.keys(this.allPanelMeshes[this.visibleExptID])){
       const newTexture = this.getPanelTexture(i, this.visibleExptID);
       this.allPanelMeshes[this.visibleExptID][i].material.map = newTexture;
       this.allPanelMeshes[this.visibleExptID][i].material.map.needsUpdate = true;
     }
 
-    if (this.allPanelMeshes.length === 1){return;}
+    this.requestRender();
 
-    for (let exptID = 0; exptID < this.allPanelMeshes.length; exptID++){
-      if (exptID === this.visibleExptID){continue;}
+    if (Object.keys(this.allPanelMeshes).length === 1){return;}
+
+    for (const exptID of Object.keys(this.allPanelMeshes)){
+      if (parseInt(exptID) === this.visibleExptID){continue;}
       for (let i = 0; i < this.allPanelMeshes[exptID].length; i++){
         const newTexture = this.getPanelTexture(i, exptID);
         this.allPanelMeshes[exptID][i].material.map = newTexture;
         this.allPanelMeshes[exptID][i].material.map.needsUpdate = true;
       }
     }
+    this.requestRender();
   }
 
   getPanelTexture(idx, exptID) {
