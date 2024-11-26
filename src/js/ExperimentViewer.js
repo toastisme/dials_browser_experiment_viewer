@@ -191,9 +191,13 @@ export class ExperimentViewer {
 
   static cameraPositions() {
     return {
-      "default": new THREE.Vector3(0, 0, -1000),
-      "defaultWithExperiment": new THREE.Vector3(-1000, 0, 0),
-      "centre": new THREE.Vector3(0, 0, 0)
+      "default": {
+        position: new THREE.Vector3(0, 0, 1000), 
+        target: new THREE.Vector3(0, 0, 0),  
+      },
+      "defaultWithExperiment": {
+        position: new THREE.Vector3(1000, 0, 0),
+        target: new THREE.Vector3(0, 0, 0)},
     };
   }
 
@@ -1278,6 +1282,28 @@ export class ExperimentViewer {
       plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
       count++;
     }
+    plane.userData.corners = [
+      new THREE.Vector3(
+        plane.geometry.attributes.position.array[0],
+        plane.geometry.attributes.position.array[1],
+        plane.geometry.attributes.position.array[2],
+      ),
+      new THREE.Vector3(
+        plane.geometry.attributes.position.array[3],
+        plane.geometry.attributes.position.array[4],
+        plane.geometry.attributes.position.array[5],
+      ),
+      new THREE.Vector3(
+        plane.geometry.attributes.position.array[6],
+        plane.geometry.attributes.position.array[7],
+        plane.geometry.attributes.position.array[8],
+      ),
+      new THREE.Vector3(
+        plane.geometry.attributes.position.array[9],
+        plane.geometry.attributes.position.array[10],
+        plane.geometry.attributes.position.array[11],
+      ),
+    ]
 
     window.scene.add(plane);
     if (!(exptID in this.allPanelMeshes)){
@@ -1420,21 +1446,45 @@ export class ExperimentViewer {
     addAxis(this, zVertices, this.colors["axes"][2]);
   }
 
-  setCameraSmooth(position) {
-    this.rotateToPos(position);
-    window.controls.update();
+  setCameraSmooth(position, target) {
+    gsap.to(window.camera.position, {
+      duration: 1,
+      x: position.x,
+      y: position.y,
+      z: position.z,
+      onUpdate: () => {
+        window.camera.lookAt(window.controls.target);
+        window.viewer.requestRender();
+      },
+    });
+  
+    const startTarget = window.controls.target.clone(); 
+    gsap.to(startTarget, {
+      duration: 1,
+      x: target.x,
+      y: target.y,
+      z: target.z,
+      onUpdate: () => {
+        window.controls.target.set(startTarget.x, startTarget.y, startTarget.z);
+        window.camera.lookAt(window.controls.target);
+        window.viewer.requestRender();
+      },
+      onComplete: () => {
+        window.controls.update();
+      },
+    });
   }
+  
 
   setCameraToDefaultPosition() {
-    this.setCameraSmooth(ExperimentViewer.cameraPositions()["default"]);
+    const { position, target } = ExperimentViewer.cameraPositions()["default"];
+    this.setCameraSmooth(position, target);
   }
+  
 
   setCameraToDefaultPositionWithExperiment() {
-    this.setCameraSmooth(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
-  }
-
-  setCameraToCentrePosition() {
-    this.setCameraSmooth(ExperimentViewer.cameraPositions()["centre"]);
+    const { position, target } = ExperimentViewer.cameraPositions()["defaultWithExperiment"];
+    this.setCameraSmooth(position, target);
   }
 
   displayHeaderText(text) {
@@ -1694,48 +1744,51 @@ export class ExperimentViewer {
     });
   }
 
-  zoomInOnPanel(panel, fitOffset = 0.1, panelName = null, panelPos = null) {
-
-    const size = new THREE.Vector3();
-    const center = new THREE.Vector3();
-    const box = new THREE.Box3();
-
-    box.makeEmpty();
-    box.expandByObject(panel);
-
-    box.getSize(size);
-    box.getCenter(center);
-
-    const maxSize = Math.max(size.x, size.y, size.z);
-    const fitHeightDistance = maxSize / (2 * Math.atan(Math.PI * window.camera.fov / 360));
+  zoomInOnPanel(panel, fitOffset = -1, panelName = null, panelPos = null) {
+    const box = new THREE.Box3().setFromObject(panel);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+  
+    const corners = panel.userData.corners; 
+    if (!corners || corners.length < 4) {
+      console.error("Panel corners are not properly defined.");
+      return;
+    }
+  
+    // Calculate normal vector of the panel
+    const edge1 = new THREE.Vector3().subVectors(corners[1], corners[0]); 
+    const edge2 = new THREE.Vector3().subVectors(corners[3], corners[0]);
+    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+  
+    // Determine the distance based on the panel size and camera FOV
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fitHeightDistance = maxDim / (2 * Math.atan((Math.PI * window.camera.fov) / 360));
     const fitWidthDistance = fitHeightDistance / window.camera.aspect;
     const distance = fitOffset * Math.max(fitHeightDistance, fitWidthDistance);
-
-    const direction = center.clone()
-      .normalize()
-      .multiplyScalar(distance);
-
-    const target = direction.clone().multiplyScalar(-1);
+  
+    // Position the camera along the normal vector
+    const newCameraPos = center.clone().add(normal.clone().multiplyScalar(distance));
+  
     gsap.to(window.camera.position, {
       duration: 1,
-      x: target.x,
-      y: target.y,
-      z: target.z,
-      onUpdate: function () {
-        window.camera.lookAt(target);
+      x: newCameraPos.x,
+      y: newCameraPos.y,
+      z: newCameraPos.z,
+      onUpdate: () => {
+        window.camera.lookAt(center);
         window.viewer.requestRender();
       },
-      onComplete: function () {
-        if (panelName != null && panelPos != null) {
-          window.viewer.displayHeaderText(panelName + " [" + panelPos[0] + ", " + panelPos[1] + "]");
+      onComplete: () => {
+        if (panelName && panelPos) {
+          window.viewer.displayHeaderText(`${panelName} [${panelPos[0]}, ${panelPos[1]}]`);
         }
-
-      }
-
+      },
     });
+  
+    window.controls.target.copy(center);
     window.controls.update();
   }
-
+  
   toggleExperimentList() {
     document.getElementById("experimentDropdown").classList.toggle("show");
     var dropdownIcon = document.getElementById("dropdownIcon");
@@ -2061,7 +2114,7 @@ export function setupScene() {
       window.viewer.enableReflectionCreation();
     }
     if (event.button == 2) {
-      window.viewer.rotateToPos(ExperimentViewer.cameraPositions()["defaultWithExperiment"]);
+      window.viewer.setCameraToDefaultPositionWithExperiment();
     }
   });
 
