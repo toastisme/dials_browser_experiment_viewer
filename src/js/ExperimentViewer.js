@@ -1341,9 +1341,9 @@ export class ExperimentViewer {
     const incidentMaterial = new MeshLineMaterial({
       lineWidth: 5,
       color: this.colors["beam"],
-      fog: true,
       transparent: true,
-      opacity: 0.25,
+      opacity: 0.0,
+      fog: true,
       depthWrite: false
     });
     const incidentMesh = new THREE.Mesh(incidentLine, incidentMaterial);
@@ -1364,9 +1364,9 @@ export class ExperimentViewer {
     const outgoingMaterial = new MeshLineMaterial({
       lineWidth: 5,
       color: this.colors["beam"],
-      transparent: true,
-      opacity: 0.0,
       fog: true,
+      transparent: true,
+      opacity: 0.25,
       depthWrite: false
     });
     const outgoingMesh = new THREE.Mesh(outgoingLine, outgoingMaterial);
