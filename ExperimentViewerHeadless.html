@@ -327,15 +327,23 @@
 
 			switch(command){
 				case "update_experiment":
-					console.assert("image_data" in msg, "image data not found when calling update_experiment");
 					console.assert("expt" in msg, "expt not found when calling update_experiment");
 					const exptJSON = msg["expt"];
 					console.assert(ExptParser.isExptJSON(exptJSON), "expt is not recognised as an expt JSON string");
-					window.viewer.addExperimentFromJSONString(exptJSON, msg["image_data"]);
+					if ("image_data" in msg){
+						window.viewer.addExperimentFromJSONString(exptJSON, msg["image_data"]);
+					}
+					else{
+						window.viewer.addExperimentFromJSONString(exptJSON);
+					}
 					break;
 				case "update_image_data":
 					console.assert("image_data" in msg, "image data not found when calling update_image_data");
 					window.viewer.updateImageData(msg["image_data"])
+					break;
+				case "add_panel_image_data":
+					window.viewer.addDetectorMeshFromImageData(
+						msg["image_data"], msg["panel_idx"], msg["expt_id"]);
 					break;
 				case "clear_experiment":
 					window.viewer.clearExperiment();

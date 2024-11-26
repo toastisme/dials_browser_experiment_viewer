@@ -9,7 +9,7 @@ export class ExptParser{
 		this.filename = null;
 		this.imageFilenames = null;
 		this.crystalSummary = null;
-		this.imageData = null;
+		this.imageData = {};
 	}
 
 	hasExptJSON(){
@@ -37,7 +37,7 @@ export class ExptParser{
 		if (this.exptJSON == null){
 			return 0;
 		}
-		return this.exptJSON["experiment"].length;
+		return this.exptJSON["imageset"].length;
 	}
 
 	getExptIDs(){
@@ -49,8 +49,7 @@ export class ExptParser{
 	}
 
 	getImageFilename(idx){
-		const fileIdx = this.exptJSON["experiment"][idx]["imageset"]
-		return this.exptJSON["imageset"][fileIdx]["template"];
+		return this.exptJSON["imageset"][idx]["template"];
 	}
 
 	getExptLabels(){
@@ -75,7 +74,7 @@ export class ExptParser{
 		this.filename = null;
 		this.imageFilenames = null;
 		this.crystalSummary = null;
-		this.imageData = null;
+		this.imageData = {};
 	}
 
 	parseExperiment = (file) => {
@@ -109,8 +108,17 @@ export class ExptParser{
 		this.loadPanelData();
 	}
 	
-	parseImageData(imageData){
-		this.imageData = imageData;
+	parseImageData(imageData, panelIdx=null, exptID=null){
+		if (panelIdx === null || exptID === null){
+			this.imageData = imageData;
+		}
+		else{
+			console.assert(panelIdx !== null && exptID !== null);
+			if (!(exptID in this.imageData)){
+				this.imageData[exptID] = {};
+			}
+			this.imageData[exptID][panelIdx] = imageData;
+		}
 	}
 
 	getImageFilenames(){

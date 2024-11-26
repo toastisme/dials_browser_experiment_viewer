@@ -93,8 +93,8 @@ export class ExperimentViewer {
 
     // Bookkeeping for meshes
     this.panelOutlineMeshes = {};
-    this.panelMeshes = [];
-    this.allPanelMeshes = [];
+    this.panelMeshes = {}; // visible meshes that are involved in raycasting
+    this.allPanelMeshes = {}; // visible and invisible meshes
     this.reflPointsObsUnindexed = [];
     this.reflPositionsUnindexed = [];
     this.reflPointsObsIndexed = [];
@@ -219,13 +219,14 @@ export class ExperimentViewer {
   }
 
   updatePanelMeshes() {
-    this.panelMeshes = [];
+    this.panelMeshes = {};
 
-    for (var i = 0; i < this.allPanelMeshes.length; i++) {
-      for (var j = 0; j < this.allPanelMeshes[i].length; j++) {
-        this.allPanelMeshes[i][j].visible = (i === this.visibleExptID);
+    for (const i of Object.keys(this.allPanelMeshes)) {
+      const exptID = parseInt(i);
+      for (const j of Object.keys(this.allPanelMeshes[i])) {
+        this.allPanelMeshes[i][j].visible = (exptID === this.visibleExptID);
       }
-      if (i === this.visibleExptID) {
+      if (exptID === this.visibleExptID) {
         this.panelMeshes = this.allPanelMeshes[i];
       }
     }
@@ -443,14 +444,20 @@ export class ExperimentViewer {
     }
     this.panelOutlineMeshes = {};
 
-    for (var i = 0; i < this.panelMeshes.length; i++) {
+    for (const i in this.panelMeshes) {
       window.scene.remove(this.panelMeshes[i]);
       this.panelMeshes[i].geometry.dispose();
       this.panelMeshes[i].material.dispose();
     }
 
-    this.allPanelMeshes = [];
-    this.panelMeshes = [];
+    for (const exptID in this.allPanelMeshes){
+      for (const panelIdx in this.allPanelMeshes[exptID]){
+        this.clearDetectorMesh(panelIdx, exptID);
+      }
+    }
+
+    this.allPanelMeshes = {};
+    this.panelMeshes = {};
 
     for (var i = 0; i < this.beamMeshes.length; i++) {
       window.scene.remove(this.beamMeshes[i]);
@@ -490,7 +497,7 @@ export class ExperimentViewer {
     console.assert(this.hasExperiment());
     for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
       for (var j = 0; j < this.expt.numExperiments(); j++) {
-        this.addDetectorPanel(i, j);
+        this.addDetectorPanel(i, j, imageData !== null);
       }
     }
     this.addBeam();
@@ -505,20 +512,20 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-  addExperimentFromJSONString = async (jsonString, imageData) => {
+  addExperimentFromJSONString = async (jsonString, imageData=null) => {
     this.clearExperiment();
     this.clearReflectionTable();
     await this.expt.parseExperimentJSON(jsonString);
-    await this.expt.parseImageData(imageData);
+    if (imageData !== null){
+      await this.expt.parseImageData(imageData);
+    }
     console.assert(this.hasExperiment());
 
-    this.allPanelMeshes = [];
-    for (var i = 0; i < this.expt.numExperiments(); i++) {
-      this.allPanelMeshes.push([]);
-    }
-    for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
-      for (var j = 0; j < this.expt.numExperiments(); j++) {
-        this.addDetectorPanel(i, j);
+    this.allPanelMeshes = {};
+
+    for (var panelIdx = 0; panelIdx < this.expt.getNumDetectorPanels(); panelIdx++) {
+      for (var exptID = 0; exptID < this.expt.numExperiments(); exptID++) {
+        this.addDetectorPanel(panelIdx, exptID, imageData !== null);
       }
     }
     this.addBeam();
@@ -535,15 +542,16 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-  updateImageData = async (imageData) => {
+  updateImageData = async (imageData, panelIdx=null, exptID=null) => {
     console.assert(this.hasExperiment());
-    await this.expt.parseImageData(imageData);
-    for (var i = 0; i < this.panelMeshes.length; i++) {
+    await this.expt.parseImageData(imageData, panelIdx, exptID);
+    
+    for (var i in this.panelMeshes) {
       window.scene.remove(this.panelMeshes[i]);
       this.panelMeshes[i].geometry.dispose();
       this.panelMeshes[i].material.dispose();
     }
-    this.allPanelMeshes = [];
+    this.allPanelMeshes = {};
     for (var i = 0; i < this.expt.numExperiments(); i++) {
       this.allPanelMeshes.push([]);
     }
@@ -1193,35 +1201,100 @@ export class ExperimentViewer {
     return texture;
   }
 
-  addDetectorPanel(idx, exptID) {
+  clearDetectorMesh(panelIdx, exptID){
+    if (exptID === this.visibleExptID){
+      if (panelIdx in this.panelMeshes){
+        window.scene.remove(this.panelMeshes[panelIdx]);
+        this.panelMeshes[panelIdx].geometry.dispose();
+        this.panelMeshes[panelIdx].material.dispose();
+        delete this.panelMeshes[panelIdx];
+      }
+    }
+    if (exptID in this.allPanelMeshes){
+      if (panelIdx in this.allPanelMeshes[exptID]){
+        window.scene.remove(this.allPanelMeshes[exptID][panelIdx]);
+        this.allPanelMeshes[exptID][panelIdx].geometry.dispose();
+        this.allPanelMeshes[exptID][panelIdx].material.dispose();
+        delete this.allPanelMeshes[exptID][panelIdx];
+      }
+    }
+    this.requestRender();
+  }
+
+
+  addDetectorMeshFromImageData(imageData, panelIdx, exptID){
+    this.expt.parseImageData(imageData, panelIdx, exptID);
+    this.clearDetectorMesh(panelIdx, exptID);
+    this.addDetectorMesh(panelIdx, exptID);
+    this.updatePanelMeshes();
+  }
+
+  addDetectorMesh(panelIdx, exptID){
+      const panelGeometry = new THREE.PlaneGeometry(192, 192);
+      var panelMaterial;
+      if (this.isStandalone) {
+        panelMaterial = new THREE.MeshPhongMaterial({
+          color: this.colors["panel"],
+          opacity: 0.25,
+          transparent: true,
+          depthWrite: false
+        });
+      }
+      else {
+        var uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
+        panelGeometry.setAttribute('uvs', new THREE.BufferAttribute(uvs, 2));
+        const panelTexture = this.getPanelTexture(panelIdx, exptID);
+        panelMaterial = new THREE.MeshBasicMaterial({
+          map: panelTexture
+        })
+      }
+      const plane = new THREE.Mesh(panelGeometry, panelMaterial);
+      var panelName = this.expt.getDetectorPanelName(panelIdx);
+      plane.name = panelName;
+
+    var corners = this.expt.getDetectorPanelCorners(panelIdx);
+
+    var idxs = [1, 2, 0, 3]
+
+    // Rotate if not facing the origin
+    var normalVec = this.expt.getDetectorPanelNormal(panelIdx);
+    var posVec = corners[0].clone();
+    posVec.add(corners[1].clone());
+    posVec.add(corners[2].clone());
+    posVec.add(corners[3].clone());
+    posVec.divideScalar(4).normalize();
+    if (posVec.dot(normalVec) < 0) {
+      idxs = [0, 3, 1, 2];
+    }
+
+    const scaleFactor = 1.01 // ensure reflections appear in front of image
+    var count = 0;
+    for (var i = 0; i < 12; i += 3) {
+      plane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
+      plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
+      plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
+      count++;
+    }
+
+    window.scene.add(plane);
+    if (!(exptID in this.allPanelMeshes)){
+      this.allPanelMeshes[exptID] = {}
+    }
+    this.allPanelMeshes[exptID][panelIdx] = plane;
+    this.requestRender();
+
+  }
+
+  addDetectorPanel(idx, exptID, addTexture=true) {
+
+    var panelName = this.expt.getDetectorPanelName(idx);
+    if (panelName in this.panelOutlineMeshes){
+      return;
+    }
 
     var corners = this.expt.getDetectorPanelCorners(idx);
     corners.push(corners[0]);
-    var panelName = this.expt.getDetectorPanelName(idx);
 
-    const panelGeometry = new THREE.PlaneGeometry(192, 192);
-    var panelMaterial;
-    if (this.isStandalone) {
-      panelMaterial = new THREE.MeshPhongMaterial({
-        color: this.colors["panel"],
-        opacity: 0.25,
-        transparent: true,
-        depthWrite: false
-      });
-    }
-    else {
-      var uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
-      panelGeometry.setAttribute('uvs', new THREE.BufferAttribute(uvs, 2));
-      const panelTexture = this.getPanelTexture(idx, exptID);
-      panelMaterial = new THREE.MeshBasicMaterial({
-        map: panelTexture
-      })
-    }
-    const plane = new THREE.Mesh(panelGeometry, panelMaterial);
-    plane.name = panelName;
-
-
-    var count = 0;
     var idxs = [1, 2, 0, 3]
 
     // Rotate if not facing the origin
@@ -1235,17 +1308,6 @@ export class ExperimentViewer {
       idxs = [0, 3, 1, 2];
     }
 
-    const scaleFactor = 1.01 // ensure reflections appear in front of image
-    for (var i = 0; i < 12; i += 3) {
-      plane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
-      plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
-      plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
-      count++;
-    }
-
-    window.scene.add(plane);
-    this.allPanelMeshes[exptID].push(plane);
-
     const line = new MeshLine();
     line.setPoints(corners);
     const material = new MeshLineMaterial({
@@ -1257,6 +1319,9 @@ export class ExperimentViewer {
     this.panelOutlineMeshes[panelName] = mesh;
     window.scene.add(mesh);
 
+    if (addTexture){
+      this.addDetectorMesh(idx, exptID);
+    }
   }
 
   addBeam() {
@@ -1448,7 +1513,7 @@ export class ExperimentViewer {
       window.viewer.disableReflectionCreation();
       return;
     }
-    const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
+    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
     if (intersects.length > 0) {
       const name = intersects[0].object.name;
@@ -1481,7 +1546,7 @@ export class ExperimentViewer {
   updateGUIInfo() {
 
     function updatePanelInfo(viewer) {
-      const intersects = window.rayCaster.intersectObjects(viewer.panelMeshes);
+      const intersects = window.rayCaster.intersectObjects(Object.values(viewer.panelMeshes));
       window.rayCaster.setFromCamera(window.mousePosition, window.camera);
       if (intersects.length > 0) {
         const name = intersects[0].object.name;
@@ -1589,7 +1654,7 @@ export class ExperimentViewer {
 
   getClickedPanelPos() {
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-    const intersects = rayCaster.intersectObjects(this.panelMeshes);
+    const intersects = rayCaster.intersectObjects(Object.values(this.panelMeshes));
     if (intersects.length > 0) {
       return intersects[0].point;
     }
@@ -1598,7 +1663,7 @@ export class ExperimentViewer {
 
   getClickedPanelCentroid() {
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-    const intersects = rayCaster.intersectObjects(this.panelMeshes);
+    const intersects = rayCaster.intersectObjects(Object.values(this.panelMeshes));
     if (intersects.length > 0) {
       return window.viewer.getPanelCentroid(intersects[0].object.name);
     }
@@ -1606,7 +1671,7 @@ export class ExperimentViewer {
 
   getClickedPanelMesh() {
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
-    const intersects = rayCaster.intersectObjects(this.panelMeshes);
+    const intersects = rayCaster.intersectObjects(Object.values(this.panelMeshes));
     if (intersects.length > 0) {
       return intersects[0].object;
     }
@@ -1784,7 +1849,7 @@ export class ExperimentViewer {
 
   enableReflectionCreation() {
     if (this.preventMouseClick) { return; }
-    const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
+    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
     if (intersects.length === 0) { return; }
 
@@ -1867,7 +1932,7 @@ export class ExperimentViewer {
   }
 
   updateNewReflection() {
-    const intersects = window.rayCaster.intersectObjects(this.panelMeshes);
+    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
     if (intersects.length === 0) { return; }
     if (this.userReflection) {
