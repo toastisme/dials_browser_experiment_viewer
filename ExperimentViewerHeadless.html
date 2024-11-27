@@ -375,6 +375,12 @@
 				case "toggle_debug_mode":
 					window.viewer.toggleDebugMode(msg["debug_mode"]);
 					break;
+				case "set_debug_to_image":
+					window.viewer.setDebugToImage();
+					break;
+				case "set_debug_to_threshold":
+					window.viewer.setDebugToThreshold();
+					break;
 				default:
 					console.warn("Unrecognised command ", command);
 			}

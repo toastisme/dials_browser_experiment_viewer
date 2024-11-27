@@ -1282,6 +1282,18 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
+  setDebugToImage(){
+    this.debugImageMode = true;
+    this.debugThresholdMode = false;
+    this.updatePanelMeshes();
+  }
+
+  setDebugToThreshold(){
+    this.debugImageMode = false;
+    this.debugThresholdMode = true;
+    this.updatePanelMeshes();
+  }
+
 
   addDetectorMeshFromImageData(imageData, panelIdx, exptID){
     this.expt.parseImageData(imageData, panelIdx, exptID);
@@ -1308,6 +1320,7 @@ export class ExperimentViewer {
   addDebugDetectorMesh(panelIdx, imageData, maskData){
     const panelGeometry = new THREE.PlaneGeometry(192, 192);
     var panelMaterial;
+    var panelThresholdMaterial;
     var uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
     panelGeometry.setAttribute('uvs', new THREE.BufferAttribute(uvs, 2));
 
@@ -1327,8 +1340,7 @@ export class ExperimentViewer {
     plane.name = panelName;
     const thresholdPlane = new THREE.Mesh(panelGeometry, panelThresholdMaterial);
 
-    var panelName = this.expt.getDetectorPanelName(panelIdx);
-    plane.name = panelName;
+    thresholdPlane.name = panelName;
     var corners = this.expt.getDetectorPanelCorners(panelIdx);
     var idxs = [1, 2, 0, 3]
 
