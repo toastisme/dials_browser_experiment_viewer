@@ -345,6 +345,10 @@
 					window.viewer.addDetectorMeshFromImageData(
 						msg["image_data"], msg["panel_idx"], msg["expt_id"]);
 					break;
+				case "add_debug_panel_image_data":
+					window.viewer.addDebugDetectorMeshFromImageData(
+						msg["image_data"], msg["mask_data"], msg["panel_idx"]);
+					break;
 				case "clear_experiment":
 					window.viewer.clearExperiment();
 					break;
@@ -367,6 +371,9 @@
 					const exptID = Number(msg["expt_id"]);
 					console.assert(typeof exptID === "number" && !Number.isNaN(exptID));
 					window.viewer.selectExpt(exptID);
+					break;
+				case "toggle_debug_mode":
+					window.viewer.toggleDebugMode(msg["debug_mode"]);
 					break;
 				default:
 					console.warn("Unrecognised command ", command);
