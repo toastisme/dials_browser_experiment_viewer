@@ -1092,7 +1092,7 @@ export class ExperimentViewer {
     if (focusOnPanel) {
       const panelName = reflData["name"];
       var panel = this.panelMeshes[reflData["panelIdx"]];
-      window.viewer.zoomInOnPanel(panel, 1.1, panelName, pos);
+      window.viewer.zoomInOnPanel(panel, -1, panelName, pos);
     }
 
     if (this.userReflection) {
