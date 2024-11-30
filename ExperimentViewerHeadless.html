@@ -347,7 +347,7 @@
 					break;
 				case "add_debug_panel_image_data":
 					window.viewer.addDebugDetectorMeshFromImageData(
-						msg["image_data"], msg["mask_data"], msg["panel_idx"]);
+						msg["image_data"], msg["mask_data"], msg["panel_idx"], msg["expt_id"]);
 					break;
 				case "clear_experiment":
 					window.viewer.clearExperiment();

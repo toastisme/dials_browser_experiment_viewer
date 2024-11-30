@@ -487,12 +487,14 @@ export class ExperimentViewer {
     }
     this.panelOutlineMeshes = {};
 
+    this.clearDebugPanelMeshes();
+
     for (const i in this.panelMeshes) {
       window.scene.remove(this.panelMeshes[i]);
       this.panelMeshes[i].geometry.dispose();
       this.panelMeshes[i].material.dispose();
     }
-
+    
     for (const exptID in this.allPanelMeshes){
       for (const panelIdx in this.allPanelMeshes[exptID]){
         this.clearDetectorMesh(panelIdx, exptID);
@@ -687,6 +689,22 @@ export class ExperimentViewer {
     this.setDefaultReflectionsDisplay();
     this.hideCloseReflButton();
     this.requestRender();
+  }
+
+  clearDebugPanelMeshes(){
+
+    for (const i in this.debugPanelMeshes) {
+      window.scene.remove(this.debugPanelMeshes[i]);
+      this.debugPanelMeshes[i].geometry.dispose();
+      this.debugPanelMeshes[i].material.dispose();
+    }
+    for (const i in this.debugPanelThresholdMeshes) {
+      window.scene.remove(this.debugPanelThresholdMeshes[i]);
+      this.debugPanelThresholdMeshes[i].geometry.dispose();
+      this.debugPanelThresholdMeshes[i].material.dispose();
+    }
+    this.debugPanelMeshes = {};
+    this.debugPanelThresholdMeshes = {};
   }
 
   showCloseReflButton() {
@@ -1302,8 +1320,11 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-  addDebugDetectorMeshFromImageData(imageData, maskData, panelIdx){
-    if (panelIdx in this.debugPanelMeshes){
+  addDebugDetectorMeshFromImageData(imageData, maskData, panelIdx, exptID){
+    if (exptID !== this.visibleExptID){
+      this.clearDebugPanelMeshes();
+    }
+    else if (panelIdx in this.debugPanelMeshes){
       window.scene.remove(this.debugPanelMeshes[panelIdx]);
       this.debugPanelMeshes[panelIdx].geometry.dispose();
       this.debugPanelMeshes[panelIdx].material.dispose();
@@ -2018,7 +2039,8 @@ export class ExperimentViewer {
       this.serverWS.send(JSON.stringify({
         "channel": "server",
         "command": "update_experiment_description",
-        "expt_id": exptID
+        "expt_id": exptID,
+        "in_debug_mode": (this.debugImageMode || this.debugImageMode)
       }));
     }
 
