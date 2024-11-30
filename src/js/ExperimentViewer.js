@@ -62,6 +62,8 @@ export class ExperimentViewer {
      */
 
     this.isStandalone = isStandalone;
+    this.debugImageMode = false;
+    this.debugThresholdMode = false;
 
     this.serverWS = null;
 
@@ -95,6 +97,8 @@ export class ExperimentViewer {
     this.panelOutlineMeshes = {};
     this.panelMeshes = {}; // visible meshes that are involved in raycasting
     this.allPanelMeshes = {}; // visible and invisible meshes
+    this.debugPanelMeshes = {};
+    this.debugPanelThresholdMeshes = {};
     this.reflPointsObsUnindexed = [];
     this.reflPositionsUnindexed = [];
     this.reflPointsObsIndexed = [];
@@ -225,15 +229,50 @@ export class ExperimentViewer {
   updatePanelMeshes() {
     this.panelMeshes = {};
 
-    for (const i of Object.keys(this.allPanelMeshes)) {
-      const exptID = parseInt(i);
-      for (const j of Object.keys(this.allPanelMeshes[i])) {
-        this.allPanelMeshes[i][j].visible = (exptID === this.visibleExptID);
+    if (!this.debugImageMode && !this.debugThresholdMode){
+      for (const i of Object.keys(this.allPanelMeshes)) {
+        const exptID = parseInt(i);
+        for (const j of Object.keys(this.allPanelMeshes[i])) {
+          this.allPanelMeshes[i][j].visible = (exptID === this.visibleExptID);
+        }
+        if (exptID === this.visibleExptID) {
+          this.panelMeshes = this.allPanelMeshes[i];
+        }
       }
-      if (exptID === this.visibleExptID) {
-        this.panelMeshes = this.allPanelMeshes[i];
+      for (const i of Object.keys(this.debugPanelMeshes)) {
+        this.debugPanelMeshes[i].visible = false;
+      }
+      for (const i of Object.keys(this.debugPanelThresholdMeshes)) {
+        this.debugPanelThresholdMeshes[i].visible = false;
       }
     }
+    else{
+      for (const i of Object.keys(this.allPanelMeshes)) {
+        for (const j of Object.keys(this.allPanelMeshes[i])) {
+          this.allPanelMeshes[i][j].visible = false;
+        }
+      }
+      if (this.debugImageMode){
+        for (const i of Object.keys(this.debugPanelMeshes)) {
+          this.debugPanelMeshes[i].visible = true;
+        }
+        for (const i of Object.keys(this.debugPanelThresholdMeshes)) {
+          this.debugPanelThresholdMeshes[i].visible = false;
+        }
+        this.panelMeshes = this.debugPanelMeshes;
+      }
+      else if (this.debugThresholdMode){
+        for (const i of Object.keys(this.debugPanelThresholdMeshes)) {
+          this.debugPanelThresholdMeshes[i].visible = true;
+        }
+        for (const i of Object.keys(this.debugPanelMeshes)) {
+          this.debugPanelMeshes[i].visible = false;
+        }
+        this.panelMeshes = this.debugPanelThresholdMeshes;
+      }
+
+    }
+
     this.requestRender();
   }
 
@@ -448,12 +487,14 @@ export class ExperimentViewer {
     }
     this.panelOutlineMeshes = {};
 
+    this.clearDebugPanelMeshes();
+
     for (const i in this.panelMeshes) {
       window.scene.remove(this.panelMeshes[i]);
       this.panelMeshes[i].geometry.dispose();
       this.panelMeshes[i].material.dispose();
     }
-
+    
     for (const exptID in this.allPanelMeshes){
       for (const panelIdx in this.allPanelMeshes[exptID]){
         this.clearDetectorMesh(panelIdx, exptID);
@@ -648,6 +689,22 @@ export class ExperimentViewer {
     this.setDefaultReflectionsDisplay();
     this.hideCloseReflButton();
     this.requestRender();
+  }
+
+  clearDebugPanelMeshes(){
+
+    for (const i in this.debugPanelMeshes) {
+      window.scene.remove(this.debugPanelMeshes[i]);
+      this.debugPanelMeshes[i].geometry.dispose();
+      this.debugPanelMeshes[i].material.dispose();
+    }
+    for (const i in this.debugPanelThresholdMeshes) {
+      window.scene.remove(this.debugPanelThresholdMeshes[i]);
+      this.debugPanelThresholdMeshes[i].geometry.dispose();
+      this.debugPanelThresholdMeshes[i].material.dispose();
+    }
+    this.debugPanelMeshes = {};
+    this.debugPanelThresholdMeshes = {};
   }
 
   showCloseReflButton() {
@@ -1053,7 +1110,7 @@ export class ExperimentViewer {
     if (focusOnPanel) {
       const panelName = reflData["name"];
       var panel = this.panelMeshes[reflData["panelIdx"]];
-      window.viewer.zoomInOnPanel(panel, 1.1, panelName, pos);
+      window.viewer.zoomInOnPanel(panel, -1, panelName, pos);
     }
 
     if (this.userReflection) {
@@ -1175,8 +1232,10 @@ export class ExperimentViewer {
     this.requestRender();
   }
 
-  getPanelTexture(idx, exptID) {
-    const imageData = this.expt.imageData[exptID][idx];
+  getPanelTexture(idx, exptID, imageData=null) {
+    if (imageData == null){
+      imageData = this.expt.imageData[exptID][idx];
+    }
     const panelSize = this.expt.imageSize;
 
     var canvas = document.createElement('canvas');
@@ -1228,12 +1287,161 @@ export class ExperimentViewer {
     this.requestRender();
   }
 
+  toggleDebugMode(debugMode){
+    if (debugMode === true){
+      if (this.debugImageMode === false && this.debugThresholdMode == false){
+        this.debugImageMode = true;
+      }
+    }
+    else{
+      this.debugImageMode = false;
+      this.debugThresholdMode = false;
+    }
+    this.updatePanelMeshes();
+  }
+
+  setDebugToImage(){
+    this.debugImageMode = true;
+    this.debugThresholdMode = false;
+    this.updatePanelMeshes();
+  }
+
+  setDebugToThreshold(){
+    this.debugImageMode = false;
+    this.debugThresholdMode = true;
+    this.updatePanelMeshes();
+  }
+
 
   addDetectorMeshFromImageData(imageData, panelIdx, exptID){
     this.expt.parseImageData(imageData, panelIdx, exptID);
     this.clearDetectorMesh(panelIdx, exptID);
     this.addDetectorMesh(panelIdx, exptID);
     this.updatePanelMeshes();
+  }
+
+  addDebugDetectorMeshFromImageData(imageData, maskData, panelIdx, exptID){
+    if (exptID !== this.visibleExptID){
+      this.clearDebugPanelMeshes();
+    }
+    else if (panelIdx in this.debugPanelMeshes){
+      window.scene.remove(this.debugPanelMeshes[panelIdx]);
+      this.debugPanelMeshes[panelIdx].geometry.dispose();
+      this.debugPanelMeshes[panelIdx].material.dispose();
+      delete this.debugPanelMeshes[panelIdx]
+      window.scene.remove(this.debugPanelThresholdMeshes[panelIdx]);
+      this.debugPanelThresholdMeshes[panelIdx].geometry.dispose();
+      this.debugPanelThresholdMeshes[panelIdx].material.dispose();
+      delete this.debugPanelThresholdMeshes[panelIdx]
+    }
+    this.addDebugDetectorMesh(panelIdx, imageData, maskData);
+    this.updatePanelMeshes();
+  }
+
+  addDebugDetectorMesh(panelIdx, imageData, maskData){
+    const panelGeometry = new THREE.PlaneGeometry(192, 192);
+    var panelMaterial;
+    var panelThresholdMaterial;
+    var uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
+    panelGeometry.setAttribute('uvs', new THREE.BufferAttribute(uvs, 2));
+
+    const panelTexture = this.getPanelTexture(panelIdx, 0, imageData);
+    const panelThresholdTexture = this.getPanelTexture(panelIdx, 0, maskData);
+
+    panelMaterial = new THREE.MeshBasicMaterial({
+      map: panelTexture
+    })
+    panelThresholdMaterial = new THREE.MeshBasicMaterial({
+      map: panelThresholdTexture
+    })
+
+
+    const plane = new THREE.Mesh(panelGeometry, panelMaterial);
+    var panelName = this.expt.getDetectorPanelName(panelIdx);
+    plane.name = panelName;
+    const thresholdPlane = new THREE.Mesh(panelGeometry, panelThresholdMaterial);
+
+    thresholdPlane.name = panelName;
+    var corners = this.expt.getDetectorPanelCorners(panelIdx);
+    var idxs = [1, 2, 0, 3]
+
+    // Rotate if not facing the origin
+    var normalVec = this.expt.getDetectorPanelNormal(panelIdx);
+    var posVec = corners[0].clone();
+    posVec.add(corners[1].clone());
+    posVec.add(corners[2].clone());
+    posVec.add(corners[3].clone());
+    posVec.divideScalar(4).normalize();
+    if (posVec.dot(normalVec) < 0) {
+      idxs = [0, 3, 1, 2];
+    }
+
+    const scaleFactor = 1.01 // ensure reflections appear in front of image
+    var count = 0;
+    for (var i = 0; i < 12; i += 3) {
+      plane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
+      plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
+      plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
+      count++;
+    }
+    plane.userData.corners = [
+      new THREE.Vector3(
+        plane.geometry.attributes.position.array[0],
+        plane.geometry.attributes.position.array[1],
+        plane.geometry.attributes.position.array[2],
+      ),
+      new THREE.Vector3(
+        plane.geometry.attributes.position.array[3],
+        plane.geometry.attributes.position.array[4],
+        plane.geometry.attributes.position.array[5],
+      ),
+      new THREE.Vector3(
+        plane.geometry.attributes.position.array[6],
+        plane.geometry.attributes.position.array[7],
+        plane.geometry.attributes.position.array[8],
+      ),
+      new THREE.Vector3(
+        plane.geometry.attributes.position.array[9],
+        plane.geometry.attributes.position.array[10],
+        plane.geometry.attributes.position.array[11],
+      ),
+    ]
+
+    count = 0;
+    for (var i = 0; i < 12; i += 3) {
+      thresholdPlane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
+      thresholdPlane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
+      thresholdPlane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
+      count++;
+    }
+    thresholdPlane.userData.corners = [
+      new THREE.Vector3(
+        thresholdPlane.geometry.attributes.position.array[0],
+        thresholdPlane.geometry.attributes.position.array[1],
+        thresholdPlane.geometry.attributes.position.array[2],
+      ),
+      new THREE.Vector3(
+        thresholdPlane.geometry.attributes.position.array[3],
+        thresholdPlane.geometry.attributes.position.array[4],
+        thresholdPlane.geometry.attributes.position.array[5],
+      ),
+      new THREE.Vector3(
+        thresholdPlane.geometry.attributes.position.array[6],
+        thresholdPlane.geometry.attributes.position.array[7],
+        thresholdPlane.geometry.attributes.position.array[8],
+      ),
+      new THREE.Vector3(
+        thresholdPlane.geometry.attributes.position.array[9],
+        thresholdPlane.geometry.attributes.position.array[10],
+        thresholdPlane.geometry.attributes.position.array[11],
+      ),
+    ]
+
+    window.scene.add(plane);
+    window.scene.add(thresholdPlane);
+    this.debugPanelMeshes[panelIdx] = plane;
+    this.debugPanelThresholdMeshes[panelIdx] = thresholdPlane;
+  this.requestRender();
   }
 
   addDetectorMesh(panelIdx, exptID){
@@ -1831,7 +2039,8 @@ export class ExperimentViewer {
       this.serverWS.send(JSON.stringify({
         "channel": "server",
         "command": "update_experiment_description",
-        "expt_id": exptID
+        "expt_id": exptID,
+        "in_debug_mode": (this.debugImageMode || this.debugImageMode)
       }));
     }
 
