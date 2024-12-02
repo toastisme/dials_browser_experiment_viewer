@@ -2040,7 +2040,7 @@ export class ExperimentViewer {
         "channel": "server",
         "command": "update_experiment_description",
         "expt_id": exptID,
-        "in_debug_mode": (this.debugImageMode || this.debugImageMode)
+        "in_debug_mode": (this.debugImageMode || this.debugThresholdMode)
       }));
     }
 
