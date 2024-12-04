@@ -949,6 +949,95 @@ export class ExperimentViewer {
     this.requestRender();
   }
 
+  addCalculatedIntegratedReflectionsFromData(reflData) {
+
+    if (!this.hasExperiment()) {
+      console.warn("Tried to add reflections but no experiment has been loaded");
+      this.clearReflectionTable();
+      return;
+    }
+
+    this.clearReflPointsIntegrated();
+
+    const pointsIntegrated = [];
+    const positionsIntegrated = [];
+
+
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
+      pointsIntegrated.push([]);
+      positionsIntegrated.push([]);
+    }
+
+    const panelKeys = Object.keys(reflData);
+    const refl = reflData[panelKeys[0]][0];
+
+    const containsXYZCal = "xyzCal" in refl;
+    const containsMillerIndices = "millerIdx" in refl;
+
+    for (var i = 0; i < panelKeys.length; i++) {
+      const panelIdx = parseInt(panelKeys[i])
+
+      const panelReflections = reflData[panelKeys[i]];
+      if (panelReflections === undefined) { continue; }
+      const panelData = this.expt.getPanelDataByIdx(panelIdx);
+
+      const fa = panelData["fastAxis"];
+      const sa = panelData["slowAxis"];
+      const pOrigin = panelData["origin"];
+      const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
+
+      for (var j = 0; j < panelReflections.length; j++) {
+
+        const exptID = panelReflections[j]["exptID"];
+
+        if (containsXYZCal) {
+          const xyzCal = panelReflections[j]["xyzCal"];
+          const globalPosCal = this.mapPointToGlobal(xyzCal, pOrigin, fa, sa, pxSize);
+          positionsIntegrated[exptID].push(globalPosCal.x);
+          positionsIntegrated[exptID].push(globalPosCal.y);
+          positionsIntegrated[exptID].push(globalPosCal.z);
+        }
+      }
+    }
+
+    if (containsXYZCal) {
+      if (positionsIntegrated.length !== 0) {
+        for (var exptID = 0; exptID < positionsIntegrated.length; exptID++) {
+          const reflGeometryIntegrated = new THREE.BufferGeometry();
+          reflGeometryIntegrated.setAttribute(
+            "position", new THREE.Float32BufferAttribute(positionsIntegrated[exptID], 3)
+          );
+
+          const reflMaterialIntegrated = new THREE.PointsMaterial({
+            size: this.reflectionSize.value,
+            transparent: true,
+            map: this.reflSprite,
+            color: this.colors["reflectionIntegrated"]
+          });
+          const points = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
+          window.scene.add(points);
+          pointsIntegrated[exptID].push(points);
+        }
+        this.reflPointsIntegrated = pointsIntegrated;
+        this.reflPositionsIntegrated = positionsIntegrated;
+      }
+    }
+
+    if (this.reflPointsIntegrated.length !== 0){
+      this.integratedReflsCheckbox.disabled = false;
+    }
+    this.updateReflectionVisibility();
+    if (this.lastClickedPanelPosition != null) {
+      this.sendClickedPanelPosition(
+        this.lastClickedPanelPosition["panelIdx"],
+        this.lastClickedPanelPosition["panelPos"],
+        this.lastClickedPanelPosition["name"]
+      );
+    }
+    this.loading = false;
+    this.requestRender();
+  }
+
   addReflections() {
 
     if (!this.hasReflectionTable()) {
