@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
-import { ExptParser } from './ExptParser';
 
 class UserReflection {
   constructor(origin, panelName, lineColor) {
@@ -1328,8 +1327,8 @@ export class ExperimentViewer {
     const panelSize = this.expt.imageSize;
 
     var canvas = document.createElement('canvas');
-    canvas.width = panelSize[0];
-    canvas.height = panelSize[1];
+    canvas.width = panelSize[1];
+    canvas.height = panelSize[0];
     var context = canvas.getContext('2d');
     context.fillRect(0, 0, canvas.width, canvas.height);
     const contextData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -1428,7 +1427,8 @@ export class ExperimentViewer {
   }
 
   addDebugDetectorMesh(panelIdx, imageData, maskData){
-    const panelGeometry = new THREE.PlaneGeometry(192, 192);
+    const panelSize = this.expt.imageData;
+    const panelGeometry = new THREE.PlaneGeometry(panelSize[1], panelSize[0]);
     var panelMaterial;
     var panelThresholdMaterial;
     var uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
@@ -1534,7 +1534,8 @@ export class ExperimentViewer {
   }
 
   addDetectorMesh(panelIdx, exptID){
-      const panelGeometry = new THREE.PlaneGeometry(192, 192);
+      const panelSize = this.expt.imageSize;
+      const panelGeometry = new THREE.PlaneGeometry(panelSize[1], panelSize[0]);
       var panelMaterial;
       if (this.isStandalone) {
         panelMaterial = new THREE.MeshPhongMaterial({
