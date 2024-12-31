@@ -143,7 +143,7 @@ export class ExperimentViewer {
     const data = JSON.stringify(
       {
         "channel": "server",
-        "command": "update_lineplot",
+        "command": "clicked_on_panel",
         "panel_idx": panelIdx,
         "panel_pos": panelPos,
         "name": name,
