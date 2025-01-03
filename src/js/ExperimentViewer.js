@@ -122,6 +122,9 @@ export class ExperimentViewer {
     this.cursorActive = true;
     this.lastClickedPanelPosition = null
     this.loading = false;
+    this.isPanning = false;
+    this.startMousePosition = { x: 0, y: 0 };
+    this.panelFocusAxes = null;
 
     this.hightlightColor = new THREE.Color(this.colors["highlight"]);
     this.panelColor = new THREE.Color(this.colors["panel"]);
@@ -1324,19 +1327,23 @@ export class ExperimentViewer {
     if (imageData == null){
       imageData = this.expt.imageData[exptID][idx];
     }
-    const panelSize = this.expt.imageSize;
+    let panelSize = this.expt.imageSize;
+    if (imageData[0].length !== panelSize[0]){
+      panelSize = (panelSize[1], panelSize[0]);
+    }
+
 
     var canvas = document.createElement('canvas');
-    canvas.width = panelSize[1];
-    canvas.height = panelSize[0];
+    canvas.width = imageData[0].length;
+    canvas.height = imageData.length;
     var context = canvas.getContext('2d');
     context.fillRect(0, 0, canvas.width, canvas.height);
     const contextData = context.getImageData(0, 0, canvas.width, canvas.height);
     const data = contextData.data;
 
     var dataIdx = 0;
-    for (var y = 0; y < panelSize[1]; y++) {
-      for (var x = 0; x < panelSize[0]; x++) {
+    for (var y = 0; y < imageData.length; y++) {
+      for (var x = 0; x < imageData[0].length; x++) {
         let value = imageData[y][x] * this.userContrast.value *  255;
         value = Math.min(255, Math.max(0, value));
 
@@ -1783,6 +1790,7 @@ export class ExperimentViewer {
   setCameraToDefaultPositionWithExperiment() {
     const { position, target } = ExperimentViewer.cameraPositions()["defaultWithExperiment"];
     this.setCameraSmooth(position, target);
+    this.panelFocusAxes = null;
   }
 
   displayHeaderText(text) {
@@ -2056,7 +2064,15 @@ export class ExperimentViewer {
     // Calculate normal vector of the panel
     const edge1 = new THREE.Vector3().subVectors(corners[1], corners[0]); 
     const edge2 = new THREE.Vector3().subVectors(corners[3], corners[0]);
+    const edge3 = new THREE.Vector3().subVectors(corners[2], corners[0]);
     const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+
+    // Save the local axes of the panel
+    const panelX = edge3.clone().normalize();
+    const panelY = edge1.clone().normalize();
+    const panelNormal = normal;
+  
+    window.viewer.panelFocusAxes = { panelX, panelY, panelNormal, center };
   
     // Determine the distance based on the panel size and camera FOV
     const maxDim = Math.max(size.x, size.y, size.z);
@@ -2305,7 +2321,6 @@ export class ExperimentViewer {
     window.viewer.resetPanelColors();
     window.viewer.updateOriginObjectsOpacity();
     window.viewer.updateGUIInfo();
-    window.controls.update();
     window.renderer.render(window.scene, window.camera);
     this.renderRequested = false;
     window.viewer.enableMouseClick();
@@ -2340,7 +2355,7 @@ export function setupScene() {
   window.camera = new THREE.PerspectiveCamera(
     45,
     window.innerWidth / window.innerHeight,
-    100,
+    .1,
     10000
   );
   window.renderer.render(window.scene, window.camera);
@@ -2348,10 +2363,12 @@ export function setupScene() {
 
   // Controls
   window.controls = new OrbitControls(window.camera, window.renderer.domElement);
+  window.controls.mouseButtons.MIDDLE = THREE.MOUSE.NONE;
   window.controls.maxDistance = 3000;
   window.controls.enablePan = false;
   window.controls.update();
   window.controls.addEventListener("change", function () { window.viewer.requestRender(); });
+
 
   // Events
   window.mousePosition = new THREE.Vector2();
@@ -2359,7 +2376,37 @@ export function setupScene() {
     window.mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
     window.mousePosition.y = - (e.clientY / window.innerHeight) * 2 + 1;
     window.viewer.requestRender();
+
+    if (window.viewer.isPanning && this.window.viewer.panelFocusAxes !== null) {
+
+      const { panelX, panelY, panelNormal, center } = window.viewer.panelFocusAxes;
+      const deltaX = e.clientX - window.viewer.startMousePosition.x;
+      const deltaY = e.clientY - window.viewer.startMousePosition.y;
+
+      const panSpeed = .5; 
+
+      const panOffsetX = panelX.clone().multiplyScalar(deltaX * panSpeed);
+      const panOffsetY = panelY.clone().multiplyScalar(-deltaY * panSpeed);
+
+      window.camera.position.add(panOffsetX).add(panOffsetY);
+      window.controls.target.add(panOffsetX).add(panOffsetY);
+
+
+      window.viewer.startMousePosition.x = e.clientX;
+      window.viewer.startMousePosition.y = e.clientY;
+    }
   });
+
+  window.renderer.domElement.addEventListener("mouseup", (event) => {
+    if (event.button === 1) { // Middle mouse button
+      window.viewer.isPanning = false;
+    }
+  });
+
+  window.renderer.domElement.addEventListener("mouseleave", () => {
+    window.viewer.isPanning = false; // Stop panning if the mouse leaves the canvas
+  });
+
 
   window.addEventListener("resize", function () {
     window.camera.aspect = window.innerWidth / window.innerHeight;
@@ -2414,6 +2461,11 @@ export function setupScene() {
     }
     if (event.button == 2) {
       window.viewer.setCameraToDefaultPositionWithExperiment();
+    }
+    if (event.button === 1) { // Middle mouse button
+      window.viewer.isPanning = true;
+      window.viewer.startMousePosition.x = event.clientX;
+      window.viewer.startMousePosition.y = event.clientY;
     }
   });
 
