@@ -343,11 +343,12 @@
 					break;
 				case "add_panel_image_data":
 					window.viewer.addDetectorMeshFromImageData(
-						msg["image_data"], msg["panel_idx"], msg["expt_id"]);
+						msg["image_data"], msg["panel_idx"], msg["expt_id"], msg["image_dimensions"]);
 					break;
 				case "add_debug_panel_image_data":
 					window.viewer.addDebugDetectorMeshFromImageData(
-						msg["image_data"], msg["mask_data"], msg["panel_idx"], msg["expt_id"]);
+						msg["image_data"], msg["mask_data"], msg["panel_idx"], msg["expt_id"],
+					msg["image_dimensions"]);
 					break;
 				case "clear_experiment":
 					window.viewer.clearExperiment();

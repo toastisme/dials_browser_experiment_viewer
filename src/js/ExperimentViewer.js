@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
+import pako from 'pako';
 
 class UserReflection {
   constructor(origin, panelName, lineColor) {
@@ -1407,15 +1408,14 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-
-  addDetectorMeshFromImageData(imageData, panelIdx, exptID){
-    this.expt.parseImageData(imageData, panelIdx, exptID);
+  addDetectorMeshFromImageData(imageData, panelIdx, exptID, imageDimensions){
+    this.expt.parseImageData(imageData, panelIdx, exptID, imageDimensions);
     this.clearDetectorMesh(panelIdx, exptID);
     this.addDetectorMesh(panelIdx, exptID);
     this.updatePanelMeshes();
   }
 
-  addDebugDetectorMeshFromImageData(imageData, maskData, panelIdx, exptID){
+  addDebugDetectorMeshFromImageData(imageData, maskData, panelIdx, exptID, imageDimensions){
     if (exptID !== this.visibleExptID){
       this.clearDebugPanelMeshes();
     }
@@ -1429,8 +1429,35 @@ export class ExperimentViewer {
       this.debugPanelThresholdMeshes[panelIdx].material.dispose();
       delete this.debugPanelThresholdMeshes[panelIdx]
     }
-    this.addDebugDetectorMesh(panelIdx, imageData, maskData);
+    const decompressedImageData = this.decompressImageData(
+      imageData, imageDimensions, "float")
+    const decompressedMaskData = this.decompressImageData(
+      maskData, imageDimensions, "int")
+    this.addDebugDetectorMesh(panelIdx, decompressedImageData, decompressedMaskData);
     this.updatePanelMeshes();
+  }
+
+  decompressImageData(imageData, imageDimensions, dataType="float"){
+		const binary = atob(imageData);
+		const compressedBuffer = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) {
+			compressedBuffer[i] = binary.charCodeAt(i);
+		}
+		const decompressedBuffer = pako.inflate(compressedBuffer);
+    if (dataType==="float"){
+      const floatArray = new Float64Array(decompressedBuffer.buffer);
+      const array2D = Array.from({ length: imageDimensions[0] }, (_, i) => 
+        floatArray.slice(i * imageDimensions[1], (i + 1) * imageDimensions[1])
+      );
+      return array2D;
+    }
+    else if (dataType=="int"){
+      const intArray = new Int32Array(decompressedBuffer.buffer);
+      const array2D = Array.from({ length: imageDimensions[0] }, (_, i) => 
+        intArray.slice(i * imageDimensions[1], (i + 1) * imageDimensions[1])
+      );
+      return array2D;
+    }
   }
 
   addDebugDetectorMesh(panelIdx, imageData, maskData){
