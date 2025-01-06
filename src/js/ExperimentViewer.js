@@ -790,6 +790,7 @@ export class ExperimentViewer {
     const containsXYZObs = "xyzObs" in refl;
     const containsXYZCal = "xyzCal" in refl;
     const containsMillerIndices = "millerIdx" in refl;
+    const containsBBoxes = "bbox" in refl;
 
     for (var i = 0; i < panelKeys.length; i++) {
       const panelIdx = parseInt(panelKeys[i])
@@ -812,13 +813,18 @@ export class ExperimentViewer {
           const xyzObs = panelReflections[j]["xyzObs"];
           const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
 
-          const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
+          let bboxMesh = null;
+          if (containsBBoxes){
+            const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
+          }
 
           if (containsMillerIndices && panelReflections[j]["indexed"]) {
             positionsObsIndexed[exptID].push(globalPosObs.x);
             positionsObsIndexed[exptID].push(globalPosObs.y);
             positionsObsIndexed[exptID].push(globalPosObs.z);
-            bboxMeshesIndexed[exptID].push(bboxMesh);
+            if (bboxMesh !== null){
+              bboxMeshesIndexed[exptID].push(bboxMesh);
+            }
             indexedMap[numIndexed] = panelReflections[j]["millerIdx"];
             numIndexed++;
           }
@@ -826,9 +832,13 @@ export class ExperimentViewer {
             positionsObsUnindexed[exptID].push(globalPosObs.x);
             positionsObsUnindexed[exptID].push(globalPosObs.y);
             positionsObsUnindexed[exptID].push(globalPosObs.z);
-            bboxMeshesUnindexed[exptID].push(bboxMesh);
+            if (bboxMesh !== null){
+              bboxMeshesUnindexed[exptID].push(bboxMesh);
+            }
           }
-          window.scene.add(bboxMesh);
+          if (bboxMesh !== null){
+            window.scene.add(bboxMesh);
+          }
 
         }
         if (containsXYZCal) {
@@ -1243,6 +1253,7 @@ export class ExperimentViewer {
   }
 
   mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor = [1, 1]) {
+    console.log("TEST mapPoint point: ", point, " pO ", pOrigin, " fa ", fa, " sa ", sa);
     const pos = pOrigin.clone();
     pos.add(fa.clone().normalize().multiplyScalar(point[0] * scaleFactor[0]));
     pos.add(sa.clone().normalize().multiplyScalar(point[1] * scaleFactor[1]));
