@@ -54,7 +54,7 @@ class UserReflection {
 
 
 export class ExperimentViewer {
-  constructor(exptParser, reflParser, isStandalone, colors = null) {
+  constructor(exptParser, reflParser, calculatedIntegratedReflParser, isStandalone, colors = null) {
 
     /*
      * if isStandalone, the user can add and remove .expt and .refl files
@@ -78,6 +78,7 @@ export class ExperimentViewer {
     // Data parsers
     this.expt = exptParser;
     this.refl = reflParser;
+    this.calculatedIntegratedRefl = calculatedIntegratedReflParser;
 
     // Html elements
     this.headerText = window.document.getElementById("headerText");
@@ -849,7 +850,7 @@ export class ExperimentViewer {
             if (bboxMesh !== null){
               bboxMeshesIndexed[exptID].push(bboxMesh);
             }
-            indexedMap[numIndexed] = panelReflections[j]["millerIdx"];
+            indexedMap[numIndexed] = millerIndices[reflIdx];
             numIndexed++;
 
         }
@@ -1217,6 +1218,110 @@ export class ExperimentViewer {
     this.refl.indexedMap = indexedMap;
     this.loading = false;
     this.requestRender();
+  }
+
+  addCalculatedIntegratedReflectionsFromJSONMsgpack(reflMsgpack){
+    if (!this.hasExperiment()) {
+      console.warn("Tried to add reflections but no experiment has been loaded");
+      this.clearReflectionTable();
+      return;
+    }
+
+    this.clearReflectionTable();
+    this.calculatedIntegratedRefl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
+
+    // Get relevant data
+    const panelNumbers = this.calculatedIntegratedRefl.getPanelNumbers();
+    // Assume all reflection tables contain panel info
+    if (panelNumbers === null){
+      console.warn("Tried to add reflections but no data was parsed in refl file");
+    }
+    
+    const pointsIntegrated = [];
+    const positionsIntegrated = [];
+
+
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
+      pointsIntegrated.push([]);
+      positionsIntegrated.push([]);
+    }
+
+    const xyzCal = this.calculatedIntegratedRefl.getXYZCal();
+    const millerIndices = this.calculatedIntegratedRefl.getMillerIndices();
+    const exptIDs = this.calculatedIntegratedRefl.getExperimentIDs();
+
+    const uniquePanelIdxs = new Set(panelNumbers);
+    let panelData = {};
+    for (const panelIdx of uniquePanelIdxs){
+      panelData[panelIdx] = this.expt.getPanelDataByIdx(panelIdx);
+    }
+
+    // Get positions of all reflections
+    for (let reflIdx = 0; reflIdx < panelNumbers.length; reflIdx++){
+
+      const reflPanel = panelNumbers[reflIdx];
+
+      // exptID
+      let exptID;
+      if (exptIDs !== null){
+        exptID = exptIDs[reflIdx];
+      }
+      else{
+        exptID = 0;
+      }
+
+      if (xyzCal !== null) {
+        const reflXyzCal = xyzCal[reflIdx];
+        const globalPosCal = this.mapPointToGlobal(
+          reflXyzCal, 
+          panelData[reflPanel]["origin"], 
+          panelData[reflPanel]["fastAxis"], 
+          panelData[reflPanel]["slowAxis"], 
+          panelData[reflPanel]["pxSize"]);
+
+          positionsIntegrated[exptID].push(globalPosCal.x);
+          positionsIntegrated[exptID].push(globalPosCal.y);
+          positionsIntegrated[exptID].push(globalPosCal.z);
+
+      }
+
+    }
+
+    if (positionsIntegrated.length !== 0) {
+      for (var exptID = 0; exptID < positionsIntegrated.length; exptID++) {
+        const reflGeometryIntegrated = new THREE.BufferGeometry();
+        reflGeometryIntegrated.setAttribute(
+          "position", new THREE.Float32BufferAttribute(positionsIntegrated[exptID], 3)
+        );
+
+        const reflMaterialIntegrated = new THREE.PointsMaterial({
+          size: this.reflectionSize.value,
+          transparent: true,
+          map: this.reflSprite,
+          color: this.colors["reflectionIntegrated"]
+        });
+        const points = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
+        window.scene.add(points);
+        pointsIntegrated[exptID].push(points);
+      }
+      this.reflPointsIntegrated = pointsIntegrated;
+      this.reflPositionsIntegrated = positionsIntegrated;
+    }
+
+    if (this.reflPointsIntegrated.length !== 0){
+      this.integratedReflsCheckbox.disabled = false;
+    }
+    this.updateReflectionVisibility();
+    if (this.lastClickedPanelPosition != null) {
+      this.sendClickedPanelPosition(
+        this.lastClickedPanelPosition["panelIdx"],
+        this.lastClickedPanelPosition["panelPos"],
+        this.lastClickedPanelPosition["name"]
+      );
+    }
+    this.loading = false;
+    this.requestRender();
+
   }
 
   addCalculatedIntegratedReflectionsFromData(reflData) {

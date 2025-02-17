@@ -293,6 +293,7 @@
 		window.viewer = new ExperimentViewer(
 			new ExptParser(), 
 			new ReflParser(), 
+			new ReflParser(), 
 			false,
 			colors
 		);
@@ -365,9 +366,7 @@
 					window.viewer.addReflectionsFromJSONMsgpack(msg["refl_msgpack"]);
 					break;
 				case "update_calculated_integrated_reflection_table":
-					delete msg["command"];
-					delete msg["channel"];
-					window.viewer.addCalculatedIntegratedReflectionsFromData(msg);
+					window.viewer.addCalculatedIntegratedReflectionsFromJSONMsgpack(msg["refl_msgpack"]);
 					break;
 
 				case "highlight_reflection":
