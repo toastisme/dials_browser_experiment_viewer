@@ -241,8 +241,8 @@
 		</style>
 	<script type="module">
 	import { ExperimentViewer, setupScene } from "./src/js/ExperimentViewer.js";
-	import { ExptParser } from "./src/js/ExptParser.js";
-	import { ReflParser } from "./src/js/ReflParser.js";
+	import { ExptParser } from "dials_javascript_parser/ExptParser.js";
+	import { ReflParser } from "dials_javascript_parser/ReflParser.js";
 
 
 
@@ -342,21 +342,27 @@
 					window.viewer.updateImageData(msg["image_data"])
 					break;
 				case "add_panel_image_data":
-					window.viewer.addDetectorMeshFromImageData(
+					window.viewer.addPanelImageData(
 						msg["image_data"], msg["panel_idx"], msg["expt_id"], msg["image_dimensions"]);
 					break;
+				case "add_expt_image_data":
+					window.viewer.addExptImageData(
+						msg["image_data"], msg["expt_id"], msg["image_dimensions"]);
+					break;
 				case "add_debug_panel_image_data":
-					window.viewer.addDebugDetectorMeshFromImageData(
+					window.viewer.addDebugPanelImageData(
 						msg["image_data"], msg["mask_data"], msg["panel_idx"], msg["expt_id"],
 					msg["image_dimensions"]);
+					break;
+				case "add_debug_image_data":
+					window.viewer.addDebugImageData(
+						msg["image_data"], msg["mask_data"], msg["image_dimensions"]);
 					break;
 				case "clear_experiment":
 					window.viewer.clearExperiment();
 					break;
 				case "update_reflection_table":
-					delete msg["command"];
-					delete msg["channel"];
-					window.viewer.addReflectionsFromData(msg);
+					window.viewer.addReflectionsFromJSONMsgpack(msg["refl_msgpack"]);
 					break;
 				case "update_calculated_integrated_reflection_table":
 					delete msg["command"];
