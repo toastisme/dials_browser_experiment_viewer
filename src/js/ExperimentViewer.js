@@ -218,7 +218,7 @@ export class ExperimentViewer {
 
   static sizes() {
     return {
-      "highlightBboxSize": 4
+      "highlightBboxSize": 2
     };
   }
 
@@ -689,6 +689,7 @@ export class ExperimentViewer {
     this.clearReflPointsIntegrated();
     this.clearBoundingBoxes();
     this.refl.clearReflectionTable();
+    this.calculatedIntegratedRefl.clearReflectionTable();
     this.updateReflectionCheckboxEnabledStatus();
     this.setDefaultReflectionsDisplay();
     this.hideCloseReflButton();
@@ -764,6 +765,7 @@ export class ExperimentViewer {
     const bboxes = this.refl.getBoundingBoxes();
     const millerIndices = this.refl.getMillerIndices();
     const exptIDs = this.refl.getExperimentIDs();
+    const flags = this.refl.getFlags();
 
     // Setup variables for holding graphical data
     const indexedMap = {};
@@ -831,7 +833,7 @@ export class ExperimentViewer {
         // Bbox
         let bboxMesh = null;
         if (bboxes !== null){
-          const bboxMesh = this.getBboxMesh(
+          bboxMesh = this.getBboxMesh(
             bboxes[reflIdx], 
             bboxMaterial, 
             this, 
@@ -883,7 +885,7 @@ export class ExperimentViewer {
         positionsCal[exptID].push(globalPosCal.y);
         positionsCal[exptID].push(globalPosCal.z);
 
-        if (this.refl.containsSummationIntensities()) {
+        if (this.refl.isSummationIntegrated(flags[reflIdx])) {
           positionsIntegrated[exptID].push(globalPosCal.x);
           positionsIntegrated[exptID].push(globalPosCal.y);
           positionsIntegrated[exptID].push(globalPosCal.z);
@@ -1563,56 +1565,72 @@ export class ExperimentViewer {
     this.loading = false;
   }
 
-  highlightReflection(reflData, focusOnPanel = true) {
-
-    const bboxSize = ExperimentViewer.sizes()["highlightBboxSize"];
+highlightReflection(reflData, focusOnPanel = true) {
+    const baseRadius = ExperimentViewer.sizes()["highlightBboxSize"];
     const pos = reflData["panelPos"];
+    
     if ("focusOnPanel" in reflData) {
-      focusOnPanel = reflData["focusOnPanel"];
+        focusOnPanel = reflData["focusOnPanel"];
     }
-
+    
     if (focusOnPanel) {
-      const panelName = reflData["name"];
-      var panel = this.panelMeshes[reflData["panelIdx"]];
-      window.viewer.zoomInOnPanel(panel, -1, panelName, pos);
+        const panelName = reflData["name"];
+        var panel = this.panelMeshes[reflData["panelIdx"]];
+        window.viewer.zoomInOnPanel(panel, -1, panelName, pos);
     }
-
+    
+    // Clear existing highlights
     if (this.userReflection) {
-      this.userReflection.clear();
-      this.userReflection = null;
+        this.userReflection.clear();
+        this.userReflection = null;
     }
-
+    
     if (this.highlightReflectionMesh) {
-      window.scene.remove(this.highlightReflectionMesh);
-      this.highlightReflectionMesh.geometry.dispose();
-      this.highlightReflectionMesh.material.dispose();
-      this.highlightReflectionMesh = null;
+        window.scene.remove(this.highlightReflectionMesh);
+        this.highlightReflectionMesh.geometry.dispose();
+        this.highlightReflectionMesh.material.dispose();
+        this.highlightReflectionMesh = null;
     }
-
+    
     const panelData = this.expt.getPanelDataByIdx(reflData["panelIdx"]);
-    const bbox = [
-      pos[1] - bboxSize,
-      pos[1] + bboxSize,
-      pos[0] - bboxSize,
-      pos[0] + bboxSize
-    ]
+    
+    // Create circle using Line segments
+    const segments = 32;
+    let points = [];
+    for (let i = 0; i <= segments; i++) {
+        const theta = (i / segments) * Math.PI * 2;
+        let circlePoint = [
+          pos[1] + Math.cos(theta) * baseRadius,
+          pos[0] + Math.sin(theta) * baseRadius,
+        ];
+        circlePoint = this.mapPointToGlobal(
+          circlePoint, panelData["origin"],
+          panelData["fastAxis"],
+          panelData["slowAxis"],
+          panelData["pxSize"]
+        );
+        points.push(
+          circlePoint
+        );
+    }
+    points.push(points[0]);
 
-    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["highlightBbox"] });
+    const line = new MeshLine();
+    points = points.map(point => new THREE.Vector3(point.x, point.y, point.z));
+    line.setPoints(points);
+    const material = new MeshLineMaterial({
+      lineWidth: 2,
+      color: this.colors["highlightBbox"],
+      fog: true
+    });
 
-    const mesh = this.getBboxMesh(
-      bbox,
-      bboxMaterial,
-      this,
-      panelData["origin"],
-      panelData["fastAxis"],
-      panelData["slowAxis"],
-      [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
-    );
-
-    window.scene.add(mesh);
-    this.highlightReflectionMesh = mesh;
-
-  }
+    const circle = new THREE.Mesh(line, material);
+    
+    window.scene.add(circle);
+    this.highlightReflectionMesh = circle;
+    this.requestRender();
+    
+}
 
   mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor = {x:1, y:1}) {
     const pos = pOrigin.clone();
@@ -1666,8 +1684,14 @@ export class ExperimentViewer {
     this.observedUnindexedReflsCheckbox.disabled = !this.refl.containsXYZObs();
     this.observedIndexedReflsCheckbox.disabled = !this.refl.containsMillerIndices();
     this.calculatedReflsCheckbox.disabled = !this.refl.containsXYZCal();
-    this.integratedReflsCheckbox.disabled = !this.refl.containsSummationIntensities();
+    this.integratedReflsCheckbox.disabled = this.integrationDataEmpty();
     this.boundingBoxesCheckbox.disabled = !this.refl.containsBoundingBoxes();
+  }
+
+  integrationDataEmpty(){
+    return this.reflPositionsIntegrated.every(function(subArr) {
+      return subArr.length === 0;
+    });
   }
 
   updatePanelTextures(){
