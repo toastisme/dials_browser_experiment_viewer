@@ -93,6 +93,7 @@ export class ExperimentViewer {
     this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
     this.reflectionSize = document.getElementById("reflectionSize");
     this.userContrast = document.getElementById("userContrast");
+    this.contrastMethod = "exponential";
 
     // Bookkeeping for meshes
     this.panelOutlineMeshes = {};
@@ -1720,6 +1721,31 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.requestRender();
   }
 
+  gammaContrast(value, contrast) {
+    const gamma = 1 / (contrast * 2);
+    return Math.pow(value, gamma);
+  }
+
+  logarithmicContrast(value, contrast) {
+    return Math.log(1 + value * contrast) / Math.log(1 + contrast);
+  }
+
+  exponentialContrast(value, contrast) {
+    return (Math.exp(value * contrast) - 1) / (Math.exp(contrast) - 1);
+  }
+
+  getContrast(value, contrast){
+    switch(this.contrastMethod){
+      case "exponential":
+        return this.exponentialContrast(value, contrast);
+      case "logarithmic":
+        return this.logarithmicContrast(value, contrast);
+      case "gamma":
+        return this.gammaContrast(value, contrast);
+    }
+
+  }
+
   getPanelTexture(idx, exptID, imageData=null) {
     if (imageData == null){
       imageData = this.expt.imageData[exptID][idx];
@@ -1741,7 +1767,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     var dataIdx = 0;
     for (var y = 0; y < imageData.length; y++) {
       for (var x = 0; x < imageData[0].length; x++) {
-        let value = imageData[y][x] * this.userContrast.value *  255;
+        let value = this.getContrast(imageData[y][x], this.userContrast.value) *  255;
         value = Math.min(255, Math.max(0, value));
 
         data[dataIdx] = value;     // red
