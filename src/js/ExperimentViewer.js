@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
+import pako from 'pako';
 
 class UserReflection {
   constructor(origin, panelName, lineColor) {
@@ -53,7 +54,7 @@ class UserReflection {
 
 
 export class ExperimentViewer {
-  constructor(exptParser, reflParser, isStandalone, colors = null) {
+  constructor(exptParser, reflParser, calculatedIntegratedReflParser, isStandalone, colors = null) {
 
     /*
      * if isStandalone, the user can add and remove .expt and .refl files
@@ -77,6 +78,7 @@ export class ExperimentViewer {
     // Data parsers
     this.expt = exptParser;
     this.refl = reflParser;
+    this.calculatedIntegratedRefl = calculatedIntegratedReflParser;
 
     // Html elements
     this.headerText = window.document.getElementById("headerText");
@@ -91,6 +93,7 @@ export class ExperimentViewer {
     this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
     this.reflectionSize = document.getElementById("reflectionSize");
     this.userContrast = document.getElementById("userContrast");
+    this.contrastMethod = "exponential";
 
     // Bookkeeping for meshes
     this.panelOutlineMeshes = {};
@@ -216,7 +219,7 @@ export class ExperimentViewer {
 
   static sizes() {
     return {
-      "highlightBboxSize": 4
+      "highlightBboxSize": 2
     };
   }
 
@@ -687,6 +690,7 @@ export class ExperimentViewer {
     this.clearReflPointsIntegrated();
     this.clearBoundingBoxes();
     this.refl.clearReflectionTable();
+    this.calculatedIntegratedRefl.clearReflectionTable();
     this.updateReflectionCheckboxEnabledStatus();
     this.setDefaultReflectionsDisplay();
     this.hideCloseReflButton();
@@ -741,8 +745,7 @@ export class ExperimentViewer {
     return bboxLines;
   }
 
-  addReflectionsFromData(reflData) {
-
+  addReflectionsFromJSONMsgpack(reflMsgpack){
     if (!this.hasExperiment()) {
       console.warn("Tried to add reflections but no experiment has been loaded");
       this.clearReflectionTable();
@@ -750,9 +753,22 @@ export class ExperimentViewer {
     }
 
     this.clearReflectionTable();
+    this.refl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
 
-    this.refl.reflData = reflData;
-    this.refl.refl = "reflData";
+    // Get relevant data
+    const panelNumbers = this.refl.getPanelNumbers();
+    // Assume all reflection tables contain panel info
+    if (panelNumbers === null){
+      console.warn("Tried to add reflections but no data was parsed in refl file");
+    }
+    const xyzObs = this.refl.getXYZObs();
+    const xyzCal = this.refl.getXYZCal();
+    const bboxes = this.refl.getBoundingBoxes();
+    const millerIndices = this.refl.getMillerIndices();
+    const exptIDs = this.refl.getExperimentIDs();
+    const flags = this.refl.getFlags();
+
+    // Setup variables for holding graphical data
     const indexedMap = {};
     var numIndexed = 0;
 
@@ -770,7 +786,7 @@ export class ExperimentViewer {
     const bboxMeshesUnindexed = [];
 
 
-    for (var i = 0; i < this.expt.numExperiments(); i++) {
+    for (let i = 0; i < this.expt.numExperiments(); i++) {
       pointsObsUnindexed.push([]);
       positionsObsUnindexed.push([]);
       positionsObsIndexed.push([]);
@@ -783,70 +799,106 @@ export class ExperimentViewer {
       bboxMeshesUnindexed.push([]);
     }
 
-    const panelKeys = Object.keys(reflData);
-    const refl = reflData[panelKeys[0]][0];
+    const uniquePanelIdxs = new Set(panelNumbers);
+    let panelData = {};
+    for (const panelIdx of uniquePanelIdxs){
+      panelData[panelIdx] = this.expt.getPanelDataByIdx(panelIdx);
+    }
 
-    const containsXYZObs = "xyzObs" in refl;
-    const containsXYZCal = "xyzCal" in refl;
-    const containsMillerIndices = "millerIdx" in refl;
 
-    for (var i = 0; i < panelKeys.length; i++) {
-      const panelIdx = parseInt(panelKeys[i])
+    // Get positions of all reflections
+    for (let reflIdx = 0; reflIdx < panelNumbers.length; reflIdx++){
 
-      const panelReflections = reflData[panelKeys[i]];
-      if (panelReflections === undefined) { continue; }
-      const panelData = this.expt.getPanelDataByIdx(panelIdx);
+      const reflPanel = panelNumbers[reflIdx];
 
-      const fa = panelData["fastAxis"];
-      const sa = panelData["slowAxis"];
-      const pOrigin = panelData["origin"];
-      const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
+      // exptID
+      let exptID;
+      if (exptIDs !== null){
+        exptID = exptIDs[reflIdx];
+      }
+      else{
+        exptID = 0;
+      }
 
-      for (var j = 0; j < panelReflections.length; j++) {
+      // xyzObs
+      if (xyzObs !== null){
 
-        const exptID = panelReflections[j]["exptID"];
+        const reflXyzObs = xyzObs[reflIdx];
+        const globalPosObs = this.mapPointToGlobal(
+          reflXyzObs, 
+          panelData[reflPanel]["origin"], 
+          panelData[reflPanel]["fastAxis"], 
+          panelData[reflPanel]["slowAxis"], 
+          panelData[reflPanel]["pxSize"])
 
-        if (containsXYZObs) {
+        // Bbox
+        let bboxMesh = null;
+        if (bboxes !== null){
+          bboxMesh = this.getBboxMesh(
+            bboxes[reflIdx], 
+            bboxMaterial, 
+            this, 
+            panelData[reflPanel]["origin"], 
+            panelData[reflPanel]["fastAxis"], 
+            panelData[reflPanel]["slowAxis"], 
+            panelData[reflPanel]["pxSize"]);
+        }
 
-          const xyzObs = panelReflections[j]["xyzObs"];
-          const globalPosObs = this.mapPointToGlobal(xyzObs, pOrigin, fa, sa, pxSize);
+        // Miller idx
+        if (millerIndices !== null && this.refl.isValidMillerIndex(millerIndices[reflIdx])){
 
-          const bboxMesh = this.getBboxMesh(panelReflections[j]["bbox"], bboxMaterial, this, pOrigin, fa, sa, pxSize);
-
-          if (containsMillerIndices && panelReflections[j]["indexed"]) {
             positionsObsIndexed[exptID].push(globalPosObs.x);
             positionsObsIndexed[exptID].push(globalPosObs.y);
             positionsObsIndexed[exptID].push(globalPosObs.z);
-            bboxMeshesIndexed[exptID].push(bboxMesh);
-            indexedMap[numIndexed] = panelReflections[j]["millerIdx"];
+            if (bboxMesh !== null){
+              bboxMeshesIndexed[exptID].push(bboxMesh);
+            }
+            indexedMap[numIndexed] = millerIndices[reflIdx];
             numIndexed++;
-          }
-          else {
-            positionsObsUnindexed[exptID].push(globalPosObs.x);
-            positionsObsUnindexed[exptID].push(globalPosObs.y);
-            positionsObsUnindexed[exptID].push(globalPosObs.z);
+
+        }
+
+        else {
+          positionsObsUnindexed[exptID].push(globalPosObs.x);
+          positionsObsUnindexed[exptID].push(globalPosObs.y);
+          positionsObsUnindexed[exptID].push(globalPosObs.z);
+          if (bboxMesh !== null){
             bboxMeshesUnindexed[exptID].push(bboxMesh);
           }
+        }
+        if (bboxMesh !== null){
           window.scene.add(bboxMesh);
-
         }
-        if (containsXYZCal) {
-          const xyzCal = panelReflections[j]["xyzCal"];
-          const globalPosCal = this.mapPointToGlobal(xyzCal, pOrigin, fa, sa, pxSize);
-          positionsCal[exptID].push(globalPosCal.x);
-          positionsCal[exptID].push(globalPosCal.y);
-          positionsCal[exptID].push(globalPosCal.z);
-          if ("summedIntensity" in panelReflections[j]) {
-            positionsIntegrated[exptID].push(globalPosCal.x);
-            positionsIntegrated[exptID].push(globalPosCal.y);
-            positionsIntegrated[exptID].push(globalPosCal.z);
-          }
-        }
-      }
-    }
+      } // xyzObs
 
-    if (containsXYZObs) {
-      if (containsMillerIndices) {
+      // xyzCal
+      if (xyzCal !== null) {
+
+        const reflXyzCal = xyzCal[reflIdx];
+        const globalPosCal = this.mapPointToGlobal(
+          reflXyzCal, 
+          panelData[reflPanel]["origin"], 
+          panelData[reflPanel]["fastAxis"], 
+          panelData[reflPanel]["slowAxis"], 
+          panelData[reflPanel]["pxSize"]);
+
+        positionsCal[exptID].push(globalPosCal.x);
+        positionsCal[exptID].push(globalPosCal.y);
+        positionsCal[exptID].push(globalPosCal.z);
+
+        if (this.refl.isSummationIntegrated(flags[reflIdx])) {
+          positionsIntegrated[exptID].push(globalPosCal.x);
+          positionsIntegrated[exptID].push(globalPosCal.y);
+          positionsIntegrated[exptID].push(globalPosCal.z);
+        }
+      } // xyzCal
+
+    } // Get positions of all reflections
+
+    // Create mesh objects based on reflection positions
+
+    if (xyzObs !== null) {
+      if (millerIndices !== null) {
 
         for (var exptID = 0; exptID < positionsObsIndexed.length; exptID++) {
           const reflGeometryObsIndexed = new THREE.BufferGeometry();
@@ -891,7 +943,7 @@ export class ExperimentViewer {
       this.bboxMeshesUnindexed = bboxMeshesUnindexed;
     }
 
-    if (containsXYZCal) {
+    if (xyzCal !== null) {
       for (var exptID = 0; exptID < positionsCal.length; exptID++) {
         const reflGeometryCal = new THREE.BufferGeometry();
         reflGeometryCal.setAttribute(
@@ -949,6 +1001,110 @@ export class ExperimentViewer {
     this.refl.indexedMap = indexedMap;
     this.loading = false;
     this.requestRender();
+  }
+
+  addCalculatedIntegratedReflectionsFromJSONMsgpack(reflMsgpack){
+    if (!this.hasExperiment()) {
+      console.warn("Tried to add reflections but no experiment has been loaded");
+      this.clearReflectionTable();
+      return;
+    }
+
+    this.clearReflectionTable();
+    this.calculatedIntegratedRefl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
+
+    // Get relevant data
+    const panelNumbers = this.calculatedIntegratedRefl.getPanelNumbers();
+    // Assume all reflection tables contain panel info
+    if (panelNumbers === null){
+      console.warn("Tried to add reflections but no data was parsed in refl file");
+    }
+    
+    const pointsIntegrated = [];
+    const positionsIntegrated = [];
+
+
+    for (var i = 0; i < this.expt.numExperiments(); i++) {
+      pointsIntegrated.push([]);
+      positionsIntegrated.push([]);
+    }
+
+    const xyzCal = this.calculatedIntegratedRefl.getXYZCal();
+    const millerIndices = this.calculatedIntegratedRefl.getMillerIndices();
+    const exptIDs = this.calculatedIntegratedRefl.getExperimentIDs();
+
+    const uniquePanelIdxs = new Set(panelNumbers);
+    let panelData = {};
+    for (const panelIdx of uniquePanelIdxs){
+      panelData[panelIdx] = this.expt.getPanelDataByIdx(panelIdx);
+    }
+
+    // Get positions of all reflections
+    for (let reflIdx = 0; reflIdx < panelNumbers.length; reflIdx++){
+
+      const reflPanel = panelNumbers[reflIdx];
+
+      // exptID
+      let exptID;
+      if (exptIDs !== null){
+        exptID = exptIDs[reflIdx];
+      }
+      else{
+        exptID = 0;
+      }
+
+      if (xyzCal !== null) {
+        const reflXyzCal = xyzCal[reflIdx];
+        const globalPosCal = this.mapPointToGlobal(
+          reflXyzCal, 
+          panelData[reflPanel]["origin"], 
+          panelData[reflPanel]["fastAxis"], 
+          panelData[reflPanel]["slowAxis"], 
+          panelData[reflPanel]["pxSize"]);
+
+          positionsIntegrated[exptID].push(globalPosCal.x);
+          positionsIntegrated[exptID].push(globalPosCal.y);
+          positionsIntegrated[exptID].push(globalPosCal.z);
+
+      }
+
+    }
+
+    if (positionsIntegrated.length !== 0) {
+      for (var exptID = 0; exptID < positionsIntegrated.length; exptID++) {
+        const reflGeometryIntegrated = new THREE.BufferGeometry();
+        reflGeometryIntegrated.setAttribute(
+          "position", new THREE.Float32BufferAttribute(positionsIntegrated[exptID], 3)
+        );
+
+        const reflMaterialIntegrated = new THREE.PointsMaterial({
+          size: this.reflectionSize.value,
+          transparent: true,
+          map: this.reflSprite,
+          color: this.colors["reflectionIntegrated"]
+        });
+        const points = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
+        window.scene.add(points);
+        pointsIntegrated[exptID].push(points);
+      }
+      this.reflPointsIntegrated = pointsIntegrated;
+      this.reflPositionsIntegrated = positionsIntegrated;
+    }
+
+    if (this.reflPointsIntegrated.length !== 0){
+      this.integratedReflsCheckbox.disabled = false;
+    }
+    this.updateReflectionVisibility();
+    if (this.lastClickedPanelPosition != null) {
+      this.sendClickedPanelPosition(
+        this.lastClickedPanelPosition["panelIdx"],
+        this.lastClickedPanelPosition["panelPos"],
+        this.lastClickedPanelPosition["name"]
+      );
+    }
+    this.loading = false;
+    this.requestRender();
+
   }
 
   addCalculatedIntegratedReflectionsFromData(reflData) {
@@ -1190,61 +1346,77 @@ export class ExperimentViewer {
     this.loading = false;
   }
 
-  highlightReflection(reflData, focusOnPanel = true) {
-
-    const bboxSize = ExperimentViewer.sizes()["highlightBboxSize"];
+highlightReflection(reflData, focusOnPanel = true) {
+    const baseRadius = ExperimentViewer.sizes()["highlightBboxSize"];
     const pos = reflData["panelPos"];
+    
     if ("focusOnPanel" in reflData) {
-      focusOnPanel = reflData["focusOnPanel"];
+        focusOnPanel = reflData["focusOnPanel"];
     }
-
+    
     if (focusOnPanel) {
-      const panelName = reflData["name"];
-      var panel = this.panelMeshes[reflData["panelIdx"]];
-      window.viewer.zoomInOnPanel(panel, -1, panelName, pos);
+        const panelName = reflData["name"];
+        var panel = this.panelMeshes[reflData["panelIdx"]];
+        window.viewer.zoomInOnPanel(panel, -1, panelName, pos);
     }
-
+    
+    // Clear existing highlights
     if (this.userReflection) {
-      this.userReflection.clear();
-      this.userReflection = null;
+        this.userReflection.clear();
+        this.userReflection = null;
     }
-
+    
     if (this.highlightReflectionMesh) {
-      window.scene.remove(this.highlightReflectionMesh);
-      this.highlightReflectionMesh.geometry.dispose();
-      this.highlightReflectionMesh.material.dispose();
-      this.highlightReflectionMesh = null;
+        window.scene.remove(this.highlightReflectionMesh);
+        this.highlightReflectionMesh.geometry.dispose();
+        this.highlightReflectionMesh.material.dispose();
+        this.highlightReflectionMesh = null;
     }
-
+    
     const panelData = this.expt.getPanelDataByIdx(reflData["panelIdx"]);
-    const bbox = [
-      pos[1] - bboxSize,
-      pos[1] + bboxSize,
-      pos[0] - bboxSize,
-      pos[0] + bboxSize
-    ]
+    
+    // Create circle using Line segments
+    const segments = 32;
+    let points = [];
+    for (let i = 0; i <= segments; i++) {
+        const theta = (i / segments) * Math.PI * 2;
+        let circlePoint = [
+          pos[1] + Math.cos(theta) * baseRadius,
+          pos[0] + Math.sin(theta) * baseRadius,
+        ];
+        circlePoint = this.mapPointToGlobal(
+          circlePoint, panelData["origin"],
+          panelData["fastAxis"],
+          panelData["slowAxis"],
+          panelData["pxSize"]
+        );
+        points.push(
+          circlePoint
+        );
+    }
+    points.push(points[0]);
 
-    const bboxMaterial = new THREE.LineBasicMaterial({ color: this.colors["highlightBbox"] });
+    const line = new MeshLine();
+    points = points.map(point => new THREE.Vector3(point.x, point.y, point.z));
+    line.setPoints(points);
+    const material = new MeshLineMaterial({
+      lineWidth: 2,
+      color: this.colors["highlightBbox"],
+      fog: true
+    });
 
-    const mesh = this.getBboxMesh(
-      bbox,
-      bboxMaterial,
-      this,
-      panelData["origin"],
-      panelData["fastAxis"],
-      panelData["slowAxis"],
-      [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
-    );
+    const circle = new THREE.Mesh(line, material);
+    
+    window.scene.add(circle);
+    this.highlightReflectionMesh = circle;
+    this.requestRender();
+    
+}
 
-    window.scene.add(mesh);
-    this.highlightReflectionMesh = mesh;
-
-  }
-
-  mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor = [1, 1]) {
+  mapPointToGlobal(point, pOrigin, fa, sa, scaleFactor = {x:1, y:1}) {
     const pos = pOrigin.clone();
-    pos.add(fa.clone().normalize().multiplyScalar(point[0] * scaleFactor[0]));
-    pos.add(sa.clone().normalize().multiplyScalar(point[1] * scaleFactor[1]));
+    pos.add(fa.clone().normalize().multiplyScalar(point[0] * scaleFactor.x));
+    pos.add(sa.clone().normalize().multiplyScalar(point[1] * scaleFactor.y));
     return pos;
   }
 
@@ -1290,11 +1462,17 @@ export class ExperimentViewer {
       this.boundingBoxesCheckbox.disabled = true;
       return;
     }
-    this.observedUnindexedReflsCheckbox.disabled = !this.refl.hasXYZObsData();
-    this.observedIndexedReflsCheckbox.disabled = !this.refl.hasMillerIndicesData();
-    this.calculatedReflsCheckbox.disabled = !this.refl.hasXYZCalData();
-    this.integratedReflsCheckbox.disabled = !this.refl.hasIntegratedData();
-    this.boundingBoxesCheckbox.disabled = !this.refl.hasBboxData();
+    this.observedUnindexedReflsCheckbox.disabled = !this.refl.containsXYZObs();
+    this.observedIndexedReflsCheckbox.disabled = !this.refl.containsMillerIndices();
+    this.calculatedReflsCheckbox.disabled = !this.refl.containsXYZCal();
+    this.integratedReflsCheckbox.disabled = this.integrationDataEmpty();
+    this.boundingBoxesCheckbox.disabled = !this.refl.containsBoundingBoxes();
+  }
+
+  integrationDataEmpty(){
+    return this.reflPositionsIntegrated.every(function(subArr) {
+      return subArr.length === 0;
+    });
   }
 
   updatePanelTextures(){
@@ -1323,6 +1501,31 @@ export class ExperimentViewer {
     this.requestRender();
   }
 
+  gammaContrast(value, contrast) {
+    const gamma = 1 / (contrast * 2);
+    return Math.pow(value, gamma);
+  }
+
+  logarithmicContrast(value, contrast) {
+    return Math.log(1 + value * contrast) / Math.log(1 + contrast);
+  }
+
+  exponentialContrast(value, contrast) {
+    return (Math.exp(value * contrast) - 1) / (Math.exp(contrast) - 1);
+  }
+
+  getContrast(value, contrast){
+    switch(this.contrastMethod){
+      case "exponential":
+        return this.exponentialContrast(value, contrast);
+      case "logarithmic":
+        return this.logarithmicContrast(value, contrast);
+      case "gamma":
+        return this.gammaContrast(value, contrast);
+    }
+
+  }
+
   getPanelTexture(idx, exptID, imageData=null) {
     if (imageData == null){
       imageData = this.expt.imageData[exptID][idx];
@@ -1344,7 +1547,7 @@ export class ExperimentViewer {
     var dataIdx = 0;
     for (var y = 0; y < imageData.length; y++) {
       for (var x = 0; x < imageData[0].length; x++) {
-        let value = imageData[y][x] * this.userContrast.value *  255;
+        let value = this.getContrast(imageData[y][x], this.userContrast.value) *  255;
         value = Math.min(255, Math.max(0, value));
 
         data[dataIdx] = value;     // red
@@ -1407,15 +1610,25 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-
-  addDetectorMeshFromImageData(imageData, panelIdx, exptID){
-    this.expt.parseImageData(imageData, panelIdx, exptID);
+  addPanelImageData(imageData, panelIdx, exptID, imageDimensions){
+    this.expt.parseImageData(imageData, panelIdx, exptID, imageDimensions);
     this.clearDetectorMesh(panelIdx, exptID);
     this.addDetectorMesh(panelIdx, exptID);
     this.updatePanelMeshes();
   }
 
-  addDebugDetectorMeshFromImageData(imageData, maskData, panelIdx, exptID){
+  addExptImageData(imageData, exptID, imageDimensions){
+		console.assert(imageData.length === imageDimensions.length);
+    this.expt.parseExptImageData(imageData, exptID, imageDimensions);
+
+    for (let panelIdx = 0; panelIdx < imageData.length; panelIdx++){
+      this.clearDetectorMesh(panelIdx, exptID);
+      this.addDetectorMesh(panelIdx, exptID);
+    }
+    this.updatePanelMeshes();
+  }
+
+  addDebugPanelImageData(imageData, maskData, panelIdx, exptID, imageDimensions){
     if (exptID !== this.visibleExptID){
       this.clearDebugPanelMeshes();
     }
@@ -1429,9 +1642,28 @@ export class ExperimentViewer {
       this.debugPanelThresholdMeshes[panelIdx].material.dispose();
       delete this.debugPanelThresholdMeshes[panelIdx]
     }
-    this.addDebugDetectorMesh(panelIdx, imageData, maskData);
+    const decompressedImageData = this.expt.decompressImageData(
+      imageData, imageDimensions, "float")
+    const decompressedMaskData = this.expt.decompressImageData(
+      maskData, imageDimensions, "int")
+    this.addDebugDetectorMesh(panelIdx, decompressedImageData, decompressedMaskData);
     this.updatePanelMeshes();
   }
+  
+  addDebugImageData(imageData, maskData, imageDimensions){
+		console.assert(imageData.length === imageDimensions.length);
+    this.clearDebugPanelMeshes();
+
+    for (let panelIdx = 0; panelIdx < imageData.length; i++){
+      const decompressedImageData = this.expt.decompressImageData(
+        imageData[panelIdx], imageDimensions[panelIdx], "float")
+      const decompressedMaskData = this.expt.decompressImageData(
+        maskData[panelIdx], imageDimensions[panelIdx], "int")
+      this.addDebugDetectorMesh(panelIdx, decompressedImageData, decompressedMaskData);
+    }
+    this.updatePanelMeshes();
+  }
+
 
   addDebugDetectorMesh(panelIdx, imageData, maskData){
     const panelSize = this.expt.imageData;
@@ -1628,6 +1860,7 @@ export class ExperimentViewer {
 
     var corners = this.expt.getDetectorPanelCorners(idx);
     corners.push(corners[0]);
+    corners = corners.map(corner => new THREE.Vector3(corner.x, corner.y, corner.z));
 
     var idxs = [1, 2, 0, 3]
 
@@ -1649,6 +1882,7 @@ export class ExperimentViewer {
       color: this.colors["panel"],
       fog: true
     });
+
     const mesh = new THREE.Mesh(line, material);
     this.panelOutlineMeshes[panelName] = mesh;
     window.scene.add(mesh);

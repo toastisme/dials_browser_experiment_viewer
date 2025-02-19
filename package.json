@@ -15,6 +15,7 @@
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",
     "caniuse-lite": "^1.0.30001579",
+    "dials_javascript_parser": "github:toastisme/dials_javascript_parser",
     "fs": "^0.0.1-security",
     "gh-pages": "^5.0.0",
     "gsap": "^3.11.5",
@@ -22,6 +23,7 @@
     "msgpack-lite": "^0.1.26",
     "msgpack5": "^6.0.2",
     "msgpackr": "^1.9.1",
+    "pako": "^2.1.0",
     "three": "^0.152.2",
     "three.meshline": "^1.4.0"
   },

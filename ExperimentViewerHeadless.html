@@ -82,7 +82,7 @@
 		<b>reflection size:</b>  <input type="range" min="1" max="25" value="15" 
 		class="slider" id="reflectionSize" onclick="window.viewer.disableMouseClick()"
 		onmouseup="updateReflectionSize()"><br>
-		<b>contrast:</b>  <input type="range" min="0.001" max="200" value="1" step="0.001" 
+		<b>contrast:</b>  <input type="range" min="0.001" max="20" value="1" step="0.001" 
 		class="slider" id="userContrast" onclick="window.viewer.disableMouseClick()"
 		onmouseup="updateUserContrast()"  style="margin-top: 10px; vertical-align: middle; position: relative; top: -3px;">
 		 <div class="dropdown">
@@ -241,8 +241,8 @@
 		</style>
 	<script type="module">
 	import { ExperimentViewer, setupScene } from "./src/js/ExperimentViewer.js";
-	import { ExptParser } from "./src/js/ExptParser.js";
-	import { ReflParser } from "./src/js/ReflParser.js";
+	import { ExptParser } from "dials_javascript_parser/ExptParser.js";
+	import { ReflParser } from "dials_javascript_parser/ReflParser.js";
 
 
 
@@ -285,13 +285,14 @@
 			"beam" : 0xFFFFFF,
 			"bbox" : 0xFFFFFF,
 			"axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
-			"highlightBbox" : 0x59b578,
+			"highlightBbox" : 0x13eac9,
 			"createNewReflectionBbox" : 0xffb07c
 	};
 
 	window.onload = function(){
 		window.viewer = new ExperimentViewer(
 			new ExptParser(), 
+			new ReflParser(), 
 			new ReflParser(), 
 			false,
 			colors
@@ -342,25 +343,30 @@
 					window.viewer.updateImageData(msg["image_data"])
 					break;
 				case "add_panel_image_data":
-					window.viewer.addDetectorMeshFromImageData(
-						msg["image_data"], msg["panel_idx"], msg["expt_id"]);
+					window.viewer.addPanelImageData(
+						msg["image_data"], msg["panel_idx"], msg["expt_id"], msg["image_dimensions"]);
+					break;
+				case "add_expt_image_data":
+					window.viewer.addExptImageData(
+						msg["image_data"], msg["expt_id"], msg["image_dimensions"]);
 					break;
 				case "add_debug_panel_image_data":
-					window.viewer.addDebugDetectorMeshFromImageData(
-						msg["image_data"], msg["mask_data"], msg["panel_idx"], msg["expt_id"]);
+					window.viewer.addDebugPanelImageData(
+						msg["image_data"], msg["mask_data"], msg["panel_idx"], msg["expt_id"],
+					msg["image_dimensions"]);
+					break;
+				case "add_debug_image_data":
+					window.viewer.addDebugImageData(
+						msg["image_data"], msg["mask_data"], msg["image_dimensions"]);
 					break;
 				case "clear_experiment":
 					window.viewer.clearExperiment();
 					break;
 				case "update_reflection_table":
-					delete msg["command"];
-					delete msg["channel"];
-					window.viewer.addReflectionsFromData(msg);
+					window.viewer.addReflectionsFromJSONMsgpack(msg["refl_msgpack"]);
 					break;
 				case "update_calculated_integrated_reflection_table":
-					delete msg["command"];
-					delete msg["channel"];
-					window.viewer.addCalculatedIntegratedReflectionsFromData(msg);
+					window.viewer.addCalculatedIntegratedReflectionsFromJSONMsgpack(msg["refl_msgpack"]);
 					break;
 
 				case "highlight_reflection":
