@@ -1654,7 +1654,7 @@ highlightReflection(reflData, focusOnPanel = true) {
 		console.assert(imageData.length === imageDimensions.length);
     this.clearDebugPanelMeshes();
 
-    for (let panelIdx = 0; panelIdx < imageData.length; i++){
+    for (let panelIdx = 0; panelIdx < imageData.length; panelIdx++){
       const decompressedImageData = this.expt.decompressImageData(
         imageData[panelIdx], imageDimensions[panelIdx], "float")
       const decompressedMaskData = this.expt.decompressImageData(
