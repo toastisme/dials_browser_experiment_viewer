@@ -697,6 +697,12 @@ export class ExperimentViewer {
     this.requestRender();
   }
 
+  clearCalculatedIntegratedReflectionTable(){
+    this.clearReflPointsIntegrated();
+    this.calculatedIntegratedRefl.clearReflectionTable();
+    this.requestRender();
+  }
+
   clearDebugPanelMeshes(){
 
     for (const i in this.debugPanelMeshes) {
@@ -1006,11 +1012,11 @@ export class ExperimentViewer {
   addCalculatedIntegratedReflectionsFromJSONMsgpack(reflMsgpack){
     if (!this.hasExperiment()) {
       console.warn("Tried to add reflections but no experiment has been loaded");
-      this.clearReflectionTable();
+      this.clearCalculatedIntegratedReflectionTable();
       return;
     }
 
-    this.clearReflectionTable();
+    this.clearCalculatedIntegratedReflectionTable();
     this.calculatedIntegratedRefl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
 
     // Get relevant data
