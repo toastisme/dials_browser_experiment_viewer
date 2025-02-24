@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
+import { ExptParser } from "dials_javascript_parser/ExptParser.js";
 import pako from 'pako';
 
 class UserReflection {
@@ -562,20 +563,17 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-  addExperimentFromJSONString = async (jsonString, imageData=null) => {
+  addExperimentFromJSONString = async (jsonString) => {
     this.clearExperiment();
     this.clearReflectionTable();
     await this.expt.parseExperimentJSON(jsonString);
-    if (imageData !== null){
-      await this.expt.parseImageData(imageData);
-    }
     console.assert(this.hasExperiment());
 
     this.allPanelMeshes = {};
 
-    for (var panelIdx = 0; panelIdx < this.expt.getNumDetectorPanels(); panelIdx++) {
+    for (var panelIdx = 0; panelIdx < this.expt.getNumDetectorPanels(0); panelIdx++) {
       for (var exptID = 0; exptID < this.expt.numExperiments(); exptID++) {
-        this.addDetectorPanel(panelIdx, exptID, imageData !== null);
+        this.addDetectorPanel(panelIdx, exptID, false);
       }
     }
     this.addBeam();
@@ -592,27 +590,6 @@ export class ExperimentViewer {
     this.updatePanelMeshes();
   }
 
-  updateImageData = async (imageData, panelIdx=null, exptID=null) => {
-    console.assert(this.hasExperiment());
-    await this.expt.parseImageData(imageData, panelIdx, exptID);
-    
-    for (var i in this.panelMeshes) {
-      window.scene.remove(this.panelMeshes[i]);
-      this.panelMeshes[i].geometry.dispose();
-      this.panelMeshes[i].material.dispose();
-    }
-    this.allPanelMeshes = {};
-    for (var i = 0; i < this.expt.numExperiments(); i++) {
-      this.allPanelMeshes.push([]);
-    }
-    for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
-      for (var j = 0; j < this.expt.numExperiments(); j++) {
-        this.addDetectorPanel(i, j);
-      }
-    }
-    this.requestRender()
-    this.loading = false;
-  }
 
   showCloseExptButton() {
     this.closeExptButton.style.display = "inline";
@@ -808,7 +785,7 @@ export class ExperimentViewer {
     const uniquePanelIdxs = new Set(panelNumbers);
     let panelData = {};
     for (const panelIdx of uniquePanelIdxs){
-      panelData[panelIdx] = this.expt.getPanelDataByIdx(panelIdx);
+      panelData[panelIdx] = this.expt.getDetectorPanelDataByIdx(0, panelIdx);
     }
 
 
@@ -833,8 +810,8 @@ export class ExperimentViewer {
         const globalPosObs = this.mapPointToGlobal(
           reflXyzObs, 
           panelData[reflPanel]["origin"], 
-          panelData[reflPanel]["fastAxis"], 
-          panelData[reflPanel]["slowAxis"], 
+          panelData[reflPanel]["scaledFastAxis"], 
+          panelData[reflPanel]["scaledSlowAxis"], 
           panelData[reflPanel]["pxSize"])
 
         // Bbox
@@ -845,8 +822,8 @@ export class ExperimentViewer {
             bboxMaterial, 
             this, 
             panelData[reflPanel]["origin"], 
-            panelData[reflPanel]["fastAxis"], 
-            panelData[reflPanel]["slowAxis"], 
+            panelData[reflPanel]["scaledFastAxis"], 
+            panelData[reflPanel]["scaledSlowAxis"], 
             panelData[reflPanel]["pxSize"]);
         }
 
@@ -884,8 +861,8 @@ export class ExperimentViewer {
         const globalPosCal = this.mapPointToGlobal(
           reflXyzCal, 
           panelData[reflPanel]["origin"], 
-          panelData[reflPanel]["fastAxis"], 
-          panelData[reflPanel]["slowAxis"], 
+          panelData[reflPanel]["scaledFastAxis"], 
+          panelData[reflPanel]["scaledSlowAxis"], 
           panelData[reflPanel]["pxSize"]);
 
         positionsCal[exptID].push(globalPosCal.x);
@@ -1042,7 +1019,7 @@ export class ExperimentViewer {
     const uniquePanelIdxs = new Set(panelNumbers);
     let panelData = {};
     for (const panelIdx of uniquePanelIdxs){
-      panelData[panelIdx] = this.expt.getPanelDataByIdx(panelIdx);
+      panelData[panelIdx] = this.expt.getDetectorPanelDataByIdx(0, panelIdx);
     }
 
     // Get positions of all reflections
@@ -1064,8 +1041,8 @@ export class ExperimentViewer {
         const globalPosCal = this.mapPointToGlobal(
           reflXyzCal, 
           panelData[reflPanel]["origin"], 
-          panelData[reflPanel]["fastAxis"], 
-          panelData[reflPanel]["slowAxis"], 
+          panelData[reflPanel]["scaledFastAxis"], 
+          panelData[reflPanel]["scaledSlowAxis"], 
           panelData[reflPanel]["pxSize"]);
 
           positionsIntegrated[exptID].push(globalPosCal.x);
@@ -1143,10 +1120,10 @@ export class ExperimentViewer {
 
       const panelReflections = reflData[panelKeys[i]];
       if (panelReflections === undefined) { continue; }
-      const panelData = this.expt.getPanelDataByIdx(panelIdx);
+      const panelData = this.expt.getDetectorPanelDataByIdx(0, panelIdx);
 
-      const fa = panelData["fastAxis"];
-      const sa = panelData["slowAxis"];
+      const fa = panelData["scaledFastAxis"];
+      const sa = panelData["scaledSlowAxis"];
       const pOrigin = panelData["origin"];
       const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
 
@@ -1238,14 +1215,14 @@ export class ExperimentViewer {
     const containsMillerIndices = this.refl.containsMillerIndices();
     const containsBboxes = this.refl.containsBboxes();
 
-    for (var i = 0; i < this.expt.getNumDetectorPanels(); i++) {
+    for (var i = 0; i < this.expt.getNumDetectorPanels(0); i++) {
 
       const panelReflections = this.refl.getReflectionsForPanel(i);
       if (panelReflections == undefined) { continue; }
-      const panelData = this.expt.getPanelDataByIdx(i);
+      const panelData = this.expt.getDetectorPanelDataByIdx(0, i);
 
-      const fa = panelData["fastAxis"];
-      const sa = panelData["slowAxis"];
+      const fa = panelData["scaledFastAxis"];
+      const sa = panelData["scaledSlowAxis"];
       const pOrigin = panelData["origin"];
       const pxSize = [panelData["pxSize"].x, panelData["pxSize"].y];
 
@@ -1379,7 +1356,7 @@ highlightReflection(reflData, focusOnPanel = true) {
         this.highlightReflectionMesh = null;
     }
     
-    const panelData = this.expt.getPanelDataByIdx(reflData["panelIdx"]);
+    const panelData = this.expt.getDetectorPanelDataByIdx(0, reflData["panelIdx"]);
     
     // Create circle using Line segments
     const segments = 32;
@@ -1392,8 +1369,8 @@ highlightReflection(reflData, focusOnPanel = true) {
         ];
         circlePoint = this.mapPointToGlobal(
           circlePoint, panelData["origin"],
-          panelData["fastAxis"],
-          panelData["slowAxis"],
+          panelData["scaledFastAxis"],
+          panelData["scaledSlowAxis"],
           panelData["pxSize"]
         );
         points.push(
@@ -1534,9 +1511,9 @@ highlightReflection(reflData, focusOnPanel = true) {
 
   getPanelTexture(idx, exptID, imageData=null) {
     if (imageData == null){
-      imageData = this.expt.imageData[exptID][idx];
+      imageData = this.expt.experiments[exptID].imageData[idx];
     }
-    let panelSize = this.expt.imageSize;
+    let panelSize = this.expt.getDetectorPanelSize(exptID, idx);
     if (imageData[0].length !== panelSize[0]){
       panelSize = (panelSize[1], panelSize[0]);
     }
@@ -1648,9 +1625,9 @@ highlightReflection(reflData, focusOnPanel = true) {
       this.debugPanelThresholdMeshes[panelIdx].material.dispose();
       delete this.debugPanelThresholdMeshes[panelIdx]
     }
-    const decompressedImageData = this.expt.decompressImageData(
+    const decompressedImageData = ExptParser.decompressImageData(
       imageData, imageDimensions, "float")
-    const decompressedMaskData = this.expt.decompressImageData(
+    const decompressedMaskData = ExptParser.decompressImageData(
       maskData, imageDimensions, "int")
     this.addDebugDetectorMesh(panelIdx, decompressedImageData, decompressedMaskData);
     this.updatePanelMeshes();
@@ -1661,9 +1638,9 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.clearDebugPanelMeshes();
 
     for (let panelIdx = 0; panelIdx < imageData.length; panelIdx++){
-      const decompressedImageData = this.expt.decompressImageData(
+      const decompressedImageData = ExptParser.decompressImageData(
         imageData[panelIdx], imageDimensions[panelIdx], "float")
-      const decompressedMaskData = this.expt.decompressImageData(
+      const decompressedMaskData = ExptParser.decompressImageData(
         maskData[panelIdx], imageDimensions[panelIdx], "int")
       this.addDebugDetectorMesh(panelIdx, decompressedImageData, decompressedMaskData);
     }
@@ -1672,7 +1649,7 @@ highlightReflection(reflData, focusOnPanel = true) {
 
 
   addDebugDetectorMesh(panelIdx, imageData, maskData){
-    const panelSize = this.expt.imageData;
+    const panelSize = this.expt.getDetectorPanelSize(0, panelIdx);
     const panelGeometry = new THREE.PlaneGeometry(panelSize[1], panelSize[0]);
     var panelMaterial;
     var panelThresholdMaterial;
@@ -1691,16 +1668,16 @@ highlightReflection(reflData, focusOnPanel = true) {
 
 
     const plane = new THREE.Mesh(panelGeometry, panelMaterial);
-    var panelName = this.expt.getDetectorPanelName(panelIdx);
+    var panelName = this.expt.getDetectorPanelName(0, panelIdx);
     plane.name = panelName;
     const thresholdPlane = new THREE.Mesh(panelGeometry, panelThresholdMaterial);
 
     thresholdPlane.name = panelName;
-    var corners = this.expt.getDetectorPanelCorners(panelIdx);
+    var corners = this.expt.getDetectorPanelCorners(0, panelIdx);
     var idxs = [1, 2, 0, 3]
 
     // Rotate if not facing the origin
-    var normalVec = this.expt.getDetectorPanelNormal(panelIdx);
+    var normalVec = this.expt.getDetectorPanelNormal(0, panelIdx);
     var posVec = corners[0].clone();
     posVec.add(corners[1].clone());
     posVec.add(corners[2].clone());
@@ -1778,8 +1755,9 @@ highlightReflection(reflData, focusOnPanel = true) {
   this.requestRender();
   }
 
+
   addDetectorMesh(panelIdx, exptID){
-      const panelSize = this.expt.imageSize;
+      const panelSize = this.expt.getDetectorPanelSize(exptID, panelIdx);
       const panelGeometry = new THREE.PlaneGeometry(panelSize[1], panelSize[0]);
       var panelMaterial;
       if (this.isStandalone) {
@@ -1799,15 +1777,15 @@ highlightReflection(reflData, focusOnPanel = true) {
         })
       }
       const plane = new THREE.Mesh(panelGeometry, panelMaterial);
-      var panelName = this.expt.getDetectorPanelName(panelIdx);
+      var panelName = this.expt.getDetectorPanelName(exptID, panelIdx);
       plane.name = panelName;
 
-    var corners = this.expt.getDetectorPanelCorners(panelIdx);
+    var corners = this.expt.getDetectorPanelCorners(exptID, panelIdx);
 
     var idxs = [1, 2, 0, 3]
 
     // Rotate if not facing the origin
-    var normalVec = this.expt.getDetectorPanelNormal(panelIdx);
+    var normalVec = this.expt.getDetectorPanelNormal(exptID, panelIdx);
     var posVec = corners[0].clone();
     posVec.add(corners[1].clone());
     posVec.add(corners[2].clone());
@@ -1859,19 +1837,19 @@ highlightReflection(reflData, focusOnPanel = true) {
 
   addDetectorPanel(idx, exptID, addTexture=true) {
 
-    var panelName = this.expt.getDetectorPanelName(idx);
+    var panelName = this.expt.getDetectorPanelName(exptID, idx);
     if (panelName in this.panelOutlineMeshes){
       return;
     }
 
-    var corners = this.expt.getDetectorPanelCorners(idx);
+    var corners = this.expt.getDetectorPanelCorners(exptID, idx);
     corners.push(corners[0]);
     corners = corners.map(corner => new THREE.Vector3(corner.x, corner.y, corner.z));
 
     var idxs = [1, 2, 0, 3]
 
     // Rotate if not facing the origin
-    var normalVec = this.expt.getDetectorPanelNormal(idx);
+    var normalVec = this.expt.getDetectorPanelNormal(exptID, idx);
     var posVec = corners[0].clone();
     posVec.add(corners[1].clone());
     posVec.add(corners[2].clone());
@@ -1900,7 +1878,7 @@ highlightReflection(reflData, focusOnPanel = true) {
 
   addBeam() {
     var beamLength = 800.;
-    var bd = this.expt.getBeamDirection();;
+    var bd = this.expt.getBeamDirection(0);
 
     var incidentVertices = []
     incidentVertices.push(
@@ -2073,7 +2051,7 @@ highlightReflection(reflData, focusOnPanel = true) {
   }
 
   displayImageFilenames() {
-    this.displayHeaderText(this.expt.imageFilenames);
+    this.displayHeaderText(this.expt.getImageFilenames(0));
     this.displayingTextFromHTMLEvent = true;
   }
 
@@ -2116,7 +2094,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
     if (intersects.length > 0) {
       const name = intersects[0].object.name;
-      const panelIdx = this.expt.getPanelIdxByName(name);
+      const panelIdx = this.expt.getDetectorPanelIdxByName(0, name);
       const panelPos = this.getPanelPosition(intersects[0].point, name);
       this.sendClickedPanelPosition(panelIdx, panelPos, name);
       this.highlightReflection({ "panelIdx": panelIdx, "panelPos": panelPos }, false);
@@ -2175,7 +2153,7 @@ highlightReflection(reflData, focusOnPanel = true) {
       const intersects = window.rayCaster.intersectObjects(viewer.beamMeshes);
       window.rayCaster.setFromCamera(window.mousePosition, window.camera);
       if (intersects.length > 0) {
-        const text = "<b>beam: </b>" + viewer.expt.getBeamSummary();
+        const text = "<b>beam: </b>" + viewer.expt.getBeamSummary(0);
         viewer.displayHeaderText(text);
       }
     }
@@ -2184,13 +2162,13 @@ highlightReflection(reflData, focusOnPanel = true) {
       if (viewer.sampleHidden()) {
         return;
       }
-      if (viewer.expt.getCrystalSummary() == null) {
+      if (viewer.expt.getCrystalSummary(0) == null) {
         return;
       }
       const intersects = window.rayCaster.intersectObjects([viewer.sampleMesh]);
       window.rayCaster.setFromCamera(window.mousePosition, window.camera);
       if (intersects.length > 0) {
-        const text = "<b>crystal: </b>" + viewer.expt.getCrystalSummary();
+        const text = "<b>crystal: </b>" + viewer.expt.getCrystalSummary(0);
         viewer.displayHeaderText(text);
       }
 
@@ -2207,12 +2185,12 @@ highlightReflection(reflData, focusOnPanel = true) {
   }
 
   getPanelPosition(globalPos, panelName) {
-    const data = this.expt.getPanelDataByName(panelName);
-    const pos = data["origin"].sub(globalPos);
-    const fa = data["fastAxis"].normalize();
-    const sa = data["slowAxis"].normalize();
-    const panelX = (pos.x * fa.x + pos.y * fa.y + pos.z * fa.z) / data["pxSize"].x;
-    const panelY = (pos.x * sa.x + pos.y * sa.y + pos.z * sa.z) / data["pxSize"].y;
+    const data = this.expt.getDetectorPanelDataByName(0, panelName);
+    const pos = data["origin"].clone().sub(globalPos);
+    const fa = data["fastAxis"];
+    const sa = data["slowAxis"];
+    const panelX = (pos.x * fa.x + pos.y * fa.y + pos.z * fa.z)/data["pxSize"].x;
+    const panelY = (pos.x * sa.x + pos.y * sa.y + pos.z * sa.z)/data["pxSize"].y;
     return [Math.floor(-panelY), Math.floor(-panelX)];
 
   }
@@ -2224,7 +2202,7 @@ highlightReflection(reflData, focusOnPanel = true) {
   }
 
   getPanelCentroid(panelName) {
-    return this.expt.getPanelCentroid(panelName);
+    return this.expt.getDetectorPanelCentroidByName(0, panelName);
   }
 
   resetPanelColors() {
@@ -2475,7 +2453,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.drawingReflection = true;
 
     const name = intersects[0].object.name;
-    const panelIdx = this.expt.getPanelIdxByName(name);
+    const panelIdx = this.expt.getDetectorPanelIdxByName(0, name);
     this.userReflection = new UserReflection(
       intersects[0].point, name, this.colors["createNewReflectionBbox"]);
   }
@@ -2506,15 +2484,15 @@ highlightReflection(reflData, focusOnPanel = true) {
     const maxY = Math.max(...yValues);
 
     const bbox = [minY, maxY, maxX, minX];
-    const panelIdx = this.expt.getPanelIdxByName(this.userReflection.panelName);
-    const panelData = this.expt.getPanelDataByIdx(panelIdx);
+    const panelIdx = this.expt.getDetectorPanelIdxByName(0, this.userReflection.panelName);
+    const panelData = this.expt.getDetectorPanelDataByName(0, this.userReflection.panelName);
     const mesh = this.getBboxMesh(
       bbox,
       this.userReflection.lineMaterial,
       this,
       panelData["origin"],
-      panelData["fastAxis"],
-      panelData["slowAxis"],
+      panelData["scaledFastAxis"],
+      panelData["scaledSlowAxis"],
       [panelData["pxSize"]["x"], panelData["pxSize"]["y"]]
     );
     this.userReflection.addBboxMesh(mesh);

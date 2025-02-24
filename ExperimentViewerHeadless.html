@@ -338,10 +338,6 @@
 						window.viewer.addExperimentFromJSONString(exptJSON);
 					}
 					break;
-				case "update_image_data":
-					console.assert("image_data" in msg, "image data not found when calling update_image_data");
-					window.viewer.updateImageData(msg["image_data"])
-					break;
 				case "add_panel_image_data":
 					window.viewer.addPanelImageData(
 						msg["image_data"], msg["panel_idx"], msg["expt_id"], msg["image_dimensions"]);
