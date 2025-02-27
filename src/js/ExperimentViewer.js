@@ -3,7 +3,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from "gsap";
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import { ExptParser } from "dials_javascript_parser/ExptParser.js";
-import pako from 'pako';
 
 class UserReflection {
   constructor(origin, panelName, lineColor) {
@@ -2399,6 +2398,7 @@ highlightReflection(reflData, focusOnPanel = true) {
 
     var exptIDs = this.expt.getExptIDs();
     var exptLabels = this.expt.getExptLabels();
+
     var dropdownContent = document.getElementById("experimentDropdown");
     dropdownContent.innerHTML = "";
 
