@@ -372,7 +372,6 @@ export class ExperimentViewer {
     if (!this.hasReflectionTable()) {
       return;
     }
-    if (this.refl.hasXYZObsData()) {
       if (this.reflPointsObsUnindexed) {
         const reflPointsUnindexed = [];
         for (var i = 0; i < this.reflPositionsUnindexed.length; i++) {
@@ -423,9 +422,8 @@ export class ExperimentViewer {
         this.reflPointsObsIndexed = reflPointsObsIndexed;
         this.updateObservedIndexedReflections();
       }
-    }
 
-    if (this.refl.hasXYZCalData() && this.reflPositionsCal) {
+    if (this.reflPositionsCal) {
       const reflPointsCal = [];
       for (let i = 0; i < this.reflPositionsCal.length; i++){
         const reflGeometryCal = new THREE.BufferGeometry();
