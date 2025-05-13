@@ -1590,16 +1590,15 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.updatePanelMeshes();
   }
 
-  addPanelImageData(imageData, panelIdx, exptID, imageDimensions){
-    this.expt.parseImageData(imageData, panelIdx, exptID, imageDimensions);
+  addPanelImageData(imageData, panelIdx, exptID){
+    this.expt.parseImageData(imageData, panelIdx, exptID);
     this.clearDetectorMesh(panelIdx, exptID);
     this.addDetectorMesh(panelIdx, exptID);
     this.updatePanelMeshes();
   }
 
-  addExptImageData(imageData, exptID, imageDimensions){
-		console.assert(imageData.length === imageDimensions.length);
-    this.expt.parseExptImageData(imageData, exptID, imageDimensions);
+  addExptImageData(imageData, exptID){
+    this.expt.parseExptImageData(imageData, exptID);
 
     for (let panelIdx = 0; panelIdx < imageData.length; panelIdx++){
       this.clearDetectorMesh(panelIdx, exptID);
@@ -1608,37 +1607,14 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.updatePanelMeshes();
   }
 
-  addDebugPanelImageData(imageData, maskData, panelIdx, exptID, imageDimensions){
-    if (exptID !== this.visibleExptID){
-      this.clearDebugPanelMeshes();
-    }
-    else if (panelIdx in this.debugPanelMeshes){
-      window.scene.remove(this.debugPanelMeshes[panelIdx]);
-      this.debugPanelMeshes[panelIdx].geometry.dispose();
-      this.debugPanelMeshes[panelIdx].material.dispose();
-      delete this.debugPanelMeshes[panelIdx]
-      window.scene.remove(this.debugPanelThresholdMeshes[panelIdx]);
-      this.debugPanelThresholdMeshes[panelIdx].geometry.dispose();
-      this.debugPanelThresholdMeshes[panelIdx].material.dispose();
-      delete this.debugPanelThresholdMeshes[panelIdx]
-    }
-    const decompressedImageData = ExptParser.decompressImageData(
-      imageData, imageDimensions, "float")
-    const decompressedMaskData = ExptParser.decompressImageData(
-      maskData, imageDimensions, "int")
-    this.addDebugDetectorMesh(panelIdx, decompressedImageData, decompressedMaskData);
-    this.updatePanelMeshes();
-  }
-  
-  addDebugImageData(imageData, maskData, imageDimensions){
-		console.assert(imageData.length === imageDimensions.length);
+    addDebugImageData(imageData, maskData){
     this.clearDebugPanelMeshes();
 
     for (let panelIdx = 0; panelIdx < imageData.length; panelIdx++){
       const decompressedImageData = ExptParser.decompressImageData(
-        imageData[panelIdx], imageDimensions[panelIdx], "float")
+        imageData[panelIdx])
       const decompressedMaskData = ExptParser.decompressImageData(
-        maskData[panelIdx], imageDimensions[panelIdx], "int")
+        maskData[panelIdx])
       this.addDebugDetectorMesh(panelIdx, decompressedImageData, decompressedMaskData);
     }
     this.updatePanelMeshes();

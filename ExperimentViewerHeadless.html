@@ -243,6 +243,7 @@
 	import { ExperimentViewer, setupScene } from "./src/js/ExperimentViewer.js";
 	import { ExptParser } from "dials_javascript_parser/ExptParser.js";
 	import { ReflParser } from "dials_javascript_parser/ReflParser.js";
+	import { deserialize, decode } from "@ygoe/msgpack";
 
 
 	function isExperimentViewerMsg(msg){
@@ -297,6 +298,7 @@
 			colors
 		);
 		window.viewer.serverWS = new WebSocket(serverWSAddr);
+		window.viewer.serverWS.binaryType = "arraybuffer";
 
 		window.viewer.serverWS.onopen = () => {
 			console.log('Experiment viewer opened Connection to server');
@@ -317,7 +319,41 @@
 
 		window.viewer.serverWS.onmessage = (event) => {
 
-			console.log("msg received", event.data);
+			let data = event.data;
+			console.log("msg received", data);
+
+			if (data instanceof ArrayBuffer){ // msgpack
+				const bytes = new Uint8Array(data);
+				try{
+					const decoded = decode(bytes)
+					let command = decoded.command;
+					switch(command){
+						case "add_panel_image_data":
+							window.viewer.addPanelImageData(
+								decoded.image_data, decoded.panel_idx, decoded.expt_id);
+							break;
+						case "add_expt_image_data":
+							window.viewer.addExptImageData(
+								decoded.image_data, decoded.expt_id);
+							break;
+						case "add_debug_panel_image_data":
+							window.viewer.addDebugPanelImageData(
+								decoded.image_data, decoded.mask_data, decoded.panel_idx, decoded.expt_id);
+							break;
+						case "add_debug_image_data":
+							window.viewer.addDebugImageData(
+								decoded.image_data, decoded.mask_data);
+							break;
+						default:
+							console.warn("Unrecognised Msgpack command ", command);
+					}
+					return;
+				}catch(e){
+					console.error("Invalid Msgpack", e);
+					return;
+
+				}
+			}
 			const msg = JSON.parse(event.data);
 			if (!isExperimentViewerMsg(msg)){
 				return;
@@ -336,23 +372,6 @@
 					else{
 						window.viewer.addExperimentFromJSONString(exptJSON);
 					}
-					break;
-				case "add_panel_image_data":
-					window.viewer.addPanelImageData(
-						msg["image_data"], msg["panel_idx"], msg["expt_id"], msg["image_dimensions"]);
-					break;
-				case "add_expt_image_data":
-					window.viewer.addExptImageData(
-						msg["image_data"], msg["expt_id"], msg["image_dimensions"]);
-					break;
-				case "add_debug_panel_image_data":
-					window.viewer.addDebugPanelImageData(
-						msg["image_data"], msg["mask_data"], msg["panel_idx"], msg["expt_id"],
-					msg["image_dimensions"]);
-					break;
-				case "add_debug_image_data":
-					window.viewer.addDebugImageData(
-						msg["image_data"], msg["mask_data"], msg["image_dimensions"]);
 					break;
 				case "clear_experiment":
 					window.viewer.clearExperiment();
@@ -394,9 +413,6 @@
 				default:
 					console.warn("Unrecognised command ", command);
 			}
-
-
-
 		};
 
 		setupScene();
