@@ -4,7 +4,9 @@
   "description": "",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "dev": "vite --host localhost --port 1234",
+    "build": "vite build"
   },
   "keywords": [],
   "author": "",
@@ -12,15 +14,17 @@
   "dependencies": {
     "dials_javascript_parser": "github:toastisme/dials_javascript_parser",
     "gsap": "^3.11.5",
-    "three": "^0.172",
-    "three.meshline": "^1.4.0"
+    "three": "^0.172"
   },
   "devDependencies": {
-    "gh-pages": "^5.0.0",
     "assert": "^2.0.0",
     "buffer": "^5.7.1",
     "events": "^3.3.0",
+    "gh-pages": "^5.0.0",
+    "meshline": "^3.3.1",
     "process": "^0.11.10",
-    "util": "^0.12.5"
+    "three.meshline": "^1.4.0",
+    "util": "^0.12.5",
+    "vite": "^6.3.5"
   }
 }

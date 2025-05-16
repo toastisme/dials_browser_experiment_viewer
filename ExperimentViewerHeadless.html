@@ -66,19 +66,19 @@
 		<b>mouse wheel</b> = zoom<br>
 		------------------------------------------------------<br>
 		<b>unindexed reflections:</b> <input type="checkbox" 
-		id="observedUnindexedReflections", checked=false, 
-		onclick="updateObservedUnindexedReflections()", disabled=true><br>
+		id="observedUnindexedReflections" 
+		onclick="updateObservedUnindexedReflections()" disabled><br>
 		<span style="color: #e74c3c"><b>indexed reflections:</b> </span><input type="checkbox" 
-		id="observedIndexedReflections", checked=false, 
-		onclick="updateObservedIndexedReflections()", disabled=true><br>
+		id="observedIndexedReflections"
+		onclick="updateObservedIndexedReflections()" disabled><br>
 		<span style="color: #ffaaaa"><b>calculated reflections:</b> </span><input type="checkbox" 
-		id="calculatedReflections", checked=false, 
-		onclick="updateCalculatedReflections()", disabled=true><br>
+		id="calculatedReflections"
+		onclick="updateCalculatedReflections()" disabled><br>
 		<span style="color: #ffc25c"><b>integrated reflections:</b> </span><input type="checkbox" 
-		id="integratedReflections", checked=false, 
-		onclick="updateIntegratedReflections()", disabled=true><br>
-		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes", 
-		checked=false, onclick="updateBoundingBoxes()", disabled=true><br>
+		id="integratedReflections"
+		onclick="updateIntegratedReflections()" disabled><br>
+		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes" 
+		onclick="updateBoundingBoxes()" disabled><br>
 		<b>reflection size:</b>  <input type="range" min="1" max="25" value="15" 
 		class="slider" id="reflectionSize" onclick="window.viewer.disableMouseClick()"
 		onmouseup="updateReflectionSize()"><br>
@@ -92,7 +92,7 @@
 		</div> 
 	</sidebar>
 	<footer id="footerText"> </footer>
-	<button class="btn" id="closeExpt" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayImageFilenames() "onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
+	<button class="btn" id="closeExpt" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayImageFilenames()" onclick="window.viewer.clearExperiment()"><i class="fa fa-trash"></i> expt file</button>
 	<button class="btn" id="closeRefl" onmouseout="window.viewer.stopDisplayingText()" onmouseover="window.viewer.displayNumberOfReflections()" onclick="window.viewer.clearReflectionTable()"><i class="fa fa-trash"></i> refl file</button>
 		<style>
 		.experiment-label {

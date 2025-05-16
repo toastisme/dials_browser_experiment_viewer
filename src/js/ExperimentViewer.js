@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { gsap } from "gsap";
-import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
+import { MeshLineGeometry,  MeshLineMaterial, raycast } from 'meshline';
 import { ExptParser } from "dials_javascript_parser/ExptParser.js";
 
 class UserReflection {
@@ -131,7 +131,7 @@ export class ExperimentViewer {
 
     this.hightlightColor = new THREE.Color(this.colors["highlight"]);
     this.panelColor = new THREE.Color(this.colors["panel"]);
-    this.reflSprite = new THREE.TextureLoader().load("resources/disc.png");
+    this.reflSprite = new THREE.TextureLoader().load("disc.png");
 
     this.displayingTextFromHTMLEvent = false;
 
@@ -1356,7 +1356,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     const panelData = this.expt.getDetectorPanelDataByIdx(0, reflData["panelIdx"]);
     
     // Create circle using Line segments
-    const segments = 32;
+    const segments = 64;
     let points = [];
     for (let i = 0; i <= segments; i++) {
         const theta = (i / segments) * Math.PI * 2;
@@ -1376,13 +1376,12 @@ highlightReflection(reflData, focusOnPanel = true) {
     }
     points.push(points[0]);
 
-    const line = new MeshLine();
+    const line = new MeshLineGeometry();
     points = points.map(point => new THREE.Vector3(point.x, point.y, point.z));
     line.setPoints(points);
     const material = new MeshLineMaterial({
-      lineWidth: 2,
+      lineWidth: 3,
       color: this.colors["highlightBbox"],
-      fog: true
     });
 
     const circle = new THREE.Mesh(line, material);
@@ -1832,12 +1831,13 @@ highlightReflection(reflData, focusOnPanel = true) {
       idxs = [0, 3, 1, 2];
     }
 
-    const line = new MeshLine();
+    const line = new MeshLineGeometry();
     line.setPoints(corners);
     const material = new MeshLineMaterial({
-      lineWidth: 7,
+      lineWidth: 8,
       color: this.colors["panel"],
-      fog: true
+      transparent: true,
+      opacity:0.3
     });
 
     const mesh = new THREE.Mesh(line, material);
@@ -1861,18 +1861,17 @@ highlightReflection(reflData, focusOnPanel = true) {
       new THREE.Vector3(bd.x * -beamLength * .5, bd.y * -beamLength * .5, bd.z * -beamLength * .5)
     );
     incidentVertices.push(new THREE.Vector3(0, 0, 0));
-    const incidentLine = new MeshLine();
+    const incidentLine = new MeshLineGeometry();
     incidentLine.setPoints(incidentVertices);
     const incidentMaterial = new MeshLineMaterial({
       lineWidth: 5,
       color: this.colors["beam"],
       transparent: true,
       opacity: 0.0,
-      fog: true,
       depthWrite: false
     });
     const incidentMesh = new THREE.Mesh(incidentLine, incidentMaterial);
-    incidentMesh.raycast = MeshLineRaycast;
+    incidentMesh.raycast = raycast;
     this.beamMeshes.push(incidentMesh);
     window.scene.add(incidentMesh);
 
@@ -1884,18 +1883,17 @@ highlightReflection(reflData, focusOnPanel = true) {
     outgoingVertices.push(
       new THREE.Vector3(bd.x * beamLength, bd.y * beamLength, bd.z * beamLength)
     );
-    const outgoingLine = new MeshLine();
+    const outgoingLine = new MeshLineGeometry();
     outgoingLine.setPoints(outgoingVertices);
     const outgoingMaterial = new MeshLineMaterial({
       lineWidth: 5,
       color: this.colors["beam"],
-      fog: true,
       transparent: true,
       opacity: 0.25,
       depthWrite: false
     });
     const outgoingMesh = new THREE.Mesh(outgoingLine, outgoingMaterial);
-    outgoingMesh.raycast = MeshLineRaycast;
+    outgoingMesh.raycast = raycast;
     this.beamMeshes.push(outgoingMesh);
     window.scene.add(outgoingMesh);
   }
@@ -1915,12 +1913,11 @@ highlightReflection(reflData, focusOnPanel = true) {
 
   addAxes() {
     function addAxis(viewer, vertices, color) {
-      const line = new MeshLine();
+      const line = new MeshLineGeometry();
       line.setPoints(vertices);
       const Material = new MeshLineMaterial({
         lineWidth: 5,
         color: color,
-        fog: true,
         transparent: true,
         opacity: 0.5,
         depthWrite: false
@@ -2040,6 +2037,7 @@ highlightReflection(reflData, focusOnPanel = true) {
 
   highlightObject(obj) {
     obj.material.color = new THREE.Color(this.colors["highlight"]);
+    obj.material.opacity=.8;
   }
 
   beamHidden() {
@@ -2181,6 +2179,7 @@ highlightReflection(reflData, focusOnPanel = true) {
   resetPanelColors() {
     for (var i in this.panelOutlineMeshes) {
       this.panelOutlineMeshes[i].material.color = this.panelColor;
+      this.panelOutlineMeshes[i].material.opacity = .3;
     }
   }
 
