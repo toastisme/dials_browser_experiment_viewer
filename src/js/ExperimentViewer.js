@@ -745,7 +745,7 @@ export class ExperimentViewer {
     const xyzCal = this.refl.getXYZCal();
     const bboxes = this.refl.getBoundingBoxes();
     const millerIndices = this.refl.getMillerIndices();
-    const exptIDs = this.refl.getExperimentIDs();
+    const exptIDs = this.refl.getImagesetIDs();
     const flags = this.refl.getFlags();
 
     // Setup variables for holding graphical data
