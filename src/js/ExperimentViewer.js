@@ -91,7 +91,7 @@ export class ExperimentViewer {
     this.calculatedReflsCheckbox = document.getElementById("calculatedReflections");
     this.integratedReflsCheckbox = document.getElementById("integratedReflections");
     this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
-    this.reflectionSize = document.getElementById("reflectionSize");
+    this.reflectionSize = document.getElementById("reflectionSizeSlider");
     this.userContrast = document.getElementById("userContrast");
     this.contrastMethod = "exponential";
 
@@ -226,11 +226,7 @@ export class ExperimentViewer {
   }
 
   toggleSidebar() {
-    this.sidebar.style.display = this.sidebar.style.display === 'block' ? 'none' : 'block';
-  }
-
-  showSidebar() {
-    this.sidebar.style.display = 'block';
+    this.sidebar.classList.toggle("hidden");
   }
 
   updatePanelMeshes() {
@@ -558,7 +554,6 @@ export class ExperimentViewer {
     this.addBeam();
     this.addSample();
     this.setCameraToDefaultPositionWithExperiment();
-    this.showSidebar();
     if (this.isStandalone) {
       this.showCloseExptButton();
     }
@@ -583,7 +578,6 @@ export class ExperimentViewer {
     this.addBeam();
     this.addSample();
     this.setCameraToDefaultPositionWithExperiment();
-    this.showSidebar();
     if (this.isStandalone) {
       this.showCloseExptButton();
     }
