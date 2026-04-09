@@ -14,6 +14,7 @@
   "dependencies": {
     "dials_javascript_parser": "github:toastisme/dials_javascript_parser",
     "gsap": "^3.11.5",
+    "lz4js": "^0.2.0",
     "three": "^0.172"
   },
   "devDependencies": {
