@@ -1564,7 +1564,7 @@ highlightReflection(reflData, focusOnPanel = true) {
 
     for (const exptID of Object.keys(this.allPanelMeshes)){
       if (parseInt(exptID) === this.visibleExptID){continue;}
-      for (let i = 0; i < this.allPanelMeshes[exptID].length; i++){
+      for (const i of Object.keys(this.allPanelMeshes[exptID])){
         const newTexture = this.getPanelTexture(i, exptID);
         this.allPanelMeshes[exptID][i].material.map = newTexture;
         this.allPanelMeshes[exptID][i].material.map.needsUpdate = true;

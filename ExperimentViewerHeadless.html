@@ -445,10 +445,9 @@
 		window.viewer.serverWS.onmessage = (event) => {
 
 			let data = event.data;
-			console.log("msg received", data);
 
-			if (data instanceof ArrayBuffer){ // msgpack
-				const bytes = new Uint8Array(data);
+			if (typeof data !== 'string'){ // msgpack binary (ArrayBuffer or Buffer)
+				const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer ?? data);
 				try{
 					const decoded = decode(bytes)
 					let command = decoded.command;
