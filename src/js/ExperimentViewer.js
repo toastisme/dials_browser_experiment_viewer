@@ -162,7 +162,8 @@ export class ExperimentViewer {
 
   static defaultColors() {
     return {
-      "background": 0x222222,
+			"background": 0x020817,
+      "backgroundLight": 0x222222,
       "sample": 0xfdf6e3,
       "reflectionObsUnindexed": [
         0x96f97b,
@@ -227,6 +228,17 @@ export class ExperimentViewer {
 
   toggleSidebar() {
     this.sidebar.classList.toggle("hidden");
+  }
+
+  updateTheme(theme){
+    const color = theme === "light"
+      ? this.colors["backgroundLight"]
+      : this.colors["background"];
+    window.renderer.setClearColor(color);
+    if (window.scene.fog) {
+      window.scene.fog.color.setHex(color);
+    }
+    this.requestRender();
   }
 
   updatePanelMeshes() {
