@@ -1951,7 +1951,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     const line = new MeshLineGeometry();
     line.setPoints(corners);
     const material = new MeshLineMaterial({
-      lineWidth: 8,
+      lineWidth: 6,
       color: this.colors["panel"],
       transparent: true,
       opacity: 0.55,
