@@ -190,8 +190,10 @@ export class ExperimentViewer {
       "reflectionObsIndexed": 0xe74c3c,
       "reflectionCal": 0xffaaaa,
       "reflectionIntegrated": 0xffc25c,
-      "panel": 0x5d7d99,
-      "highlight": 0xFFFFFF,
+      "panel": 0x7aa8cc,
+      "panelLight": 0x2a5a7a,
+      "highlight": 0xb8ddf5,
+      "highlightLight": 0x1a3a5c,
       "beam": 0xFFFFFF,
       "bbox": 0xFFFFFF,
       "axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
@@ -231,13 +233,21 @@ export class ExperimentViewer {
   }
 
   updateTheme(theme){
-    const color = theme === "light"
-      ? this.colors["backgroundLight"]
-      : this.colors["background"];
+    const isLight = theme === "light";
+    this.lightTheme = isLight;
+    const color = isLight ? this.colors["backgroundLight"] : this.colors["background"];
     window.renderer.setClearColor(color);
     if (window.scene.fog) {
       window.scene.fog.color.setHex(color);
     }
+    this.panelColor = new THREE.Color(
+      isLight ? this.colors["panelLight"] : this.colors["panel"]
+    );
+    this.hightlightColor = new THREE.Color(
+      isLight ? this.colors["highlightLight"] : this.colors["highlight"]
+    );
+    this.resetPanelColors();
+    this.updatePanelTextures();
     this.requestRender();
   }
 
@@ -1599,6 +1609,9 @@ highlightReflection(reflData, focusOnPanel = true) {
   }
 
   getContrast(value, contrast){
+    if (this.lightTheme) {
+      return 1 - this.exponentialContrast(1 - value, contrast);
+    }
     switch(this.contrastMethod){
       case "exponential":
         return this.exponentialContrast(value, contrast);
@@ -1607,7 +1620,6 @@ highlightReflection(reflData, focusOnPanel = true) {
       case "gamma":
         return this.gammaContrast(value, contrast);
     }
-
   }
 
   getPanelTexture(idx, exptID, imageData=null) {
@@ -1631,8 +1643,9 @@ highlightReflection(reflData, focusOnPanel = true) {
     var dataIdx = 0;
     for (var x = 0; x < imageData.length; x++) {
       for (var y = 0; y < imageData[0].length; y++) {
-        let value = this.getContrast(imageData[x][y], this.userContrast.value) *  255;
+        let value = this.getContrast(imageData[x][y], this.userContrast.value) * 255;
         value = Math.min(255, Math.max(0, value));
+        if (this.lightTheme) { value = 255 - value; }
 
         data[dataIdx] = value;     // red
         data[dataIdx + 1] = value; // green
@@ -1694,8 +1707,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.updatePanelMeshes();
   }
 
-  addPanelImageData(imageData, panelIdx, exptID){
-    this.expt.parseImageData(imageData, panelIdx, exptID);
+  addPanelImageData(imageData, panelIdx, exptID){ this.expt.parseImageData(imageData, panelIdx, exptID);
     this.clearDetectorMesh(panelIdx, exptID);
     this.addDetectorMesh(panelIdx, exptID);
     this.updatePanelMeshes();
@@ -1942,7 +1954,8 @@ highlightReflection(reflData, focusOnPanel = true) {
       lineWidth: 8,
       color: this.colors["panel"],
       transparent: true,
-      opacity:0.3
+      opacity: 0.55,
+      depthWrite: false
     });
 
     const mesh = new THREE.Mesh(line, material);
@@ -2142,7 +2155,7 @@ highlightReflection(reflData, focusOnPanel = true) {
 
   highlightObject(obj) {
     obj.material.color = new THREE.Color(this.colors["highlight"]);
-    obj.material.opacity=.8;
+    obj.material.opacity = 0.9;
   }
 
   beamHidden() {
@@ -2284,7 +2297,7 @@ highlightReflection(reflData, focusOnPanel = true) {
   resetPanelColors() {
     for (var i in this.panelOutlineMeshes) {
       this.panelOutlineMeshes[i].material.color = this.panelColor;
-      this.panelOutlineMeshes[i].material.opacity = .3;
+      this.panelOutlineMeshes[i].material.opacity = 0.55;
     }
   }
 
