@@ -92,6 +92,13 @@ export class ExperimentViewer {
     this.integratedReflsCheckbox = document.getElementById("integratedReflections");
     this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
     this.integratedBoundingBoxesCheckbox = document.getElementById("integratedBoundingBoxes");
+    this.observedUnindexedReflsRow = document.getElementById("observedUnindexedReflectionsRow");
+    this.observedIndexedReflsRow = document.getElementById("observedIndexedReflectionsRow");
+    this.calculatedReflsRow = document.getElementById("calculatedReflectionsRow");
+    this.integratedReflsRow = document.getElementById("integratedReflectionsRow");
+    this.boundingBoxesRow = document.getElementById("boundingBoxesRow");
+    this.integratedBoundingBoxesRow = document.getElementById("integratedBoundingBoxesRow");
+    this.reflectionSizeContainer = document.getElementById("reflectionSizeContainer");
     this.reflectionSize = document.getElementById("reflectionSizeSlider");
     this.userContrast = document.getElementById("userContrast");
     this.contrastMethod = "exponential";
@@ -1248,10 +1255,7 @@ export class ExperimentViewer {
       this.bboxMeshesIntegrated = bboxesIntegrated;
     }
 
-    if (this.reflPointsIntegrated.length !== 0){
-      this.integratedReflsCheckbox.disabled = false;
-    }
-    this.integratedBoundingBoxesCheckbox.disabled = this.integratedBoundingBoxesEmpty();
+    this.updateReflectionCheckboxEnabledStatus();
     this.updateReflectionVisibility();
     if (this.lastClickedPanelPosition != null) {
       this.sendClickedPanelPosition(
@@ -1611,14 +1615,38 @@ highlightReflection(reflData, focusOnPanel = true) {
       this.integratedReflsCheckbox.disabled = true;
       this.boundingBoxesCheckbox.disabled = true;
       this.integratedBoundingBoxesCheckbox.disabled = true;
+
+      this.observedUnindexedReflsRow.style.display = "none";
+      this.observedIndexedReflsRow.style.display = "none";
+      this.calculatedReflsRow.style.display = "none";
+      this.integratedReflsRow.style.display = "none";
+      this.boundingBoxesRow.style.display = "none";
+      this.integratedBoundingBoxesRow.style.display = "none";
+      this.reflectionSizeContainer.style.display = "none";
       return;
     }
-    this.observedUnindexedReflsCheckbox.disabled = !this.refl.containsXYZObs();
-    this.observedIndexedReflsCheckbox.disabled = !this.refl.containsMillerIndices();
-    this.calculatedReflsCheckbox.disabled = !this.refl.containsXYZCal();
-    this.integratedReflsCheckbox.disabled = this.integrationDataEmpty();
-    this.boundingBoxesCheckbox.disabled = !this.refl.containsBoundingBoxes();
-    this.integratedBoundingBoxesCheckbox.disabled = this.integratedBoundingBoxesEmpty();
+
+    const hasUnindexed = this.refl.containsXYZObs();
+    const hasIndexed = this.refl.containsMillerIndices();
+    const hasCalculated = this.refl.containsXYZCal();
+    const hasIntegrated = !this.integrationDataEmpty();
+    const hasBoundingBoxes = this.refl.containsBoundingBoxes();
+    const hasIntegratedBoundingBoxes = !this.integratedBoundingBoxesEmpty();
+
+    this.observedUnindexedReflsCheckbox.disabled = !hasUnindexed;
+    this.observedIndexedReflsCheckbox.disabled = !hasIndexed;
+    this.calculatedReflsCheckbox.disabled = !hasCalculated;
+    this.integratedReflsCheckbox.disabled = !hasIntegrated;
+    this.boundingBoxesCheckbox.disabled = !hasBoundingBoxes;
+    this.integratedBoundingBoxesCheckbox.disabled = !hasIntegratedBoundingBoxes;
+
+    this.observedUnindexedReflsRow.style.display = hasUnindexed ? "" : "none";
+    this.observedIndexedReflsRow.style.display = hasIndexed ? "" : "none";
+    this.calculatedReflsRow.style.display = hasCalculated ? "" : "none";
+    this.integratedReflsRow.style.display = hasIntegrated ? "" : "none";
+    this.boundingBoxesRow.style.display = hasBoundingBoxes ? "" : "none";
+    this.integratedBoundingBoxesRow.style.display = hasIntegratedBoundingBoxes ? "" : "none";
+    this.reflectionSizeContainer.style.display = "";
   }
 
   integrationDataEmpty(){
@@ -1629,7 +1657,11 @@ highlightReflection(reflData, focusOnPanel = true) {
 
   integratedBoundingBoxesEmpty(){
     return this.bboxMeshesIntegrated.every(function(panelMap) {
-      return Object.keys(panelMap).length === 0;
+      return Object.values(panelMap).every(function(entry) {
+        // Panels with no integrated reflections are left as empty arrays;
+        // only panels with an actual bbox mesh get replaced with one.
+        return Array.isArray(entry);
+      });
     });
   }
 
