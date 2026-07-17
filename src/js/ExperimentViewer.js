@@ -91,6 +91,7 @@ export class ExperimentViewer {
     this.calculatedReflsCheckbox = document.getElementById("calculatedReflections");
     this.integratedReflsCheckbox = document.getElementById("integratedReflections");
     this.boundingBoxesCheckbox = document.getElementById("boundingBoxes");
+    this.integratedBoundingBoxesCheckbox = document.getElementById("integratedBoundingBoxes");
     this.reflectionSize = document.getElementById("reflectionSizeSlider");
     this.userContrast = document.getElementById("userContrast");
     this.contrastMethod = "exponential";
@@ -111,6 +112,7 @@ export class ExperimentViewer {
     this.reflPositionsCal = []
     this.bboxMeshesUnindexed = [];
     this.bboxMeshesIndexed = [];
+    this.bboxMeshesIntegrated = [];
     this.beamMeshes = [];
     this.axesMeshes = [];
     this.sampleMesh = null;
@@ -343,6 +345,20 @@ export class ExperimentViewer {
       this.reflPointsIntegrated[i][0].visible = this.integratedReflsCheckbox.checked && this.visibleExptID === i;
     }
     this.updateBoundingBoxes();
+    this.updateIntegratedBoundingBoxes();
+    this.requestRender();
+  }
+
+  updateIntegratedBoundingBoxes(val = null) {
+    if (val !== null) {
+      this.integratedBoundingBoxesCheckbox.checked = val;
+    }
+    const visible = this.integratedBoundingBoxesCheckbox.checked;
+    for (var i = 0; i < this.bboxMeshesIntegrated.length; i++) {
+      for (var j in this.bboxMeshesIntegrated[i]) {
+        this.bboxMeshesIntegrated[i][j].visible = visible && this.visibleExptID === i;
+      }
+    }
     this.requestRender();
   }
 
@@ -350,33 +366,15 @@ export class ExperimentViewer {
     if (val !== null) {
       this.boundingBoxesCheckbox.checked = val;
     }
-    if ((this.observedIndexedReflsCheckbox.checked || this.calculatedReflsCheckbox.checked) && this.boundingBoxesCheckbox.checked) {
-      for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
-        for (var j in this.bboxMeshesIndexed[i]) {
-          this.bboxMeshesIndexed[i][j].visible = this.visibleExptID === i;
-        }
+    const visible = this.boundingBoxesCheckbox.checked;
+    for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
+      for (var j in this.bboxMeshesIndexed[i]) {
+        this.bboxMeshesIndexed[i][j].visible = visible && this.visibleExptID === i;
       }
     }
-    else {
-      for (var i = 0; i < this.bboxMeshesIndexed.length; i++) {
-        for (var j in this.bboxMeshesIndexed[i]) {
-          this.bboxMeshesIndexed[i][j].visible = false;
-        }
-      }
-    }
-    if (this.observedUnindexedReflsCheckbox.checked && this.boundingBoxesCheckbox.checked) {
-      for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
-        for (var j in this.bboxMeshesUnindexed[i]) {
-          this.bboxMeshesUnindexed[i][j].visible = this.visibleExptID === i;
-
-        }
-      }
-    }
-    else {
-      for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
-        for (var j in this.bboxMeshesUnindexed[i]) {
-          this.bboxMeshesUnindexed[i][j].visible = false;
-        }
+    for (var i = 0; i < this.bboxMeshesUnindexed.length; i++) {
+      for (var j in this.bboxMeshesUnindexed[i]) {
+        this.bboxMeshesUnindexed[i][j].visible = visible && this.visibleExptID === i;
       }
     }
     this.requestRender();
@@ -683,12 +681,25 @@ export class ExperimentViewer {
 
   }
 
+  clearBboxMeshesIntegrated() {
+    for (var i = 0; i < this.bboxMeshesIntegrated.length; i++) {
+      for (var j in this.bboxMeshesIntegrated[i]) {
+        if (this.bboxMeshesIntegrated[i][j].length === 0){continue;}
+        window.scene.remove(this.bboxMeshesIntegrated[i][j]);
+        this.bboxMeshesIntegrated[i][j].geometry.dispose();
+        this.bboxMeshesIntegrated[i][j].material.dispose();
+      }
+    }
+    this.bboxMeshesIntegrated = [];
+  }
+
   clearReflectionTable() {
     this.clearReflPointsObsIndexed();
     this.clearReflPointsObsUnindexed();
     this.clearReflPointsCal();
     this.clearReflPointsIntegrated();
     this.clearBoundingBoxes();
+    this.clearBboxMeshesIntegrated();
     this.refl.clearReflectionTable();
     this.calculatedIntegratedRefl.clearReflectionTable();
     this.updateReflectionCheckboxEnabledStatus();
@@ -699,6 +710,7 @@ export class ExperimentViewer {
 
   clearCalculatedIntegratedReflectionTable(){
     this.clearReflPointsIntegrated();
+    this.clearBboxMeshesIntegrated();
     this.calculatedIntegratedRefl.clearReflectionTable();
     this.requestRender();
   }
@@ -740,7 +752,7 @@ export class ExperimentViewer {
   }
 
 
-  getBboxTexture(bboxes, panelSize, lineWidth = 2) {
+  getBboxTexture(bboxes, panelSize, lineWidth = 2, color = null) {
 
     const canvas = document.createElement('canvas');
     const scale = 20; //
@@ -749,9 +761,9 @@ export class ExperimentViewer {
     const context = canvas.getContext('2d');
     context.scale(scale, scale);
 
-    context.clearRect(0, 0, canvas.width, canvas.height); 
-  
-    const hexColor = this.colors["bbox"].toString(16).padStart(6, '0');
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    const hexColor = (color !== null ? color : this.colors["bbox"]).toString(16).padStart(6, '0');
     context.strokeStyle = '#' + hexColor;
     context.lineWidth = lineWidth;
   
@@ -774,11 +786,11 @@ export class ExperimentViewer {
     return texture;
   }
 
-  getBboxMesh(bboxes, exptID, panelIdx, lineWidth = 2){
+  getBboxMesh(bboxes, exptID, panelIdx, lineWidth = 2, color = null){
       const panelSize = this.expt.experiments[exptID].detectorPanelData[panelIdx]["pxs"];
       const panelGeometry = new THREE.PlaneGeometry(panelSize[0], panelSize[1]);
       var panelMaterial;
-      const panelTexture = this.getBboxTexture(bboxes, panelSize, lineWidth);
+      const panelTexture = this.getBboxTexture(bboxes, panelSize, lineWidth, color);
       panelMaterial = new THREE.MeshBasicMaterial({
         map: panelTexture,
         transparent: true
@@ -877,6 +889,7 @@ export class ExperimentViewer {
     const positionsIntegrated = [];
     const bboxesUnindexed = [];
     const bboxesIndexed = [];
+    const bboxesIntegrated = [];
 
 
     for (let i = 0; i < this.expt.numExperiments(); i++) {
@@ -890,6 +903,7 @@ export class ExperimentViewer {
       positionsIntegrated.push([]);
       bboxesIndexed.push({});
       bboxesUnindexed.push({});
+      bboxesIntegrated.push({});
     }
 
     const uniquePanelIdxs = new Set(panelNumbers);
@@ -899,6 +913,7 @@ export class ExperimentViewer {
       for (let i = 0; i < this.expt.numExperiments(); i++) {
         bboxesIndexed[i][panelIdx] = [];
         bboxesUnindexed[i][panelIdx] = [];
+        bboxesIntegrated[i][panelIdx] = [];
       }
     }
 
@@ -967,6 +982,7 @@ export class ExperimentViewer {
           positionsIntegrated[exptID].push(globalPosCal.x);
           positionsIntegrated[exptID].push(globalPosCal.y);
           positionsIntegrated[exptID].push(globalPosCal.z);
+          bboxesIntegrated[exptID][reflPanel].push(bboxes[reflIdx]);
         }
       } // xyzCal
 
@@ -1086,8 +1102,21 @@ export class ExperimentViewer {
         window.scene.add(bboxIndexedMesh);
       }
     }
+    for (let i = 0; i < bboxesIntegrated.length; i++){
+      for (const j in bboxesIntegrated[i]){
+        if (bboxesIntegrated[i][j].length == 0){
+          continue;
+        }
+        const bboxIntegratedMesh = this.getBboxMesh(
+          bboxesIntegrated[i][j], i, parseInt(j), bboxLineWidth, this.colors["reflectionIntegrated"]);
+        bboxesIntegrated[i][j] = bboxIntegratedMesh;
+        window.scene.add(bboxIntegratedMesh);
+      }
+    }
+
     this.bboxMeshesUnindexed = bboxesUnindexed;
     this.bboxMeshesIndexed = bboxesIndexed;
+    this.bboxMeshesIntegrated = bboxesIntegrated;
 
     this.updateReflectionCheckboxEnabledStatus();
     this.setDefaultReflectionsDisplay();
@@ -1124,21 +1153,27 @@ export class ExperimentViewer {
     
     const pointsIntegrated = [];
     const positionsIntegrated = [];
+    const bboxesIntegrated = [];
 
 
     for (var i = 0; i < this.expt.numExperiments(); i++) {
       pointsIntegrated.push([]);
       positionsIntegrated.push([]);
+      bboxesIntegrated.push({});
     }
 
     const xyzCal = this.calculatedIntegratedRefl.getXYZCal();
     const millerIndices = this.calculatedIntegratedRefl.getMillerIndices();
     const exptIDs = this.calculatedIntegratedRefl.getExperimentIDs();
+    const bboxes = this.calculatedIntegratedRefl.getBoundingBoxes();
 
     const uniquePanelIdxs = new Set(panelNumbers);
     let panelData = {};
     for (const panelIdx of uniquePanelIdxs){
       panelData[panelIdx] = this.expt.getDetectorPanelDataByIdx(0, panelIdx);
+      for (let i = 0; i < this.expt.numExperiments(); i++) {
+        bboxesIntegrated[i][panelIdx] = [];
+      }
     }
 
     // Get positions of all reflections
@@ -1158,16 +1193,20 @@ export class ExperimentViewer {
       if (xyzCal !== null) {
         const reflXyzCal = xyzCal[reflIdx];
         const globalPosCal = this.mapPointToGlobal(
-          reflXyzCal, 
-          panelData[reflPanel]["origin"], 
-          panelData[reflPanel]["scaledFastAxis"], 
-          panelData[reflPanel]["scaledSlowAxis"], 
+          reflXyzCal,
+          panelData[reflPanel]["origin"],
+          panelData[reflPanel]["scaledFastAxis"],
+          panelData[reflPanel]["scaledSlowAxis"],
           panelData[reflPanel]["pxSize"]);
 
           positionsIntegrated[exptID].push(globalPosCal.x);
           positionsIntegrated[exptID].push(globalPosCal.y);
           positionsIntegrated[exptID].push(globalPosCal.z);
 
+      }
+
+      if (bboxes !== null) {
+        bboxesIntegrated[exptID][reflPanel].push(bboxes[reflIdx]);
       }
 
     }
@@ -1193,9 +1232,26 @@ export class ExperimentViewer {
       this.reflPositionsIntegrated = positionsIntegrated;
     }
 
+    if (bboxes !== null) {
+      const bboxLineWidth = ExperimentViewer.sizes()["bboxLineWidth"];
+      for (let i = 0; i < bboxesIntegrated.length; i++){
+        for (const j in bboxesIntegrated[i]){
+          if (bboxesIntegrated[i][j].length == 0){
+            continue;
+          }
+          const bboxIntegratedMesh = this.getBboxMesh(
+            bboxesIntegrated[i][j], i, parseInt(j), bboxLineWidth, this.colors["reflectionIntegrated"]);
+          bboxesIntegrated[i][j] = bboxIntegratedMesh;
+          window.scene.add(bboxIntegratedMesh);
+        }
+      }
+      this.bboxMeshesIntegrated = bboxesIntegrated;
+    }
+
     if (this.reflPointsIntegrated.length !== 0){
       this.integratedReflsCheckbox.disabled = false;
     }
+    this.integratedBoundingBoxesCheckbox.disabled = this.integratedBoundingBoxesEmpty();
     this.updateReflectionVisibility();
     if (this.lastClickedPanelPosition != null) {
       this.sendClickedPanelPosition(
@@ -1554,6 +1610,7 @@ highlightReflection(reflData, focusOnPanel = true) {
       this.calculatedReflsCheckbox.disabled = true;
       this.integratedReflsCheckbox.disabled = true;
       this.boundingBoxesCheckbox.disabled = true;
+      this.integratedBoundingBoxesCheckbox.disabled = true;
       return;
     }
     this.observedUnindexedReflsCheckbox.disabled = !this.refl.containsXYZObs();
@@ -1561,11 +1618,18 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.calculatedReflsCheckbox.disabled = !this.refl.containsXYZCal();
     this.integratedReflsCheckbox.disabled = this.integrationDataEmpty();
     this.boundingBoxesCheckbox.disabled = !this.refl.containsBoundingBoxes();
+    this.integratedBoundingBoxesCheckbox.disabled = this.integratedBoundingBoxesEmpty();
   }
 
   integrationDataEmpty(){
     return this.reflPositionsIntegrated.every(function(subArr) {
       return subArr.length === 0;
+    });
+  }
+
+  integratedBoundingBoxesEmpty(){
+    return this.bboxMeshesIntegrated.every(function(panelMap) {
+      return Object.keys(panelMap).length === 0;
     });
   }
 

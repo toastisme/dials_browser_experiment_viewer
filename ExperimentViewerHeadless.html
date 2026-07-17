@@ -51,6 +51,11 @@
 				window.viewer.updateBoundingBoxes();
 			}
 
+			function updateIntegratedBoundingBoxes(){
+				window.viewer.disableMouseClick();
+				window.viewer.updateIntegratedBoundingBoxes();
+			}
+
 			function updateAxes(){
 				window.viewer.disableMouseClick(); 
 				window.viewer.updateAxes()
@@ -102,8 +107,14 @@
 		</div>
 
 		<div class="checkbox-row">
-		<b>bounding boxes:</b> <input type="checkbox" id="boundingBoxes" 
+		<b>observed bounding boxes:</b> <input type="checkbox" id="boundingBoxes"
 		onclick="updateBoundingBoxes()" disabled>
+		</div>
+
+		<div class="checkbox-row">
+		<span style="color: #ffc25c"><b>integrated bounding boxes:</b> </span><input type="checkbox"
+		id="integratedBoundingBoxes"
+		onclick="updateIntegratedBoundingBoxes()" disabled>
 		</div>
 
 		<div id="reflectionSizeContainer" class="slider-container">
