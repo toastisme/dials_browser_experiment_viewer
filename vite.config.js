@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'ExperimentViewerHeadless.html'),
+        main: resolve(import.meta.dirname, 'ExperimentViewerHeadless.html'),
       },
     },
     assetsDir: 'assets',
