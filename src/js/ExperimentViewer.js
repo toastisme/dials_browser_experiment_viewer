@@ -857,7 +857,7 @@ export class ExperimentViewer {
 
   }
 
-  addReflectionsFromJSONMsgpack(reflMsgpack){
+  async addReflectionsFromJSONMsgpack(reflMsgpack){
     if (!this.hasExperiment()) {
       console.warn("Tried to add reflections but no experiment has been loaded");
       this.clearReflectionTable();
@@ -865,7 +865,8 @@ export class ExperimentViewer {
     }
 
     this.clearReflectionTable();
-    this.refl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
+    // Table may be msgpack or HDF5 (HDF5 parsing is async)
+    await this.refl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
 
     // Get relevant data
     const panelNumbers = this.refl.getPanelNumbers();
@@ -1141,7 +1142,7 @@ export class ExperimentViewer {
     this.requestRender();
   }
 
-  addCalculatedIntegratedReflectionsFromJSONMsgpack(reflMsgpack){
+  async addCalculatedIntegratedReflectionsFromJSONMsgpack(reflMsgpack){
     if (!this.hasExperiment()) {
       console.warn("Tried to add reflections but no experiment has been loaded");
       this.clearCalculatedIntegratedReflectionTable();
@@ -1149,7 +1150,7 @@ export class ExperimentViewer {
     }
 
     this.clearCalculatedIntegratedReflectionTable();
-    this.calculatedIntegratedRefl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
+    await this.calculatedIntegratedRefl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
 
     // Get relevant data
     const panelNumbers = this.calculatedIntegratedRefl.getPanelNumbers();
