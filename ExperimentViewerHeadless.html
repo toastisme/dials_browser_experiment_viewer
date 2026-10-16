@@ -386,7 +386,9 @@
 		return "channel" in msg && msg["channel"] == "experiment_viewer";
 	}
 
-	const serverWSAddr = "ws://127.0.0.1:50010/";
+	// The host app passes its server's port as ?port=<n> on this page's URL.
+	const serverPort = new URLSearchParams(window.location.search).get("port") || "50010";
+	const serverWSAddr = `ws://127.0.0.1:${serverPort}/`;
 
 	const colors = {
 			"background": 0x020817,
@@ -424,7 +426,7 @@
 			"beam" : 0xFFFFFF,
 			"bbox" : 0xdddddd,
 			"axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
-			"highlightBbox" : 0x13eac9,
+			"highlightBbox" : 0x96f97b,
 			"createNewReflectionBbox" : 0xffb07c
 	};
 
@@ -548,16 +550,13 @@
 				case "toggle_sidebar":
 					window.viewer.toggleSidebar();
 					break;
-				case "update_theme":
-					window.viewer.updateTheme(msg["theme"]);
-					break;
 				default:
 					console.warn("Unrecognised command ", command);
 			}
 		};
 
 		setupScene();
-		window.viewer.updateTheme(localStorage.getItem("diffraview-theme") ?? "dark");
+		window.viewer.updateTheme("dark");  
 	}
 	</script>
 </body>

@@ -206,7 +206,7 @@ export class ExperimentViewer {
       "beam": 0xFFFFFF,
       "bbox": 0xFFFFFF,
       "axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
-      "highlightBbox": 0x59b578,
+      "highlightBbox": 0x96f97b,
       "createNewReflectionBbox": 0xffb07c
     };
   }
