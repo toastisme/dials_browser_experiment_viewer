@@ -446,8 +446,8 @@
 
 		window.viewer.serverWS.send(JSON.stringify({
 			"channel": "server",
-			"command": "record_connection", 
-			"id": "experiment_viewer"
+			"type": "session.connect",
+			"payload": {"id": "experiment_viewer"}
 			}
 		));
 
@@ -465,27 +465,26 @@
 			if (typeof data !== 'string'){ // msgpack binary (ArrayBuffer or Buffer)
 				const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : new Uint8Array(data.buffer ?? data);
 				try{
-					const decoded = decode(bytes)
-					let command = decoded.command;
-					switch(command){
-						case "add_panel_image_data":
+					const { type, payload } = decode(bytes);
+					switch(type){
+						case "images.add_panel":
 							window.viewer.addPanelImageData(
-								decoded.image_data, decoded.panel_idx, decoded.expt_id);
+								payload.image_data, payload.panel_idx, payload.expt_id);
 							break;
-						case "add_expt_image_data":
+						case "images.add_expt":
 							window.viewer.addExptImageData(
-								decoded.image_data, decoded.expt_id);
+								payload.image_data, payload.expt_id);
 							break;
-						case "add_debug_panel_image_data":
+						case "images.add_debug_panel":
 							window.viewer.addDebugPanelImageData(
-								decoded.image_data, decoded.mask_data, decoded.panel_idx, decoded.expt_id);
+								payload.image_data, payload.mask_data, payload.panel_idx, payload.expt_id);
 							break;
-						case "add_debug_image_data":
+						case "images.add_debug":
 							window.viewer.addDebugImageData(
-								decoded.image_data, decoded.mask_data);
+								payload.image_data, payload.mask_data);
 							break;
 						default:
-							console.warn("Unrecognised Msgpack command ", command);
+							console.warn("Unrecognised Msgpack message type ", type);
 					}
 					return;
 				}catch(e){
@@ -499,59 +498,61 @@
 				return;
 			}
 
-			const command = msg["command"];
+			const { type, payload } = msg;
 
-			switch(command){
-				case "update_experiment":
-					console.assert("expt" in msg, "expt not found when calling update_experiment");
-					const exptJSON = msg["expt"];
+			switch(type){
+				case "experiment.update":
+					console.assert("expt" in payload, "expt not found in experiment.update");
+					const exptJSON = payload["expt"];
 					console.assert(ExptParser.isExptJSON(exptJSON), "expt is not recognised as an expt JSON string");
-					if ("image_data" in msg){
-						window.viewer.addExperimentFromJSONString(exptJSON, msg["image_data"]);
+					if ("image_data" in payload){
+						window.viewer.addExperimentFromJSONString(exptJSON, payload["image_data"]);
 					}
 					else{
 						window.viewer.addExperimentFromJSONString(exptJSON);
 					}
 					break;
-				case "clear_experiment":
+				case "experiment.clear":
 					window.viewer.clearExperiment();
 					break;
-				case "update_reflection_table":
-					window.viewer.addReflectionsFromJSONMsgpack(msg["refl_msgpack"]);
+				case "reflections.update":
+					window.viewer.addReflectionsFromJSONMsgpack(payload["refl_msgpack"]);
 					break;
-				case "update_calculated_integrated_reflection_table":
-					window.viewer.addCalculatedIntegratedReflectionsFromJSONMsgpack(msg["refl_msgpack"]);
+				case "reflections.update_calculated":
+					window.viewer.addCalculatedIntegratedReflectionsFromJSONMsgpack(payload["refl_msgpack"]);
 					break;
 
-				case "highlight_reflection":
-					window.viewer.highlightReflection(msg);
+				case "reflections.highlight":
+					window.viewer.highlightReflection(payload);
 					break;
-				case "loading_images":
+				case "images.loading":
 					window.viewer.showLoadingImagesMsg();
 					break;
-				case "loading_reflection":
+				case "reflections.loading":
 					window.viewer.showLoadingReflectionMsg()
 					break;
-				case "select_expt":
-					console.assert("expt_id" in msg);
-					const exptID = Number(msg["expt_id"]);
+				case "experiment.select":
+					console.assert("expt_id" in payload);
+					const exptID = Number(payload["expt_id"]);
 					console.assert(typeof exptID === "number" && !Number.isNaN(exptID));
 					window.viewer.selectExpt(exptID);
 					break;
-				case "toggle_debug_mode":
-					window.viewer.toggleDebugMode(msg["debug_mode"]);
+				case "debug.toggle":
+					window.viewer.toggleDebugMode(payload["debug_mode"]);
 					break;
-				case "set_debug_to_image":
-					window.viewer.setDebugToImage();
+				case "debug.set_view":
+					if (payload["view"] === "threshold"){
+						window.viewer.setDebugToThreshold();
+					}
+					else{
+						window.viewer.setDebugToImage();
+					}
 					break;
-				case "set_debug_to_threshold":
-					window.viewer.setDebugToThreshold();
-					break;
-				case "toggle_sidebar":
+				case "sidebar.toggle":
 					window.viewer.toggleSidebar();
 					break;
 				default:
-					console.warn("Unrecognised command ", command);
+					console.warn("Unrecognised message type ", type);
 			}
 		};
 

@@ -159,11 +159,13 @@ export class ExperimentViewer {
     const data = JSON.stringify(
       {
         "channel": "server",
-        "command": "clicked_on_panel",
-        "panel_idx": panelIdx,
-        "panel_pos": panelPos,
-        "name": name,
-        "expt_id": this.visibleExptID
+        "type": "lineplot.update",
+        "payload": {
+          "panel_idx": panelIdx,
+          "panel_pos": panelPos,
+          "name": name,
+          "expt_id": this.visibleExptID
+        }
       }
     );
     this.serverWS.send(data);
@@ -2549,9 +2551,11 @@ highlightReflection(reflData, focusOnPanel = true) {
       this.visibleExptID = exptID;
       this.serverWS.send(JSON.stringify({
         "channel": "server",
-        "command": "update_experiment_description",
-        "expt_id": exptID,
-        "in_debug_mode": (this.debugImageMode || this.debugThresholdMode)
+        "type": "file.set_description",
+        "payload": {
+          "expt_id": exptID,
+          "in_debug_mode": (this.debugImageMode || this.debugThresholdMode)
+        }
       }));
     }
 
@@ -2677,10 +2681,12 @@ highlightReflection(reflData, focusOnPanel = true) {
 
     this.serverWS.send(JSON.stringify({
       "channel": "server",
-      "command": "new_reflection_xy",
-      "panel_idx": panelIdx,
-      "expt_id": this.visibleExptID,
-      "panel_name": this.userReflection.panelName
+      "type": "reflections.new_xy",
+      "payload": {
+        "panel_idx": panelIdx,
+        "expt_id": this.visibleExptID,
+        "panel_name": this.userReflection.panelName
+      }
     }));
   }
 
@@ -2693,7 +2699,8 @@ highlightReflection(reflData, focusOnPanel = true) {
     }
     this.serverWS.send(JSON.stringify({
       "channel": "server",
-      "command": "cancel_new_reflection"
+      "type": "reflections.cancel_new",
+      "payload": {}
     }));
   }
 
