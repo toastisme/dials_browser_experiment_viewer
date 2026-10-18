@@ -103,6 +103,21 @@ export class ExperimentViewer {
     this.userContrast = document.getElementById("userContrast");
     this.contrastMethod = "exponential";
 
+    // Image number controls (images image to image + stack - 1 are summed)
+    this.imageControls = document.getElementById("imageControls");
+    this.imageSlider = document.getElementById("imageSlider");
+    this.imageNumberInput = document.getElementById("imageNumber");
+    this.imageStackInput = document.getElementById("imageStack");
+    this.imagePrevButton = document.getElementById("imagePrev");
+    this.imageNextButton = document.getElementById("imageNext");
+    this.numImagesText = document.getElementById("numImagesText");
+    this.numImages = 0;
+    this.imageNumber = 1;
+    this.imageStack = 1;
+    this.imageRequestTimeout = null;
+    this.lastImageRequestTime = 0;
+    this.setupImageControls();
+
     // Bookkeeping for meshes
     this.panelOutlineMeshes = {};
     this.panelMeshes = {}; // visible meshes that are involved in raycasting
@@ -241,6 +256,105 @@ export class ExperimentViewer {
 
   toggleSidebar() {
     this.sidebar.classList.toggle("hidden");
+  }
+
+  setupImageControls() {
+    if (!this.imageControls) { return; }
+
+    // Keep clicks and keys (e.g. "s") from reaching the scene handlers
+    for (const type of ["click", "dblclick", "mousedown", "keydown"]) {
+      this.imageControls.addEventListener(type, (event) => event.stopPropagation());
+    }
+
+    this.imageSlider.addEventListener("input", () => {
+      this.setImageNumber(Number(this.imageSlider.value));
+    });
+    this.imagePrevButton.addEventListener("click", () => {
+      this.setImageNumber(this.imageNumber - 1);
+    });
+    this.imageNextButton.addEventListener("click", () => {
+      this.setImageNumber(this.imageNumber + 1);
+    });
+    this.imageNumberInput.addEventListener("change", () => {
+      this.setImageNumber(Number(this.imageNumberInput.value));
+    });
+    this.imageStackInput.addEventListener("change", () => {
+      this.setImageStack(Number(this.imageStackInput.value));
+    });
+    for (const input of [this.imageNumberInput, this.imageStackInput]) {
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") { input.blur(); }
+      });
+    }
+  }
+
+  clampImageValue(value, fallback) {
+    if (!Number.isFinite(value)) { return fallback; }
+    return Math.min(Math.max(Math.round(value), 1), Math.max(this.numImages, 1));
+  }
+
+  setImageRange(numImages, image, stack) {
+    // Shows the range the server sent, without requesting it again
+    if (!this.imageControls) { return; }
+    this.numImages = numImages;
+    this.imageNumber = this.clampImageValue(image, 1);
+    this.imageStack = this.clampImageValue(stack, 1);
+    this.imageSlider.max = numImages;
+    this.imageNumberInput.max = numImages;
+    this.imageStackInput.max = numImages;
+    this.numImagesText.textContent = "/ " + numImages;
+    this.imageControls.style.display = numImages > 0 ? "" : "none";
+    this.updateImageControls();
+  }
+
+  setImageNumber(value) {
+    const image = this.clampImageValue(value, this.imageNumber);
+    const changed = image !== this.imageNumber;
+    this.imageNumber = image;
+    this.updateImageControls();
+    if (changed) { this.requestImage(); }
+  }
+
+  setImageStack(value) {
+    const stack = this.clampImageValue(value, this.imageStack);
+    const changed = stack !== this.imageStack;
+    this.imageStack = stack;
+    this.updateImageControls();
+    if (changed) { this.requestImage(); }
+  }
+
+  updateImageControls() {
+    this.imageSlider.value = this.imageNumber;
+    this.imageNumberInput.value = this.imageNumber;
+    this.imageStackInput.value = this.imageStack;
+    this.imagePrevButton.disabled = this.imageNumber <= 1;
+    this.imageNextButton.disabled = this.imageNumber >= this.numImages;
+  }
+
+  hideImageControls() {
+    if (!this.imageControls) { return; }
+    clearTimeout(this.imageRequestTimeout);
+    this.numImages = 0;
+    this.imageControls.style.display = "none";
+  }
+
+  requestImage() {
+    // Throttled while dragging; the last value is always sent
+    const interval = 50;
+    clearTimeout(this.imageRequestTimeout);
+    const wait = this.lastImageRequestTime + interval - Date.now();
+    this.imageRequestTimeout = setTimeout(() => {
+      this.lastImageRequestTime = Date.now();
+      if (!this.serverWS || this.serverWS.readyState !== WebSocket.OPEN) { return; }
+      this.serverWS.send(JSON.stringify({
+        "channel": "server",
+        "type": "viewer.show_image",
+        "payload": {
+          "image": this.imageNumber,
+          "stack": this.imageStack
+        }
+      }));
+    }, Math.max(wait, 0));
   }
 
   updateTheme(theme){
@@ -560,6 +674,7 @@ export class ExperimentViewer {
 
     this.expt.clearExperiment();
     this.hideCloseExptButton();
+    this.hideImageControls();
 
     this.clearReflectionTable();
     this.clearExperimentList();

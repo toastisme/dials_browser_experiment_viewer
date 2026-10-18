@@ -82,6 +82,24 @@
 
 		</script>
 
+		<div id="imageControls" style="display: none">
+			<div class="slider-container image-slider-row">
+				<b>image:</b>
+				<button id="imagePrev" class="image-step" aria-label="Previous image"><i class="fa fa-chevron-left"></i></button>
+				<input type="range" min="1" max="1" value="1" step="1" class="slider" id="imageSlider">
+				<button id="imageNext" class="image-step" aria-label="Next image"><i class="fa fa-chevron-right"></i></button>
+			</div>
+			<div class="image-input-row">
+				<label for="imageNumber"><b>number:</b></label>
+				<input type="number" min="1" value="1" step="1" id="imageNumber" class="image-input">
+				<span id="numImagesText"></span>
+			</div>
+			<div class="image-input-row">
+				<label for="imageStack"><b>stack:</b></label>
+				<input type="number" min="1" value="1" step="1" id="imageStack" class="image-input">
+			</div>
+		</div>
+
 		<div class="checkbox-row" id="observedUnindexedReflectionsRow">
 		<span style="color: #aa9a9a"><b>unindexed reflections:</b></span><input type="checkbox"
 		id="observedUnindexedReflections"
@@ -369,6 +387,56 @@
 			z-index: 9;
 			line-height: .7;
 		}
+		.image-slider-row {
+			gap: 4px;
+		}
+		.image-slider-row input[type="range"] {
+			max-width: none;
+		}
+		.image-step {
+			background: none;
+			border: none;
+			color: #ddd;
+			cursor: pointer;
+			padding: 2px 4px;
+			font-size: 12px;
+		}
+		.image-step:hover {
+			opacity: 0.8;
+		}
+		.image-step:disabled {
+			opacity: 0.3;
+			cursor: default;
+		}
+		.image-input-row {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			margin-bottom: 10px;
+		}
+		.image-input-row label {
+			width: 52px;
+		}
+		.image-input {
+			width: 64px;
+			font-family: Tahoma, Verdana, sans-serif;
+			font-size: 12px;
+			color: #ddd;
+			background-color: #1e293b;
+			border: 1px solid #444;
+			border-radius: 4px;
+			padding: 2px 4px;
+		}
+		/* No spinner arrows in the number fields */
+		.image-input::-webkit-outer-spin-button,
+		.image-input::-webkit-inner-spin-button {
+			-webkit-appearance: none;
+			margin: 0;
+		}
+		.image-input {
+			-moz-appearance: textfield;
+			appearance: textfield;
+		}
 		#reflectionSize{
 			position: relative;
 			top:8px;
@@ -524,6 +592,9 @@
 
 				case "reflections.highlight":
 					window.viewer.highlightReflection(payload);
+					break;
+				case "images.set_range":
+					window.viewer.setImageRange(payload["num_images"], payload["image"], payload["stack"]);
 					break;
 				case "images.loading":
 					window.viewer.showLoadingImagesMsg();
