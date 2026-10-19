@@ -644,6 +644,9 @@
 				case "reflections.highlight":
 					window.viewer.highlightReflection(payload);
 					break;
+				case "settings.update":
+					window.viewer.updateSettings(payload);
+					break;
 				case "images.set_range":
 					window.viewer.setImageRange(payload["num_images"], payload["image"], payload["stack"]);
 					break;

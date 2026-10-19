@@ -157,6 +157,8 @@ export class ExperimentViewer {
     this.drawingReflection = false;
     this.userReflection = null;
     this.visibleExptID = 0;
+    // Mark the pixel the user clicks (settings.update show_click_marker)
+    this.showClickMarker = true;
 
     this.preventMouseClick = false;
     this.cursorActive = true;
@@ -318,6 +320,7 @@ export class ExperimentViewer {
     this.numImagesText.textContent = "/ " + numImages;
     this.imageControls.style.display = numImages > 0 ? "" : "none";
     this.updateImageControls();
+    this.updateReflectionsInImageRange();
   }
 
   setImageNumber(value) {
@@ -325,7 +328,10 @@ export class ExperimentViewer {
     const changed = image !== this.imageNumber;
     this.imageNumber = image;
     this.updateImageControls();
-    if (changed) { this.requestImage(); }
+    if (changed) {
+      this.requestImage();
+      this.updateReflectionsInImageRange();
+    }
   }
 
   setImageStack(value) {
@@ -333,7 +339,10 @@ export class ExperimentViewer {
     const changed = stack !== this.imageStack;
     this.imageStack = stack;
     this.updateImageControls();
-    if (changed) { this.requestImage(); }
+    if (changed) {
+      this.requestImage();
+      this.updateReflectionsInImageRange();
+    }
   }
 
   updateImageControls() {
@@ -1194,6 +1203,31 @@ export class ExperimentViewer {
     this.clearReflectionTable();
     // Table may be msgpack or HDF5 (HDF5 parsing is async)
     await this.refl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
+    this.buildReflectionMeshes();
+
+    this.updateReflectionCheckboxEnabledStatus();
+    this.setDefaultReflectionsDisplay();
+    this.updateReflectionVisibility();
+    if (this.lastClickedPanelPosition != null) {
+      this.sendClickedPanelPosition(
+        this.lastClickedPanelPosition["panelIdx"],
+        this.lastClickedPanelPosition["panelPos"],
+        this.lastClickedPanelPosition["name"]
+
+      );
+    }
+    this.loading = false;
+    this.requestRender();
+  }
+
+  buildReflectionMeshes() {
+    // Points and bounding boxes of the reflections with centroids in the image range
+    this.clearReflPointsObsIndexed();
+    this.clearReflPointsObsUnindexed();
+    this.clearReflPointsCal();
+    this.clearReflPointsIntegrated();
+    this.clearBoundingBoxes();
+    this.clearBboxMeshesIntegrated();
 
     // Get relevant data
     const panelNumbers = this.refl.getPanelNumbers();
@@ -1268,7 +1302,7 @@ export class ExperimentViewer {
       }
 
       // xyzObs
-      if (xyzObs !== null){
+      if (xyzObs !== null && this.inImageRange(xyzObs[reflIdx][2], exptID)){
 
         const reflXyzObs = xyzObs[reflIdx];
         const globalPosObs = this.mapPointToGlobal(
@@ -1299,7 +1333,7 @@ export class ExperimentViewer {
       } // xyzObs
 
       // xyzCal
-      if (xyzCal !== null) {
+      if (xyzCal !== null && this.inImageRange(xyzCal[reflIdx][2], exptID)) {
 
         const reflXyzCal = xyzCal[reflIdx];
         const globalPosCal = this.mapPointToGlobal(
@@ -1452,21 +1486,7 @@ export class ExperimentViewer {
     this.bboxMeshesUnindexed = bboxesUnindexed;
     this.bboxMeshesIndexed = bboxesIndexed;
     this.bboxMeshesIntegrated = bboxesIntegrated;
-
-    this.updateReflectionCheckboxEnabledStatus();
-    this.setDefaultReflectionsDisplay();
-    this.updateReflectionVisibility();
-    if (this.lastClickedPanelPosition != null) {
-      this.sendClickedPanelPosition(
-        this.lastClickedPanelPosition["panelIdx"],
-        this.lastClickedPanelPosition["panelPos"],
-        this.lastClickedPanelPosition["name"]
-
-      );
-    }
     this.refl.indexedMap = indexedMap;
-    this.loading = false;
-    this.requestRender();
   }
 
   async addCalculatedIntegratedReflectionsFromJSONMsgpack(reflMsgpack){
@@ -1478,6 +1498,25 @@ export class ExperimentViewer {
 
     this.clearCalculatedIntegratedReflectionTable();
     await this.calculatedIntegratedRefl.parseReflectionTableFromJSONMsgpack(reflMsgpack);
+    this.buildCalculatedIntegratedReflectionMeshes();
+
+    this.updateReflectionCheckboxEnabledStatus();
+    this.updateReflectionVisibility();
+    if (this.lastClickedPanelPosition != null) {
+      this.sendClickedPanelPosition(
+        this.lastClickedPanelPosition["panelIdx"],
+        this.lastClickedPanelPosition["panelPos"],
+        this.lastClickedPanelPosition["name"]
+      );
+    }
+    this.loading = false;
+    this.requestRender();
+  }
+
+  buildCalculatedIntegratedReflectionMeshes() {
+    // As buildReflectionMeshes, for the calculated integrated reflections
+    this.clearReflPointsIntegrated();
+    this.clearBboxMeshesIntegrated();
 
     // Get relevant data
     const panelNumbers = this.calculatedIntegratedRefl.getPanelNumbers();
@@ -1523,6 +1562,10 @@ export class ExperimentViewer {
       }
       else{
         exptID = 0;
+      }
+
+      if (xyzCal !== null && !this.inImageRange(xyzCal[reflIdx][2], exptID)) {
+        continue;
       }
 
       if (xyzCal !== null) {
@@ -1582,19 +1625,30 @@ export class ExperimentViewer {
       }
       this.bboxMeshesIntegrated = bboxesIntegrated;
     }
+  }
 
-    this.updateReflectionCheckboxEnabledStatus();
-    this.updateReflectionVisibility();
-    if (this.lastClickedPanelPosition != null) {
-      this.sendClickedPanelPosition(
-        this.lastClickedPanelPosition["panelIdx"],
-        this.lastClickedPanelPosition["panelPos"],
-        this.lastClickedPanelPosition["name"]
-      );
+  inImageRange(z, exptID) {
+    // Whether a centroid's z (in frames) is in the images shown
+    if (this.numImages === 0) { return true; }
+    const zMin = this.scanArrayStart(exptID) + this.imageNumber - 1;
+    return z >= zMin && z < zMin + this.imageStack;
+  }
+
+  scanArrayStart(exptID) {
+    // Frame of the first image (the scan's array_range[0])
+    const scan = this.expt.getScanData(exptID);
+    if (!scan || !("image_range" in scan)) { return 0; }
+    return scan["image_range"][0] - 1;
+  }
+
+  updateReflectionsInImageRange() {
+    // Rebuilds the reflection markers after the image range changes
+    if (this.refl.hasReflTable()) { this.buildReflectionMeshes(); }
+    if (this.calculatedIntegratedRefl.hasReflTable()) {
+      this.buildCalculatedIntegratedReflectionMeshes();
     }
-    this.loading = false;
+    this.updateReflectionVisibility();
     this.requestRender();
-
   }
 
   addCalculatedIntegratedReflectionsFromData(reflData) {
@@ -2601,7 +2655,15 @@ highlightReflection(reflData, focusOnPanel = true) {
       const panelIdx = this.expt.getDetectorPanelIdxByName(0, name);
       const panelPos = this.getPanelPosition(intersects[0].point, name);
       this.sendClickedPanelPosition(panelIdx, panelPos, name);
-      this.highlightReflection({ "panelIdx": panelIdx, "panelPos": panelPos }, false);
+      if (this.showClickMarker) {
+        this.highlightReflection({ "panelIdx": panelIdx, "panelPos": panelPos }, false);
+      }
+    }
+  }
+
+  updateSettings(settings) {
+    if ("show_click_marker" in settings) {
+      this.showClickMarker = settings["show_click_marker"];
     }
   }
 
