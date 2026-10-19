@@ -7,8 +7,9 @@ An open source tool to view [DIALS](https://github.com/dials/dials) [experiment 
 ## Features
 - Drag .expt files into the browser to view the experiment in lab space
 - Drag .refl files into the browser to view reflection centroids and bounding boxes in lab space
-- Realtime panel coordinates of mouse position
+- Realtime panel coordinates of mouse position, with the pixel's intensity (when image data is loaded) and resolution (a range for time-of-flight images or polychromatic beams)
 - Hover over indexed reflections to see Miller indices
+- Resolution rings on each panel for monochromatic beams
 - Hover over sample to see unit cell
 - Hover over beam to see beam direction, and wavelength (if monochromatic)
 - Compare calculated reflections of current model against observed reflections

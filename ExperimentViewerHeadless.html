@@ -60,6 +60,11 @@
 				window.viewer.updateIntegratedBoundingBoxes();
 			}
 
+			function updateResolutionRings(){
+				window.viewer.disableMouseClick();
+				window.viewer.updateResolutionRings();
+			}
+
 			function updateAxes(){
 				window.viewer.disableMouseClick(); 
 				window.viewer.updateAxes()
@@ -146,6 +151,12 @@
 		<span style="color: #ffc25c"><b>integrated bounding boxes:</b> </span><input type="checkbox"
 		id="integratedBoundingBoxes"
 		onclick="updateIntegratedBoundingBoxes()" disabled>
+		</div>
+
+		<div class="checkbox-row" id="resolutionRingsRow" style="display: none">
+		<b>resolution rings:</b> <input type="checkbox"
+		id="resolutionRings"
+		onclick="updateResolutionRings()" disabled>
 		</div>
 
 		<div id="reflectionSizeContainer" class="slider-container">
@@ -366,6 +377,16 @@
 		#sidebarToggle:hover {
 			opacity: 0.8;
 		}
+		.resolution-ring-label {
+			font-family: Arial, sans-serif;
+			font-size: 12px;
+			font-weight: bold;
+			padding: 1px 4px;
+			border-radius: 3px;
+			background: rgba(2, 8, 23, 0.6);
+			white-space: nowrap;
+		}
+
 		.checkbox-row {
 			gap: 6px;          
 			margin-bottom: 10px; 
@@ -535,6 +556,7 @@
 				0x69d84f,
 				0x56ae57
 			],
+			"resolutionRings" : [0x96f97b, 0x75bbfd, 0xbf77f6, 0x13eac9, 0xffb07c],
 			"reflectionObsIndexed" : 0xe74c3c,
 			"reflectionCal" : 0xffaaaa,
 			"reflectionIntegrated" : 0xffc25c,

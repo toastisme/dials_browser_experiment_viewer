@@ -1,8 +1,50 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import { gsap } from "gsap";
 import { MeshLineGeometry,  MeshLineMaterial, raycast } from 'meshline';
 import { ExptParser } from "dials_javascript_parser/ExptParser.js";
+
+// Resolution rings (addResolutionRings): d from each fragment's lab position;
+// translucent bands between rings, with a line at each ring's d
+const RESOLUTION_RING_VERTEX_SHADER = `
+  varying vec3 vLab;
+  void main() {
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vLab = world.xyz;
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+const RESOLUTION_RING_FRAGMENT_SHADER = `
+  uniform vec3 s0Direction;
+  uniform float wavelength;
+  uniform float dStarSqStep;
+  uniform float numRings;
+  uniform vec3 ringColors[NUM_COLORS];
+  uniform float fillOpacity;
+  uniform float edgeOpacity;
+  varying vec3 vLab;
+  void main() {
+    float cosTwoTheta = clamp(dot(normalize(vLab), s0Direction), -1.0, 1.0);
+    float dStarSq = 2.0 * (1.0 - cosTwoTheta) / (wavelength * wavelength);
+    float ringPos = dStarSq / dStarSqStep;
+    if (ringPos >= numRings) { discard; }
+    int ring = int(floor(ringPos));
+    vec3 color = ringColors[ring % NUM_COLORS];
+    // About 1.5 screen pixels wide at the ring's outer edge, at any zoom
+    float toEdge = (1.0 - fract(ringPos)) / max(fwidth(ringPos), 1e-6);
+    float edge = 1.0 - smoothstep(0.0, 1.5, toEdge);
+    gl_FragColor = vec4(color, mix(fillOpacity, edgeOpacity, edge));
+  }
+`;
+
+// Panel images are drawn at the panels' true positions, pushed back in depth so
+// reflections and bounding boxes in the same plane are drawn in front of them
+const PANEL_IMAGE_DEPTH_OFFSET = {
+  polygonOffset: true,
+  polygonOffsetFactor: 1,
+  polygonOffsetUnits: 4,
+};
 
 class UserReflection {
   constructor(origin, panelName, lineColor) {
@@ -98,6 +140,8 @@ export class ExperimentViewer {
     this.integratedReflsRow = document.getElementById("integratedReflectionsRow");
     this.boundingBoxesRow = document.getElementById("boundingBoxesRow");
     this.integratedBoundingBoxesRow = document.getElementById("integratedBoundingBoxesRow");
+    this.resolutionRingsRow = document.getElementById("resolutionRingsRow");
+    this.resolutionRingsCheckbox = document.getElementById("resolutionRings");
     this.reflectionSizeContainer = document.getElementById("reflectionSizeContainer");
     this.reflectionSize = document.getElementById("reflectionSizeSlider");
     this.userContrast = document.getElementById("userContrast");
@@ -148,6 +192,8 @@ export class ExperimentViewer {
     this.bboxMeshesUnindexed = [];
     this.bboxMeshesIndexed = [];
     this.bboxMeshesIntegrated = [];
+    this.resolutionRingMeshes = [];
+    this.resolutionRingLabels = [];
     this.beamMeshes = [];
     this.axesMeshes = [];
     this.sampleMesh = null;
@@ -159,6 +205,8 @@ export class ExperimentViewer {
     this.visibleExptID = 0;
     // Mark the pixel the user clicks (settings.update show_click_marker)
     this.showClickMarker = true;
+    // Image data are counts; shown as min(counts * scale, 1) ({exptID: {panelIdx: scale}})
+    this.panelScales = {};
 
     this.preventMouseClick = false;
     this.cursorActive = true;
@@ -228,6 +276,7 @@ export class ExperimentViewer {
         0x69d84f,
         0x56ae57
       ],
+      "resolutionRings": [0x96f97b, 0x75bbfd, 0xbf77f6, 0x13eac9, 0xffb07c],
       "reflectionObsIndexed": 0xe74c3c,
       "reflectionCal": 0xffaaaa,
       "reflectionIntegrated": 0xffc25c,
@@ -406,11 +455,8 @@ export class ExperimentViewer {
     window.controls2D.enabled = view2D;
 
     for (const mesh of this.beamMeshes) { mesh.visible = !view2D; }
-    // Panel images are drawn 1% further out (getPanelPlaneVertices); in 2D the
-    // outline is moved out to just in front of the image so it traces its edge
     for (const name in this.panelOutlineMeshes) {
       this.panelOutlineMeshes[name].visible = true;
-      this.panelOutlineMeshes[name].scale.setScalar(view2D ? 1.0099 : 1);
     }
     this.view3DButton.classList.toggle("active", !view2D);
     this.view2DButton.classList.toggle("active", view2D);
@@ -690,6 +736,170 @@ export class ExperimentViewer {
     this.requestRender();
   }
 
+  updateResolutionRings(val = null) {
+    if (!this.resolutionRingsCheckbox) { return; }
+    if (val !== null) {
+      this.resolutionRingsCheckbox.checked = val;
+    }
+    const visible = this.resolutionRingsCheckbox.checked;
+    for (const mesh of [...this.resolutionRingMeshes, ...this.resolutionRingLabels]) {
+      mesh.visible = visible;
+    }
+    this.requestRender();
+  }
+
+  clearResolutionRings() {
+    for (const mesh of this.resolutionRingMeshes) {
+      window.scene.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+    }
+    this.resolutionRingMeshes = [];
+    for (const label of this.resolutionRingLabels) {
+      window.scene.remove(label);
+      label.element.remove();
+    }
+    this.resolutionRingLabels = [];
+  }
+
+  addResolutionRingLabels(exptID, s0Direction, wavelength, ringDs, colors) {
+    // Each ring's d at the first point on a panel along its cone, searching
+    // out from the first panel's upper right diagonal so the labels line up
+    const numPanels = this.expt.getNumDetectorPanels(exptID);
+    const panels = [];
+    for (let panelIdx = 0; panelIdx < numPanels; panelIdx++) {
+      const c = this.expt.getDetectorPanelCorners(exptID, panelIdx);
+      const fast = c[1].clone().sub(c[0]);
+      const slow = c[3].clone().sub(c[0]);
+      panels.push({
+        origin: c[0], width: fast.length(), height: slow.length(),
+        fast: fast.normalize(), slow: slow.normalize(),
+        normal: fast.clone().cross(slow).normalize(),
+      });
+    }
+    // In-plane directions: towards fast (right) and -slow (up) of the first panel
+    const right = panels[0].fast.clone().projectOnPlane(s0Direction).normalize();
+    const up = s0Direction.clone().cross(right).normalize();
+    if (up.dot(panels[0].slow) > 0) { up.negate(); }
+
+    const pointOnPanel = (ray, margin) => {
+      for (const panel of panels) {
+        const denom = ray.dot(panel.normal);
+        if (Math.abs(denom) < 1e-9) { continue; }
+        const t = panel.origin.dot(panel.normal) / denom;
+        if (t <= 0) { continue; }
+        const point = ray.clone().multiplyScalar(t);
+        const local = point.clone().sub(panel.origin);
+        const x = local.dot(panel.fast);
+        const y = local.dot(panel.slow);
+        const m = margin * Math.min(panel.width, panel.height);
+        if (x >= m && x <= panel.width - m && y >= m && y <= panel.height - m) {
+          return point;
+        }
+      }
+      return null;
+    };
+
+    ringDs.forEach((d, ringIdx) => {
+      const twoTheta = 2 * Math.asin(Math.min(wavelength / (2 * d), 1));
+      let point = null;
+      for (const margin of [0.03, 0]) {
+        for (let step = 0; step <= 180 && point === null; step++) {
+          for (const sign of step === 0 ? [1] : [1, -1]) {
+            const phi = Math.PI / 4 + sign * step * Math.PI / 180;
+            const ray = s0Direction.clone().multiplyScalar(Math.cos(twoTheta))
+              .addScaledVector(right, Math.sin(twoTheta) * Math.cos(phi))
+              .addScaledVector(up, Math.sin(twoTheta) * Math.sin(phi));
+            point = pointOnPanel(ray, margin);
+            if (point !== null) { break; }
+          }
+        }
+        if (point !== null) { break; }
+      }
+      if (point === null) { return; }
+      const element = document.createElement("div");
+      element.className = "resolution-ring-label";
+      element.textContent = d.toFixed(2) + " \u00c5";
+      const color = new THREE.Color(colors[ringIdx % colors.length]);
+      element.style.color = "#" + color.getHexString();
+      const label = new CSS2DObject(element);
+      label.position.copy(point);
+      label.visible = this.resolutionRingsCheckbox.checked;
+      window.scene.add(label);
+      this.resolutionRingLabels.push(label);
+    });
+  }
+
+  addResolutionRings() {
+    // rings evenly spaced in 1/d^2 out to the highest
+    // resolution on the detector 
+    this.clearResolutionRings();
+    const exptID = Math.max(this.visibleExptID, 0);
+    const beam = this.expt.getBeamData(exptID);
+    const monochromatic = beam && beam["wavelength"] > 0;
+    if (this.resolutionRingsRow) {
+      this.resolutionRingsRow.style.display = monochromatic ? "" : "none";
+    }
+    if (!monochromatic || !this.resolutionRingsCheckbox) { return; }
+
+    const wavelength = beam["wavelength"];
+    // The beam direction is from the sample to the source
+    const s0Direction = new THREE.Vector3(...beam["direction"]).normalize().negate();
+    const dStarSq = (point) => {
+      const cosTwoTheta = Math.min(Math.max(point.clone().normalize().dot(s0Direction), -1), 1);
+      return 2 * (1 - cosTwoTheta) / (wavelength * wavelength);
+    };
+    const numPanels = this.expt.getNumDetectorPanels(exptID);
+    let dStarSqMax = 0;
+    for (let panelIdx = 0; panelIdx < numPanels; panelIdx++) {
+      for (const corner of this.expt.getDetectorPanelCorners(exptID, panelIdx)) {
+        dStarSqMax = Math.max(dStarSqMax, dStarSq(corner));
+      }
+    }
+    if (dStarSqMax === 0) { return; }
+
+    const numRings = 5;
+    const colors = this.colors["resolutionRings"] ?? ExperimentViewer.defaultColors()["resolutionRings"];
+    const uniforms = {
+      s0Direction: { value: s0Direction },
+      wavelength: { value: wavelength },
+      dStarSqStep: { value: dStarSqMax / numRings },
+      numRings: { value: numRings },
+      ringColors: { value: colors.map(c => new THREE.Color(c)) },
+      fillOpacity: { value: 0.15 },
+      edgeOpacity: { value: 0.7 },
+    };
+    for (let panelIdx = 0; panelIdx < numPanels; panelIdx++) {
+      const geometry = new THREE.PlaneGeometry(1, 1);
+      const vertices = this.getPanelPlaneVertices(exptID, panelIdx);
+      for (let i = 0; i < 4; i++) {
+        geometry.attributes.position.setXYZ(i, vertices[i].x, vertices[i].y, vertices[i].z);
+      }
+      const material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        defines: { NUM_COLORS: colors.length },
+        vertexShader: RESOLUTION_RING_VERTEX_SHADER,
+        fragmentShader: RESOLUTION_RING_FRAGMENT_SHADER,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      // Over the image, under the reflection markers
+      mesh.renderOrder = -1;
+      mesh.visible = this.resolutionRingsCheckbox.checked;
+      window.scene.add(mesh);
+      this.resolutionRingMeshes.push(mesh);
+    }
+    const ringDs = [];
+    for (let k = 1; k <= numRings; k++) {
+      ringDs.push(1 / Math.sqrt(k * dStarSqMax / numRings));
+    }
+    this.addResolutionRingLabels(exptID, s0Direction, wavelength, ringDs, colors);
+    this.resolutionRingsCheckbox.disabled = false;
+    this.requestRender();
+  }
+
   updateBoundingBoxes(val = null) {
     if (val !== null) {
       this.boundingBoxesCheckbox.checked = val;
@@ -734,6 +944,7 @@ export class ExperimentViewer {
             size: this.reflectionSize.value,
             transparent: true,
             map: this.reflSprite,
+            depthWrite: false, // so bounding boxes drawn after them show
             color: this.colors["reflectionObsUnindexed"][i % this.colors["reflectionObsUnindexed"].length],
           });
           const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
@@ -759,6 +970,7 @@ export class ExperimentViewer {
             size: this.reflectionSize.value,
             transparent: true,
             map: this.reflSprite,
+            depthWrite: false, // so bounding boxes drawn after them show
             color: this.colors["reflectionObsIndexed"]
           });
           const pointsObs = new THREE.Points(reflGeometryObs, reflMaterialObs);
@@ -785,6 +997,7 @@ export class ExperimentViewer {
           size: this.reflectionSize.value,
           transparent: true,
           map: this.reflSprite,
+          depthWrite: false, // so bounding boxes drawn after them show
           color: this.colors["reflectionCal"]
         });
         const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
@@ -809,6 +1022,7 @@ export class ExperimentViewer {
             size: this.reflectionSize.value,
             transparent: true,
             map: this.reflSprite,
+            depthWrite: false, // so bounding boxes drawn after them show
             color: this.colors["reflectionIntegrated"]
           });
           const pointsIntegrated = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
@@ -832,6 +1046,9 @@ export class ExperimentViewer {
   }
 
   clearExperiment() {
+
+    this.clearResolutionRings();
+    if (this.resolutionRingsRow) { this.resolutionRingsRow.style.display = "none"; }
 
     for (const i in this.panelOutlineMeshes) {
       window.scene.remove(this.panelOutlineMeshes[i]);
@@ -904,6 +1121,7 @@ export class ExperimentViewer {
     }
     this.addBeam();
     this.addSample();
+    this.addResolutionRings();
     this.setCameraToDefaultPositionWithExperiment();
     if (this.isStandalone) {
       this.showCloseExptButton();
@@ -928,6 +1146,7 @@ export class ExperimentViewer {
     }
     this.addBeam();
     this.addSample();
+    this.addResolutionRings();
     this.setCameraToDefaultPositionWithExperiment();
     if (this.isStandalone) {
       this.showCloseExptButton();
@@ -1084,40 +1303,6 @@ export class ExperimentViewer {
   }
 
 
-  getBboxTexture(bboxes, panelSize, lineWidth = 2, color = null) {
-
-    const canvas = document.createElement('canvas');
-    const scale = 20; //
-    canvas.width = panelSize.x * scale;
-    canvas.height = panelSize.y * scale;
-    const context = canvas.getContext('2d');
-    context.scale(scale, scale);
-
-    context.clearRect(0, 0, canvas.width, canvas.height);
-
-    const hexColor = (color !== null ? color : this.colors["bbox"]).toString(16).padStart(6, '0');
-    context.strokeStyle = '#' + hexColor;
-    context.lineWidth = lineWidth;
-  
-    for (const bbox of bboxes) {
-      const height = bbox[1] - bbox[0];
-      const width = bbox[3] - bbox[2];
-      const y = panelSize.y - bbox[0] - height; 
-      const x = bbox[2];
-      context.strokeRect(x, y, width, height);
-    }
-  
-    const texture = new THREE.Texture(canvas);
-    texture.needsUpdate = true;
-    texture.transparent = true;
-    texture.minFilter = THREE.LinearFilter;  
-    texture.magFilter = THREE.LinearFilter;  
-    texture.generateMipmaps = false;
-    document.body.appendChild(canvas);
-  
-    return texture;
-  }
-
   getPanelPlaneVertices(exptID, panelIdx) {
     /*
      * Panel corners in PlaneGeometry vertex order (top left, top right,
@@ -1138,59 +1323,46 @@ export class ExperimentViewer {
       idxs = [0, 3, 1, 2];
     }
 
-    const scaleFactor = 1.01 // ensure reflections appear in front of image
-    return idxs.map(i => new THREE.Vector3(
-      corners[i].x * scaleFactor,
-      corners[i].y * scaleFactor,
-      corners[i].z * scaleFactor
-    ));
+    // At the panel's true position (images are pushed back in depth by
+    // PANEL_IMAGE_DEPTH_OFFSET so reflections and boxes are drawn in front)
+    return idxs.map(i => corners[i].clone());
   }
 
   getBboxMesh(bboxes, exptID, panelIdx, lineWidth = 2, color = null){
-      const panelSize = this.expt.experiments[exptID].detectorPanelData[panelIdx]["pxs"];
-      const panelGeometry = new THREE.PlaneGeometry(panelSize[0], panelSize[1]);
-      var panelMaterial;
-      const panelTexture = this.getBboxTexture(bboxes, panelSize, lineWidth, color);
-      panelMaterial = new THREE.MeshBasicMaterial({
-        map: panelTexture,
-        transparent: true
-      })
-
-      const plane = new THREE.Mesh(panelGeometry, panelMaterial);
-      var panelName = this.expt.getDetectorPanelName(exptID, panelIdx);
-      plane.name = panelName;
-
-    const vertices = this.getPanelPlaneVertices(exptID, panelIdx);
-    for (var i = 0; i < 4; i++) {
-      plane.geometry.attributes.position.array[3 * i] = vertices[i].x;
-      plane.geometry.attributes.position.array[3 * i + 1] = vertices[i].y;
-      plane.geometry.attributes.position.array[3 * i + 2] = vertices[i].z;
+    // Bounding box outlines (x0, x1, y0, y1 in pixels) as lines on the panel,
+    // placed like the reflection markers; lines stay visible at any zoom
+    const panelData = this.expt.getDetectorPanelDataByIdx(exptID, panelIdx);
+    const toGlobal = (x, y) => this.mapPointToGlobal(
+      [x, y], panelData["origin"], panelData["scaledFastAxis"],
+      panelData["scaledSlowAxis"], panelData["pxSize"]
+    );
+    const positions = new Float32Array(bboxes.length * 24);
+    let idx = 0;
+    for (const bbox of bboxes) {
+      const corners = [
+        toGlobal(bbox[0], bbox[2]), toGlobal(bbox[1], bbox[2]),
+        toGlobal(bbox[1], bbox[3]), toGlobal(bbox[0], bbox[3]),
+      ];
+      for (let i = 0; i < 4; i++) {
+        for (const corner of [corners[i], corners[(i + 1) % 4]]) {
+          positions[idx++] = corner.x;
+          positions[idx++] = corner.y;
+          positions[idx++] = corner.z;
+        }
+      }
     }
-    plane.userData.corners = [
-      new THREE.Vector3(
-        plane.geometry.attributes.position.array[0],
-        plane.geometry.attributes.position.array[1],
-        plane.geometry.attributes.position.array[2],
-      ),
-      new THREE.Vector3(
-        plane.geometry.attributes.position.array[3],
-        plane.geometry.attributes.position.array[4],
-        plane.geometry.attributes.position.array[5],
-      ),
-      new THREE.Vector3(
-        plane.geometry.attributes.position.array[6],
-        plane.geometry.attributes.position.array[7],
-        plane.geometry.attributes.position.array[8],
-      ),
-      new THREE.Vector3(
-        plane.geometry.attributes.position.array[9],
-        plane.geometry.attributes.position.array[10],
-        plane.geometry.attributes.position.array[11],
-      ),
-    ]
-
-    return plane;
-
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    // Drawn after the reflection markers (transparent pass, later renderOrder),
+    // which in 3D are larger than X-ray boxes and would hide them
+    const material = new THREE.LineBasicMaterial({
+      color: color !== null ? color : this.colors["bbox"],
+      transparent: true,
+    });
+    const lines = new THREE.LineSegments(geometry, material);
+    lines.renderOrder = 1;
+    lines.name = this.expt.getDetectorPanelName(exptID, panelIdx);
+    return lines;
   }
 
   async addReflectionsFromJSONMsgpack(reflMsgpack){
@@ -1372,6 +1544,7 @@ export class ExperimentViewer {
             size: this.reflectionSize.value,
             transparent: true,
             map: this.reflSprite,
+            depthWrite: false, // so bounding boxes drawn after them show
             color: this.colors["reflectionObsIndexed"]
           });
           const points = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
@@ -1392,6 +1565,7 @@ export class ExperimentViewer {
           size: this.reflectionSize.value,
           transparent: true,
           map: this.reflSprite,
+          depthWrite: false, // so bounding boxes drawn after them show
           color: this.colors["reflectionObsUnindexed"][exptID % this.colors["reflectionObsUnindexed"].length],
         });
         const points = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
@@ -1414,6 +1588,7 @@ export class ExperimentViewer {
           size: this.reflectionSize.value,
           transparent: true,
           map: this.reflSprite,
+          depthWrite: false, // so bounding boxes drawn after them show
           color: this.colors["reflectionCal"]
         });
         const points = new THREE.Points(reflGeometryCal, reflMaterialCal);
@@ -1435,6 +1610,7 @@ export class ExperimentViewer {
             size: this.reflectionSize.value,
             transparent: true,
             map: this.reflSprite,
+            depthWrite: false, // so bounding boxes drawn after them show
             color: this.colors["reflectionIntegrated"]
           });
           const points = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
@@ -1600,6 +1776,7 @@ export class ExperimentViewer {
           size: this.reflectionSize.value,
           transparent: true,
           map: this.reflSprite,
+          depthWrite: false, // so bounding boxes drawn after them show
           color: this.colors["reflectionIntegrated"]
         });
         const points = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
@@ -1714,6 +1891,7 @@ export class ExperimentViewer {
             size: this.reflectionSize.value,
             transparent: true,
             map: this.reflSprite,
+            depthWrite: false, // so bounding boxes drawn after them show
             color: this.colors["reflectionIntegrated"]
           });
           const points = new THREE.Points(reflGeometryIntegrated, reflMaterialIntegrated);
@@ -1835,6 +2013,7 @@ export class ExperimentViewer {
             size: this.reflectionSize.value,
             transparent: true,
             map: this.reflSprite,
+            depthWrite: false, // so bounding boxes drawn after them show
             color: this.colors["reflectionObsIndexed"]
           });
           const points = new THREE.Points(reflGeometryObsIndexed, reflMaterialObsIndexed);
@@ -1855,6 +2034,7 @@ export class ExperimentViewer {
           size: this.reflectionSize.value,
           transparent: true,
           map: this.reflSprite,
+          depthWrite: false, // so bounding boxes drawn after them show
           color: this.colors["reflectionObsUnindexed"][exptID % this.colors["reflectionObsUnindexed"].length],
         });
         const points = new THREE.Points(reflGeometryObsUnindexed, reflMaterialObsUnindexed);
@@ -1876,6 +2056,7 @@ export class ExperimentViewer {
         size: this.reflectionSize.value,
         transparent: true,
         map: this.reflSprite,
+        depthWrite: false, // so bounding boxes drawn after them show
         color: this.colors["reflectionCal"]
       });
       const pointsCal = new THREE.Points(reflGeometryCal, reflMaterialCal);
@@ -2108,9 +2289,10 @@ highlightReflection(reflData, focusOnPanel = true) {
     }
   }
 
-  getPanelTexture(idx, exptID, imageData=null) {
+  getPanelTexture(idx, exptID, imageData=null, scale=1) {
     if (imageData == null){
       imageData = this.expt.experiments[exptID].imageData[idx];
+      scale = this.getPanelScale(exptID, idx);
     }
     let panelSize = this.expt.getDetectorPanelSize(exptID, idx);
     if (imageData[0].length !== panelSize[0]){
@@ -2129,7 +2311,8 @@ highlightReflection(reflData, focusOnPanel = true) {
     var dataIdx = 0;
     for (var x = 0; x < imageData.length; x++) {
       for (var y = 0; y < imageData[0].length; y++) {
-        let value = this.getContrast(imageData[x][y], this.userContrast.value) * 255;
+        const scaled = Math.min(Math.max(imageData[x][y] * scale, 0), 1);
+        let value = this.getContrast(scaled, this.userContrast.value) * 255;
         value = Math.min(255, Math.max(0, value));
         if (this.lightTheme) { value = 255 - value; }
 
@@ -2193,13 +2376,27 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.updatePanelMeshes();
   }
 
-  addPanelImageData(imageData, panelIdx, exptID){ this.expt.parseImageData(imageData, panelIdx, exptID);
+  getPanelScale(exptID, panelIdx) {
+    return this.panelScales[exptID]?.[panelIdx] ?? 1;
+  }
+
+  setPanelScale(exptID, panelIdx, imageData) {
+    if (!(exptID in this.panelScales)) { this.panelScales[exptID] = {}; }
+    this.panelScales[exptID][panelIdx] = imageData["scale"] ?? 1;
+  }
+
+  addPanelImageData(imageData, panelIdx, exptID){
+    this.setPanelScale(exptID, panelIdx, imageData);
+    this.expt.parseImageData(imageData, panelIdx, exptID);
     this.clearDetectorMesh(panelIdx, exptID);
     this.addDetectorMesh(panelIdx, exptID);
     this.updatePanelMeshes();
   }
 
   addExptImageData(imageData, exptID){
+    for (let panelIdx = 0; panelIdx < imageData.length; panelIdx++){
+      this.setPanelScale(exptID, panelIdx, imageData[panelIdx]);
+    }
     this.expt.parseExptImageData(imageData, exptID);
 
     for (let panelIdx = 0; panelIdx < imageData.length; panelIdx++){
@@ -2235,10 +2432,10 @@ highlightReflection(reflData, focusOnPanel = true) {
     const panelThresholdTexture = this.getPanelTexture(panelIdx, 0, maskData);
 
     panelMaterial = new THREE.MeshBasicMaterial({
-      map: panelTexture
+      map: panelTexture, ...PANEL_IMAGE_DEPTH_OFFSET
     })
     panelThresholdMaterial = new THREE.MeshBasicMaterial({
-      map: panelThresholdTexture
+      map: panelThresholdTexture, ...PANEL_IMAGE_DEPTH_OFFSET
     })
 
 
@@ -2262,12 +2459,11 @@ highlightReflection(reflData, focusOnPanel = true) {
       idxs = [0, 3, 1, 2];
     }
 
-    const scaleFactor = 1.01 // ensure reflections appear in front of image
     var count = 0;
     for (var i = 0; i < 12; i += 3) {
-      plane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
-      plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
-      plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
+      plane.geometry.attributes.position.array[i] = corners[idxs[count]].x;
+      plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y;
+      plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z;
       count++;
     }
     plane.userData.corners = [
@@ -2295,9 +2491,9 @@ highlightReflection(reflData, focusOnPanel = true) {
 
     count = 0;
     for (var i = 0; i < 12; i += 3) {
-      thresholdPlane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
-      thresholdPlane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
-      thresholdPlane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
+      thresholdPlane.geometry.attributes.position.array[i] = corners[idxs[count]].x;
+      thresholdPlane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y;
+      thresholdPlane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z;
       count++;
     }
     thresholdPlane.userData.corners = [
@@ -2348,7 +2544,7 @@ highlightReflection(reflData, focusOnPanel = true) {
         panelGeometry.setAttribute('uvs', new THREE.BufferAttribute(uvs, 2));
         const panelTexture = this.getPanelTexture(panelIdx, exptID);
         panelMaterial = new THREE.MeshBasicMaterial({
-          map: panelTexture
+          map: panelTexture, ...PANEL_IMAGE_DEPTH_OFFSET
         })
       }
       const plane = new THREE.Mesh(panelGeometry, panelMaterial);
@@ -2693,7 +2889,16 @@ highlightReflection(reflData, focusOnPanel = true) {
       const intersects = window.rayCaster.intersectObjects(Object.values(viewer.panelMeshes));
       if (intersects.length > 0) {
         const name = intersects[0].object.name;
-        viewer.displayHeaderText(name + " [" + viewer.getPanelPositionAsString(intersects[0].point, name) + "]");
+        const panelIdx = viewer.expt.getDetectorPanelIdxByName(0, name);
+        const [slow, fast] = viewer.getPanelPosition(intersects[0].point, name);
+        let text = name + " [" + slow + ", " + fast + "]";
+        if (!viewer.debugImageMode && !viewer.debugThresholdMode) {
+          const intensity = viewer.getPixelIntensity(viewer.visibleExptID, panelIdx, slow, fast);
+          if (intensity !== null) { text += " <b>I:</b> " + intensity; }
+        }
+        const resolution = viewer.getPixelResolution(viewer.visibleExptID, panelIdx, slow, fast);
+        if (resolution !== null) { text += " <b>d:</b> " + resolution; }
+        viewer.displayHeaderText(text);
         viewer.highlightObject(viewer.panelOutlineMeshes[name]);
       }
     }
@@ -2759,6 +2964,70 @@ highlightReflection(reflData, focusOnPanel = true) {
     const panelY = (pos.x * sa.x + pos.y * sa.y + pos.z * sa.z)/data["pxSize"].y;
     return [Math.floor(-panelY), Math.floor(-panelX)];
 
+  }
+
+  getPixelCounts(exptID, panelIdx, slow, fast) {
+    // Counts at a pixel of the shown image, or null without image data.
+    // Panels are sent flipped and transposed: row = numFast - 1 - fast, column = slow
+    const imageData = this.expt.experiments[exptID]?.imageData?.[panelIdx];
+    if (!imageData || imageData.length === 0) { return null; }
+    const row = imageData.length - 1 - fast;
+    if (row < 0 || row >= imageData.length || slow < 0 || slow >= imageData[0].length) {
+      return null;
+    }
+    return imageData[row][slow];
+  }
+
+  getPixelIntensity(exptID, panelIdx, slow, fast) {
+    const counts = this.getPixelCounts(exptID, panelIdx, slow, fast);
+    if (counts === null) { return null; }
+    if (counts < 0) { return "masked"; }
+    if (counts === 0 || Number.isInteger(counts)) { return counts.toString(); }
+    const digits = Math.ceil(Math.log10(Math.abs(counts)));
+    return counts.toFixed(Math.max(0, 5 - digits));
+  }
+
+  getPixelResolution(exptID, panelIdx, slow, fast) {
+    // d-spacing at the pixel centre (A): one value for a monochromatic beam;
+    // the range over the shown images' times of flight, or the beam's
+    // wavelength range, for a polychromatic one
+    const beam = this.expt.getBeamData(exptID);
+    const panel = this.expt.getDetectorPanelDataByIdx(exptID, panelIdx);
+    if (!beam || !panel) { return null; }
+    const mm = new THREE.Vector3(
+      (fast + 0.5) * panel["pxSize"].x, (slow + 0.5) * panel["pxSize"].y, 1
+    );
+    const lab = mm.applyMatrix3(panel["dMatrix"]);
+    const distance = lab.length();
+    if (distance === 0) { return null; }
+    // The beam direction is from the sample to the source
+    const s0 = new THREE.Vector3(...beam["direction"]).normalize().negate();
+    const twoTheta = Math.acos(Math.min(Math.max(lab.dot(s0) / distance, -1), 1));
+    const sinTheta = Math.sin(twoTheta / 2);
+    if (sinTheta === 0) { return null; }
+    const d = (wavelength) => wavelength / (2 * sinTheta);
+
+    if ("wavelength" in beam && beam["wavelength"] > 0) {
+      return d(beam["wavelength"]).toFixed(3) + " &#8491;";
+    }
+    let wavelengths = null;
+    const tof = this.expt.getScanData(exptID)?.["properties"]?.["time_of_flight"];
+    if (tof && "sample_to_source_distance" in beam && this.numImages > 0) {
+      // lambda (A) = (h / m_n) t / L, with t in usec and L in mm
+      const pathLength = beam["sample_to_source_distance"] + distance;
+      const first = tof[this.imageNumber - 1];
+      const last = tof[Math.min(this.imageNumber + this.imageStack - 1, tof.length) - 1];
+      if (first !== undefined && last !== undefined) {
+        wavelengths = [first, last].map(t => 3.956034 * t / pathLength);
+      }
+    }
+    else if ("wavelength_range" in beam) {
+      wavelengths = beam["wavelength_range"];
+    }
+    if (wavelengths === null) { return null; }
+    const [dMin, dMax] = wavelengths.map(d).sort((a, b) => a - b);
+    if (dMax - dMin < 0.0005) { return dMin.toFixed(3) + " &#8491;"; }
+    return dMin.toFixed(3) + "&ndash;" + dMax.toFixed(3) + " &#8491;";
   }
 
   getPanelPositionAsString(globalPos, panelName) {
@@ -2917,6 +3186,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.updateCalculatedReflections();
     this.updateIntegratedReflections();
     this.updateBoundingBoxes();
+    this.addResolutionRings();
   }
 
   toggleExptVisibility(exptIDLabel) {
@@ -3102,6 +3372,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     window.viewer.updateOriginObjectsOpacity();
     window.viewer.updateGUIInfo();
     window.renderer.render(window.scene, window.camera);
+    window.labelRenderer?.render(window.scene, window.camera);
     this.renderRequested = false;
     window.viewer.enableMouseClick();
   }
@@ -3129,6 +3400,14 @@ export function setupScene() {
   window.renderer.setClearColor(window.viewer.colors["background"]);
   window.renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(window.renderer.domElement);
+
+  // HTML labels (resolution rings) over the canvas, a fixed size on screen
+  window.labelRenderer = new CSS2DRenderer();
+  window.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  Object.assign(window.labelRenderer.domElement.style, {
+    position: "absolute", top: "0", left: "0", pointerEvents: "none"
+  });
+  document.body.appendChild(window.labelRenderer.domElement);
 
   window.scene = new THREE.Scene()
   window.scene.fog = new THREE.Fog(window.viewer.colors["background"], 500, 3000);
@@ -3213,6 +3492,7 @@ export function setupScene() {
     window.viewer.update2DFrustum();
     window.viewer.updateLineWidths();
     window.renderer.setSize(window.innerWidth, window.innerHeight);
+    window.labelRenderer.setSize(window.innerWidth, window.innerHeight);
     window.viewer.requestRender();
   });
 
