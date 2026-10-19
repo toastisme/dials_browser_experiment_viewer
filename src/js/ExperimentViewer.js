@@ -2414,13 +2414,14 @@ highlightReflection(reflData, focusOnPanel = true) {
         imageData[panelIdx])
       const decompressedMaskData = ExptParser.decompressImageData(
         maskData[panelIdx])
-      this.addDebugDetectorMesh(panelIdx, decompressedImageData, decompressedMaskData);
+      this.addDebugDetectorMesh(
+        panelIdx, decompressedImageData, decompressedMaskData, imageData[panelIdx]["scale"] ?? 1);
     }
     this.updatePanelMeshes();
   }
 
 
-  addDebugDetectorMesh(panelIdx, imageData, maskData){
+  addDebugDetectorMesh(panelIdx, imageData, maskData, scale = 1){
     const panelSize = this.expt.getDetectorPanelSize(0, panelIdx);
     const panelGeometry = new THREE.PlaneGeometry(panelSize[1], panelSize[0]);
     var panelMaterial;
@@ -2428,7 +2429,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     var uvs = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
     panelGeometry.setAttribute('uvs', new THREE.BufferAttribute(uvs, 2));
 
-    const panelTexture = this.getPanelTexture(panelIdx, 0, imageData);
+    const panelTexture = this.getPanelTexture(panelIdx, 0, imageData, scale);
     const panelThresholdTexture = this.getPanelTexture(panelIdx, 0, maskData);
 
     panelMaterial = new THREE.MeshBasicMaterial({
