@@ -19,6 +19,10 @@
 </head>
 <body>
 	<header id="headerText"> </header>
+	<div id="viewToggle" style="display: none" role="group" aria-label="Panel view">
+		<button id="view3DButton" class="view-toggle-button active" aria-pressed="true">3D</button>
+		<button id="view2DButton" class="view-toggle-button" aria-pressed="false">2D</button>
+	</div>
 	<sidebar id="sidebar" class="hidden" style="width: 230px; padding: 10px;"> 
 		<button id="sidebarToggle" onclick="window.viewer.toggleSidebar()" aria-label="Toggle sidebar">
 			❮
@@ -81,6 +85,15 @@
 
 
 		</script>
+
+		<div id="panelControls" style="display: none">
+			<div class="slider-container panel-nav-row">
+				<b>panel:</b>
+				<button id="panelPrev" class="image-step" aria-label="Previous panel"><i class="fa fa-chevron-left"></i></button>
+				<span id="panelName2D" class="panel-name"></span>
+				<button id="panelNext" class="image-step" aria-label="Next panel"><i class="fa fa-chevron-right"></i></button>
+			</div>
+		</div>
 
 		<div id="imageControls" style="display: none">
 			<div class="slider-container image-slider-row">
@@ -436,6 +449,44 @@
 		.image-input {
 			-moz-appearance: textfield;
 			appearance: textfield;
+		}
+		.panel-nav-row {
+			gap: 4px;
+		}
+		.panel-name {
+			flex-grow: 1;
+			text-align: center;
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+		#viewToggle {
+			display: flex;
+			position: absolute;
+			top: 10px;
+			right: 10px;
+			z-index: 9;
+			padding: 3px;
+			gap: 2px;
+			border-radius: 10px;
+			background-color: rgba(0,1,0,0.7);
+		}
+		.view-toggle-button {
+			font-family: Tahoma, Verdana, sans-serif;
+			font-size: 12px;
+			font-weight: bold;
+			color: #ddd;
+			background: none;
+			border: none;
+			border-radius: 7px;
+			padding: 5px 10px;
+			cursor: pointer;
+		}
+		.view-toggle-button:hover {
+			opacity: 0.8;
+		}
+		.view-toggle-button.active {
+			color: #020817;
+			background-color: #f8fafc;
 		}
 		#reflectionSize{
 			position: relative;

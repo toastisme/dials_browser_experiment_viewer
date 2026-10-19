@@ -118,6 +118,19 @@ export class ExperimentViewer {
     this.lastImageRequestTime = 0;
     this.setupImageControls();
 
+    // 2D view: one panel face on, with its own camera (see setupScene)
+    this.view2D = false;
+    this.panel2DIdx = 0;
+    this.panel2DFrame = null;
+    this.viewToggle = document.getElementById("viewToggle");
+    this.view3DButton = document.getElementById("view3DButton");
+    this.view2DButton = document.getElementById("view2DButton");
+    this.panelControls = document.getElementById("panelControls");
+    this.panelPrevButton = document.getElementById("panelPrev");
+    this.panelNextButton = document.getElementById("panelNext");
+    this.panelName2D = document.getElementById("panelName2D");
+    this.setupViewControls();
+
     // Bookkeeping for meshes
     this.panelOutlineMeshes = {};
     this.panelMeshes = {}; // visible meshes that are involved in raycasting
@@ -357,6 +370,185 @@ export class ExperimentViewer {
     }, Math.max(wait, 0));
   }
 
+  setupViewControls() {
+    if (!this.viewToggle) { return; }
+    for (const el of [this.viewToggle, this.panelControls]) {
+      for (const type of ["click", "dblclick", "mousedown"]) {
+        el.addEventListener(type, (event) => event.stopPropagation());
+      }
+    }
+    this.view3DButton.addEventListener("click", () => this.setView2D(false));
+    this.view2DButton.addEventListener("click", () => this.setView2D(true));
+    this.panelPrevButton.addEventListener("click", () => this.show2DPanel(this.panel2DIdx - 1));
+    this.panelNextButton.addEventListener("click", () => this.show2DPanel(this.panel2DIdx + 1));
+  }
+
+  numPanels() {
+    return this.hasExperiment() ? this.expt.getNumDetectorPanels(this.visibleExptID) : 0;
+  }
+
+  setView2D(view2D) {
+    if (!this.viewToggle || !window.camera2D) { return; }
+    if (view2D && this.numPanels() === 0) { return; }
+    this.view2D = view2D;
+    window.camera = view2D ? window.camera2D : window.camera3D;
+    window.controls = view2D ? window.controls2D : window.controls3D;
+    window.controls3D.enabled = !view2D;
+    window.controls2D.enabled = view2D;
+
+    for (const mesh of this.beamMeshes) { mesh.visible = !view2D; }
+    // Panel images are drawn 1% further out (getPanelPlaneVertices); in 2D the
+    // outline is moved out to just in front of the image so it traces its edge
+    for (const name in this.panelOutlineMeshes) {
+      this.panelOutlineMeshes[name].visible = true;
+      this.panelOutlineMeshes[name].scale.setScalar(view2D ? 1.0099 : 1);
+    }
+    this.view3DButton.classList.toggle("active", !view2D);
+    this.view2DButton.classList.toggle("active", view2D);
+    this.view3DButton.setAttribute("aria-pressed", String(!view2D));
+    this.view2DButton.setAttribute("aria-pressed", String(view2D));
+    this.panelControls.style.display = view2D ? "" : "none";
+    this.updateLineWidths();
+
+    if (view2D) {
+      if (this.lastClickedPanelPosition !== null) {
+        this.panel2DIdx = this.lastClickedPanelPosition["panelIdx"];
+      }
+      this.show2DPanel(this.panel2DIdx);
+    }
+    else {
+      this.panel2DFrame = null;
+      this.updatePanelMeshes();
+    }
+  }
+
+  show2DPanel(panelIdx) {
+    // Shows the whole of panelIdx, face on
+    const numPanels = this.numPanels();
+    if (!this.view2D || numPanels === 0) { return; }
+    panelIdx = Math.min(Math.max(panelIdx, 0), numPanels - 1);
+    this.panel2DIdx = panelIdx;
+
+    const v = this.getPanelPlaneVertices(this.visibleExptID, panelIdx);
+    const center = v[0].clone().add(v[1]).add(v[2]).add(v[3]).divideScalar(4);
+    const data = this.expt.getDetectorPanelDataByIdx(this.visibleExptID, panelIdx);
+    const right = data["fastAxis"].clone().normalize();
+    const up = data["slowAxis"].clone().normalize().negate();
+    const toSample = center.clone().negate().normalize();
+    if (new THREE.Vector3().crossVectors(right, up).dot(toSample) < 0) {
+      up.negate();
+    }
+    const normal = new THREE.Vector3().crossVectors(right, up).normalize();
+    const extent = (axis) => {
+      const d = v.map(p => p.dot(axis));
+      return Math.max(...d) - Math.min(...d);
+    };
+    const width = extent(right);
+    const height = extent(up);
+
+    // Near and far only reach the panel plane, so other panels are not drawn
+    const distance = 0.05 * center.length() + 5;
+    this.panel2DFrame = { center, right, up, normal, width, height, distance };
+
+    const camera = window.camera2D;
+    camera.near = 0.1;
+    camera.far = 2 * distance;
+    camera.up.copy(up);
+    camera.position.copy(center).addScaledVector(normal, distance);
+    camera.lookAt(center);
+    camera.zoom = 1;
+    window.controls2D.target.copy(center);
+    this.update2DFrustum();
+    window.controls2D.update();
+
+    this.panelName2D.textContent = this.expt.getDetectorPanelName(this.visibleExptID, panelIdx)
+      + " (" + (panelIdx + 1) + "/" + numPanels + ")";
+    this.panelName2D.title = this.panelName2D.textContent;
+    this.panelPrevButton.disabled = panelIdx <= 0;
+    this.panelNextButton.disabled = panelIdx >= numPanels - 1;
+    this.updatePanelMeshes();
+  }
+
+  update2DFrustum() {
+    // Zoom 1 fits the whole panel and its outline in the window
+    const frame = this.panel2DFrame;
+    if (!frame || !window.camera2D) { return; }
+    const aspect = window.innerWidth / window.innerHeight;
+    const margin = 1.03;
+    const halfHeight = margin * Math.max(frame.height / 2, frame.width / (2 * aspect));
+    const camera = window.camera2D;
+    camera.left = -halfHeight * aspect;
+    camera.right = halfHeight * aspect;
+    camera.top = halfHeight;
+    camera.bottom = -halfHeight;
+    camera.updateProjectionMatrix();
+    this.clamp2DView();
+  }
+
+  clamp2DView() {
+    // Keeps the view inside the panel edges (and its outline)
+    const frame = this.panel2DFrame;
+    if (!frame) { return; }
+    const camera = window.camera2D;
+    const target = window.controls2D.target;
+    const visibleHalfWidth = camera.right / camera.zoom;
+    const visibleHalfHeight = camera.top / camera.zoom;
+    const outlinePixels = 6;
+    const margin = outlinePixels * 2 * visibleHalfHeight / window.innerHeight;
+    const limitX = Math.max(frame.width / 2 + margin - visibleHalfWidth, 0);
+    const limitY = Math.max(frame.height / 2 + margin - visibleHalfHeight, 0);
+    const offset = new THREE.Vector3().subVectors(target, frame.center);
+    const x = Math.min(Math.max(offset.dot(frame.right), -limitX), limitX);
+    const y = Math.min(Math.max(offset.dot(frame.up), -limitY), limitY);
+    target.copy(frame.center).addScaledVector(frame.right, x).addScaledVector(frame.up, y);
+    camera.position.copy(target).addScaledVector(frame.normal, frame.distance);
+  }
+
+  focus2DOnPoint(panelIdx, point) {
+    // Shows panelIdx zoomed in on point
+    if (panelIdx !== this.panel2DIdx || !this.panel2DFrame) {
+      this.show2DPanel(panelIdx);
+    }
+    window.camera2D.zoom = Math.max(window.camera2D.zoom, 4);
+    window.camera2D.updateProjectionMatrix();
+    window.controls2D.target.copy(point);
+    this.clamp2DView();
+    this.requestRender();
+  }
+
+  meshLineWidth(width3D, pixels2D) {
+    // MeshLine widths are in clip space, which is not scaled by depth in 2D,
+    // so there the width is set in pixels
+    if (!this.view2D) { return width3D; }
+    return 2 * pixels2D * (window.innerWidth / window.innerHeight) / window.innerHeight;
+  }
+
+  highlightLineWidth() {
+    return this.meshLineWidth(3, 3);
+  }
+
+  updateLineWidths() {
+    if (this.highlightReflectionMesh) {
+      this.highlightReflectionMesh.material.lineWidth = this.highlightLineWidth();
+    }
+    for (const name in this.panelOutlineMeshes) {
+      this.panelOutlineMeshes[name].material.lineWidth = this.meshLineWidth(6, 3);
+    }
+  }
+
+  applyPanel2DVisibility() {
+    // Only the 2D panel and its outline are shown, and only it can be clicked
+    const meshes = this.panelMeshes;
+    for (const key of Object.keys(meshes)) {
+      meshes[key].visible = Number(key) === this.panel2DIdx;
+    }
+    const panelName = this.expt.getDetectorPanelName(this.visibleExptID, this.panel2DIdx);
+    for (const name in this.panelOutlineMeshes) {
+      this.panelOutlineMeshes[name].visible = name === panelName;
+    }
+    this.panelMeshes = this.panel2DIdx in meshes ? { [this.panel2DIdx]: meshes[this.panel2DIdx] } : {};
+  }
+
   updateTheme(theme){
     const isLight = theme === "light";
     this.lightTheme = isLight;
@@ -421,6 +613,10 @@ export class ExperimentViewer {
         this.panelMeshes = this.debugPanelThresholdMeshes;
       }
 
+    }
+
+    if (this.view2D) {
+      this.applyPanel2DVisibility();
     }
 
     this.requestRender();
@@ -672,6 +868,8 @@ export class ExperimentViewer {
       this.highlightReflectionMesh = null;
     }
 
+    this.setView2D(false);
+    if (this.viewToggle) { this.viewToggle.style.display = "none"; }
     this.expt.clearExperiment();
     this.hideCloseExptButton();
     this.hideImageControls();
@@ -730,6 +928,7 @@ export class ExperimentViewer {
     this.displayDefaultHeaderText();
     this.updateExperimentList();
     this.updatePanelMeshes();
+    if (this.viewToggle) { this.viewToggle.style.display = ""; }
   }
 
 
@@ -910,20 +1109,11 @@ export class ExperimentViewer {
     return texture;
   }
 
-  getBboxMesh(bboxes, exptID, panelIdx, lineWidth = 2, color = null){
-      const panelSize = this.expt.experiments[exptID].detectorPanelData[panelIdx]["pxs"];
-      const panelGeometry = new THREE.PlaneGeometry(panelSize[0], panelSize[1]);
-      var panelMaterial;
-      const panelTexture = this.getBboxTexture(bboxes, panelSize, lineWidth, color);
-      panelMaterial = new THREE.MeshBasicMaterial({
-        map: panelTexture,
-        transparent: true
-      })
-
-      const plane = new THREE.Mesh(panelGeometry, panelMaterial);
-      var panelName = this.expt.getDetectorPanelName(exptID, panelIdx);
-      plane.name = panelName;
-
+  getPanelPlaneVertices(exptID, panelIdx) {
+    /*
+     * Panel corners in PlaneGeometry vertex order (top left, top right,
+     * bottom left, bottom right of the image), facing the sample
+     */
     var corners = this.expt.getDetectorPanelCorners(exptID, panelIdx);
 
     var idxs = [1, 2, 0, 3]
@@ -940,12 +1130,32 @@ export class ExperimentViewer {
     }
 
     const scaleFactor = 1.01 // ensure reflections appear in front of image
-    var count = 0;
-    for (var i = 0; i < 12; i += 3) {
-      plane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
-      plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
-      plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
-      count++;
+    return idxs.map(i => new THREE.Vector3(
+      corners[i].x * scaleFactor,
+      corners[i].y * scaleFactor,
+      corners[i].z * scaleFactor
+    ));
+  }
+
+  getBboxMesh(bboxes, exptID, panelIdx, lineWidth = 2, color = null){
+      const panelSize = this.expt.experiments[exptID].detectorPanelData[panelIdx]["pxs"];
+      const panelGeometry = new THREE.PlaneGeometry(panelSize[0], panelSize[1]);
+      var panelMaterial;
+      const panelTexture = this.getBboxTexture(bboxes, panelSize, lineWidth, color);
+      panelMaterial = new THREE.MeshBasicMaterial({
+        map: panelTexture,
+        transparent: true
+      })
+
+      const plane = new THREE.Mesh(panelGeometry, panelMaterial);
+      var panelName = this.expt.getDetectorPanelName(exptID, panelIdx);
+      plane.name = panelName;
+
+    const vertices = this.getPanelPlaneVertices(exptID, panelIdx);
+    for (var i = 0; i < 4; i++) {
+      plane.geometry.attributes.position.array[3 * i] = vertices[i].x;
+      plane.geometry.attributes.position.array[3 * i + 1] = vertices[i].y;
+      plane.geometry.attributes.position.array[3 * i + 2] = vertices[i].z;
     }
     plane.userData.corners = [
       new THREE.Vector3(
@@ -1633,7 +1843,15 @@ highlightReflection(reflData, focusOnPanel = true) {
         focusOnPanel = reflData["focusOnPanel"];
     }
     
-    if (focusOnPanel) {
+    if (focusOnPanel && this.view2D) {
+        const data = this.expt.getDetectorPanelDataByIdx(0, reflData["panelIdx"]);
+        const point = this.mapPointToGlobal(
+          [pos[1], pos[0]], data["origin"], data["scaledFastAxis"],
+          data["scaledSlowAxis"], data["pxSize"]
+        );
+        this.focus2DOnPoint(reflData["panelIdx"], point);
+    }
+    else if (focusOnPanel) {
         const panelName = reflData["name"];
         var panel = this.panelMeshes[reflData["panelIdx"]];
         window.viewer.zoomInOnPanel(panel, -1, panelName, pos);
@@ -1679,7 +1897,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     points = points.map(point => new THREE.Vector3(point.x, point.y, point.z));
     line.setPoints(points);
     const material = new MeshLineMaterial({
-      lineWidth: 3,
+      lineWidth: this.highlightLineWidth(),
       color: this.colors["highlightBbox"],
     });
 
@@ -2083,28 +2301,11 @@ highlightReflection(reflData, focusOnPanel = true) {
       var panelName = this.expt.getDetectorPanelName(exptID, panelIdx);
       plane.name = panelName;
 
-    var corners = this.expt.getDetectorPanelCorners(exptID, panelIdx);
-
-    var idxs = [1, 2, 0, 3]
-
-    // Rotate if not facing the origin
-    var normalVec = this.expt.getDetectorPanelNormal(exptID, panelIdx);
-    var posVec = corners[0].clone();
-    posVec.add(corners[1].clone());
-    posVec.add(corners[2].clone());
-    posVec.add(corners[3].clone());
-    posVec.divideScalar(4).normalize();
-    if (posVec.dot(normalVec) < 0) {
-      idxs = [0, 3, 1, 2];
-    }
-
-    const scaleFactor = 1.01 // ensure reflections appear in front of image
-    var count = 0;
-    for (var i = 0; i < 12; i += 3) {
-      plane.geometry.attributes.position.array[i] = corners[idxs[count]].x * scaleFactor;
-      plane.geometry.attributes.position.array[i + 1] = corners[idxs[count]].y * scaleFactor;
-      plane.geometry.attributes.position.array[i + 2] = corners[idxs[count]].z * scaleFactor;
-      count++;
+    const vertices = this.getPanelPlaneVertices(exptID, panelIdx);
+    for (var i = 0; i < 4; i++) {
+      plane.geometry.attributes.position.array[3 * i] = vertices[i].x;
+      plane.geometry.attributes.position.array[3 * i + 1] = vertices[i].y;
+      plane.geometry.attributes.position.array[3 * i + 2] = vertices[i].z;
     }
     plane.userData.corners = [
       new THREE.Vector3(
@@ -2393,8 +2594,8 @@ highlightReflection(reflData, focusOnPanel = true) {
       window.viewer.disableReflectionCreation();
       return;
     }
-    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     if (intersects.length > 0) {
       const name = intersects[0].object.name;
       const panelIdx = this.expt.getDetectorPanelIdxByName(0, name);
@@ -2426,8 +2627,8 @@ highlightReflection(reflData, focusOnPanel = true) {
   updateGUIInfo() {
 
     function updatePanelInfo(viewer) {
-      const intersects = window.rayCaster.intersectObjects(Object.values(viewer.panelMeshes));
       window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+      const intersects = window.rayCaster.intersectObjects(Object.values(viewer.panelMeshes));
       if (intersects.length > 0) {
         const name = intersects[0].object.name;
         viewer.displayHeaderText(name + " [" + viewer.getPanelPositionAsString(intersects[0].point, name) + "]");
@@ -2438,8 +2639,8 @@ highlightReflection(reflData, focusOnPanel = true) {
     function updateReflectionInfo(viewer) {
       if (!viewer.observedIndexedReflsCheckbox.checked) { return; }
       for (var i = 0; i < viewer.reflPointsObsIndexed.length; i++) {
-        const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed[i]);
         window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+        const intersects = window.rayCaster.intersectObjects(viewer.reflPointsObsIndexed[i]);
         if (intersects.length > 0) {
           for (var j = 0; j < intersects.length; j++) {
             const millerIdx = viewer.refl.getMillerIndexById(intersects[j].index);
@@ -2453,8 +2654,8 @@ highlightReflection(reflData, focusOnPanel = true) {
       if (viewer.beamHidden()) {
         return;
       }
-      const intersects = window.rayCaster.intersectObjects(viewer.beamMeshes);
       window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+      const intersects = window.rayCaster.intersectObjects(viewer.beamMeshes);
       if (intersects.length > 0) {
         const text = "<b>beam: </b>" + viewer.expt.getBeamSummary(0);
         viewer.displayHeaderText(text);
@@ -2468,8 +2669,8 @@ highlightReflection(reflData, focusOnPanel = true) {
       if (viewer.expt.getCrystalSummary(0) == null) {
         return;
       }
-      const intersects = window.rayCaster.intersectObjects([viewer.sampleMesh]);
       window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+      const intersects = window.rayCaster.intersectObjects([viewer.sampleMesh]);
       if (intersects.length > 0) {
         const text = "<b>crystal: </b>" + viewer.expt.getCrystalSummary(0);
         viewer.displayHeaderText(text);
@@ -2745,8 +2946,8 @@ highlightReflection(reflData, focusOnPanel = true) {
 
   enableReflectionCreation() {
     if (this.preventMouseClick) { return; }
-    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     if (intersects.length === 0) { return; }
 
     if (this.userReflection) {
@@ -2820,8 +3021,8 @@ highlightReflection(reflData, focusOnPanel = true) {
   }
 
   updateNewReflection() {
-    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
     if (intersects.length === 0) { return; }
     if (this.userReflection) {
       this.userReflection.updateUserOutline(intersects[0].point);
@@ -2886,6 +3087,25 @@ export function setupScene() {
   window.controls.update();
   window.controls.addEventListener("change", function () { window.viewer.requestRender(); });
 
+  // 2D view (ExperimentViewer.setView2D): orthographic, pan and zoom only
+  window.camera3D = window.camera;
+  window.controls3D = window.controls;
+  window.camera2D = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
+  window.controls2D = new OrbitControls(window.camera2D, window.renderer.domElement);
+  window.controls2D.enableRotate = false;
+  window.controls2D.screenSpacePanning = true;
+  window.controls2D.zoomToCursor = true;
+  window.controls2D.minZoom = 1;
+  window.controls2D.maxZoom = 100;
+  window.controls2D.mouseButtons = {
+    LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.PAN, RIGHT: null
+  };
+  window.controls2D.enabled = false;
+  window.controls2D.addEventListener("change", function () {
+    window.viewer.clamp2DView();
+    window.viewer.requestRender();
+  });
+
 
   // Events
   window.mousePosition = new THREE.Vector2();
@@ -2926,8 +3146,10 @@ export function setupScene() {
 
 
   window.addEventListener("resize", function () {
-    window.camera.aspect = window.innerWidth / window.innerHeight;
-    window.camera.updateProjectionMatrix();
+    window.camera3D.aspect = window.innerWidth / window.innerHeight;
+    window.camera3D.updateProjectionMatrix();
+    window.viewer.update2DFrustum();
+    window.viewer.updateLineWidths();
     window.renderer.setSize(window.innerWidth, window.innerHeight);
     window.viewer.requestRender();
   });
@@ -2955,13 +3177,20 @@ export function setupScene() {
   });
 
   window.addEventListener('dblclick', function (event) {
+    if (window.viewer.view2D) { return; }
     var panel = window.viewer.getClickedPanelMesh();
     if (panel) {
       window.viewer.zoomInOnPanel(panel);
     }
   });
 
+  // In 2D, dragging pans, so a drag does not count as a click
+  let mouseDownPos = null;
   window.addEventListener('click', function (event) {
+    if (window.viewer.view2D && !window.viewer.drawingReflection && mouseDownPos !== null) {
+      const moved = Math.hypot(event.clientX - mouseDownPos.x, event.clientY - mouseDownPos.y);
+      if (moved > 3) { return; }
+    }
     if (event.button === 0) {
       if (event.altKey && window.viewer.drawingReflection) {
         window.viewer.onEndDrawingReflection();
@@ -2973,11 +3202,17 @@ export function setupScene() {
   });
 
   window.addEventListener('mousedown', function (event) {
+    mouseDownPos = { x: event.clientX, y: event.clientY };
     if (event.button === 0 && event.altKey) {
       window.viewer.enableReflectionCreation();
     }
     if (event.button == 2) {
-      window.viewer.setCameraToDefaultPositionWithExperiment();
+      if (window.viewer.view2D) {
+        window.viewer.show2DPanel(window.viewer.panel2DIdx);
+      }
+      else {
+        window.viewer.setCameraToDefaultPositionWithExperiment();
+      }
     }
     if (event.button === 1) { // Middle mouse button
       window.viewer.isPanning = true;
