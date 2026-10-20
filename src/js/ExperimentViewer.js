@@ -1472,6 +1472,8 @@ export class ExperimentViewer {
       else{
         exptID = 0;
       }
+      // e.g. unindexed reference reflections (id -1) in an integrated table
+      if (!(exptID >= 0 && exptID < this.expt.numExperiments())) { continue; }
 
       // xyzObs
       if (xyzObs !== null && this.inImageRange(xyzObs[reflIdx][2], exptID)){
@@ -1739,6 +1741,8 @@ export class ExperimentViewer {
       else{
         exptID = 0;
       }
+      // e.g. unindexed reference reflections (id -1) in an integrated table
+      if (!(exptID >= 0 && exptID < this.expt.numExperiments())) { continue; }
 
       if (xyzCal !== null && !this.inImageRange(xyzCal[reflIdx][2], exptID)) {
         continue;
