@@ -585,7 +585,8 @@
 			"bbox" : 0xdddddd,
 			"axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
 			"highlightBbox" : 0x96f97b,
-			"createNewReflectionBbox" : 0xffb07c
+			"createNewReflectionBbox" : 0xffb07c,
+			"mask" : 0xa8d5a2
 	};
 
 	window.onload = function(){
@@ -711,6 +712,15 @@
 					else{
 						window.viewer.setDebugToImage();
 					}
+					break;
+				case "mask.set_active":
+					window.viewer.setMaskActive(payload["active"]);
+					break;
+				case "mask.set_polygons":
+					window.viewer.setMaskPolygons(payload["polygons"]);
+					break;
+				case "mask.clear":
+					window.viewer.clearMask();
 					break;
 				case "sidebar.toggle":
 					window.viewer.toggleSidebar();

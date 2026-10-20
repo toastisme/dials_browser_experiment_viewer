@@ -201,6 +201,13 @@ export class ExperimentViewer {
     // Miller index labels ({indexed, calculated, integrated}: per exptID, [{pos, text}])
     this.hklLabels = ExperimentViewer.emptyHklLabels();
     this.hklLabelsDrawn = false;
+    // Mask tool: polygons on the panels ({panel, points: [[fast, slow], ...]} in
+    // pixels), the one being drawn, and their meshes (shown while it is active)
+    this.maskActive = false;
+    this.maskPolygons = [];
+    this.maskCurrent = null;
+    this.maskMeshes = [];
+    this.maskPreviewMesh = null;
     this.beamMeshes = [];
     this.axesMeshes = [];
     this.sampleMesh = null;
@@ -295,7 +302,8 @@ export class ExperimentViewer {
       "bbox": 0xFFFFFF,
       "axes": [0xffaaaa, 0xaaffaa, 0xaaaaff],
       "highlightBbox": 0x96f97b,
-      "createNewReflectionBbox": 0xffb07c
+      "createNewReflectionBbox": 0xffb07c,
+      "mask": 0xa8d5a2
     };
   }
 
@@ -322,6 +330,8 @@ export class ExperimentViewer {
     return {
       "highlightBboxSize": 2,
       "bboxLineWidth" : .3,
+      // Screen pixels from the first point within which a click closes a mask polygon
+      "maskCloseDistance": 10,
     };
   }
 
@@ -678,6 +688,7 @@ export class ExperimentViewer {
     for (const name in this.panelOutlineMeshes) {
       this.panelOutlineMeshes[name].material.lineWidth = this.meshLineWidth(6, 3);
     }
+    this.drawMask();
   }
 
   applyPanel2DVisibility() {
@@ -1136,6 +1147,7 @@ export class ExperimentViewer {
 
   clearExperiment() {
 
+    this.clearMask();
     this.clearResolutionRings();
     if (this.resolutionRingsRow) { this.resolutionRingsRow.style.display = "none"; }
 
@@ -2960,6 +2972,10 @@ highlightReflection(reflData, focusOnPanel = true) {
   onLeftClick() {
     if (this.isStandalone) { return; }
     if (this.preventMouseClick) { return; }
+    if (this.maskActive) {
+      this.onMaskClick();
+      return;
+    }
     if (this.creatingReflection && !this.drawingReflection) {
       window.viewer.disableReflectionCreation();
       return;
@@ -2975,6 +2991,220 @@ highlightReflection(reflData, focusOnPanel = true) {
         this.highlightReflection({ "panelIdx": panelIdx, "panelPos": panelPos }, false);
       }
     }
+  }
+
+  setMaskActive(active) {
+    this.maskActive = active;
+    // An unfinished polygon is dropped
+    const wasDrawing = this.maskCurrent !== null;
+    this.maskCurrent = null;
+    this.drawMask();
+    if (wasDrawing) { this.sendMaskPolygons(); }
+  }
+
+  setMaskPolygons(polygons) {
+    this.maskPolygons = polygons;
+    this.maskCurrent = null;
+    this.drawMask();
+  }
+
+  clearMask() {
+    this.setMaskPolygons([]);
+  }
+
+  maskPanelData(panelIdx) {
+    return this.expt.getDetectorPanelDataByIdx(0, panelIdx);
+  }
+
+  maskPointToGlobal(panelIdx, point) {
+    const data = this.maskPanelData(panelIdx);
+    return this.mapPointToGlobal(
+      point, data["origin"], data["scaledFastAxis"], data["scaledSlowAxis"], data["pxSize"]
+    );
+  }
+
+  maskPixelPosition(globalPos, panelIdx) {
+    // Fractional (fast, slow) pixel position on the panel, clamped to it
+    const data = this.maskPanelData(panelIdx);
+    const pos = globalPos.clone().sub(data["origin"]);
+    const fast = data["scaledFastAxis"];
+    const slow = data["scaledSlowAxis"];
+    const numFast = fast.length() / data["pxSize"].x;
+    const numSlow = slow.length() / data["pxSize"].y;
+    const x = pos.dot(fast.clone().normalize()) / data["pxSize"].x;
+    const y = pos.dot(slow.clone().normalize()) / data["pxSize"].y;
+    return [Math.min(Math.max(x, 0), numFast), Math.min(Math.max(y, 0), numSlow)];
+  }
+
+  maskScreenDistance(globalA, globalB) {
+    const a = globalA.clone().project(window.camera);
+    const b = globalB.clone().project(window.camera);
+    const dx = (a.x - b.x) * window.innerWidth / 2;
+    const dy = (a.y - b.y) * window.innerHeight / 2;
+    return Math.hypot(dx, dy);
+  }
+
+  maskPanelHit() {
+    // {panelIdx, point} under the mouse, or null
+    window.rayCaster.setFromCamera(window.mousePosition, window.camera);
+    const intersects = window.rayCaster.intersectObjects(Object.values(this.panelMeshes));
+    if (intersects.length === 0) { return null; }
+    const panelIdx = this.expt.getDetectorPanelIdxByName(0, intersects[0].object.name);
+    return { panelIdx: panelIdx, point: intersects[0].point };
+  }
+
+  maskClosesPolygon(globalPos) {
+    // Whether globalPos is on the first point of a polygon that can be closed
+    const current = this.maskCurrent;
+    if (current === null || current.points.length < 3) { return false; }
+    const first = this.maskPointToGlobal(current.panel, current.points[0]);
+    return this.maskScreenDistance(first, globalPos) < ExperimentViewer.sizes()["maskCloseDistance"];
+  }
+
+  onMaskClick() {
+    // Each click adds a point; clicking the first point again closes the polygon
+    const hit = this.maskPanelHit();
+    if (hit === null) { return; }
+    const current = this.maskCurrent;
+    if (current === null) {
+      this.maskCurrent = {
+        panel: hit.panelIdx, points: [this.maskPixelPosition(hit.point, hit.panelIdx)]
+      };
+      this.drawMask();
+      this.sendMaskPolygons();
+      return;
+    }
+    // A polygon stays on the panel it was started on
+    if (hit.panelIdx !== current.panel) { return; }
+    if (this.maskClosesPolygon(hit.point)) {
+      this.maskPolygons.push(current);
+      this.maskCurrent = null;
+      this.drawMask();
+      this.sendMaskPolygons();
+      return;
+    }
+    const last = this.maskPointToGlobal(current.panel, current.points[current.points.length - 1]);
+    // e.g. the second click of a double click
+    if (this.maskScreenDistance(last, hit.point) < 2) { return; }
+    current.points.push(this.maskPixelPosition(hit.point, hit.panelIdx));
+    this.drawMask();
+  }
+
+  sendMaskPolygons() {
+    if (this.serverWS === null) { return; }
+    this.serverWS.send(JSON.stringify({
+      "channel": "server",
+      "type": "mask.update",
+      "payload": { "polygons": this.maskPolygons, "drawing": this.maskCurrent !== null }
+    }));
+  }
+
+  maskLineMesh(points) {
+    const line = new MeshLineGeometry();
+    line.setPoints(points);
+    const material = new MeshLineMaterial({
+      lineWidth: this.meshLineWidth(2, 2),
+      color: this.colors["mask"],
+      depthWrite: false,
+      depthTest: false,
+    });
+    return new THREE.Mesh(line, material);
+  }
+
+  maskFillMesh(polygon) {
+    const contour = polygon.points.map((p) => new THREE.Vector2(p[0], p[1]));
+    const faces = THREE.ShapeUtils.triangulateShape(contour, []);
+    const positions = [];
+    for (const p of polygon.points) {
+      const g = this.maskPointToGlobal(polygon.panel, p);
+      positions.push(g.x, g.y, g.z);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(faces.flat());
+    const material = new THREE.MeshBasicMaterial({
+      color: this.colors["mask"],
+      transparent: true,
+      opacity: 0.35,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      depthTest: false,
+    });
+    return new THREE.Mesh(geometry, material);
+  }
+
+  maskVertexMesh(points, size) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.PointsMaterial({
+      size: size,
+      sizeAttenuation: false,
+      map: this.reflSprite,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      color: this.colors["mask"],
+    });
+    return new THREE.Points(geometry, material);
+  }
+
+  disposeMaskMesh(mesh) {
+    window.scene.remove(mesh);
+    mesh.geometry.dispose();
+    mesh.material.dispose();
+  }
+
+  drawMask() {
+    // Drawn over the images and reflections (no depth test)
+    for (const mesh of this.maskMeshes) { this.disposeMaskMesh(mesh); }
+    this.maskMeshes = [];
+    this.clearMaskPreview();
+    if (this.maskActive) {
+      for (const polygon of this.maskPolygons) {
+        const points = polygon.points.map((p) => this.maskPointToGlobal(polygon.panel, p));
+        this.maskMeshes.push(this.maskFillMesh(polygon));
+        this.maskMeshes.push(this.maskLineMesh([...points, points[0]]));
+      }
+      const current = this.maskCurrent;
+      if (current !== null) {
+        const points = current.points.map((p) => this.maskPointToGlobal(current.panel, p));
+        if (points.length > 1) {
+          this.maskMeshes.push(this.maskLineMesh(points));
+        }
+        this.maskMeshes.push(this.maskVertexMesh(points, 8));
+        // The first point, clicked again to close the polygon
+        this.maskMeshes.push(this.maskVertexMesh([points[0]], 14));
+      }
+      for (const mesh of this.maskMeshes) {
+        mesh.renderOrder = 1;
+        window.scene.add(mesh);
+      }
+    }
+    this.requestRender();
+  }
+
+  clearMaskPreview() {
+    if (this.maskPreviewMesh !== null) {
+      this.disposeMaskMesh(this.maskPreviewMesh);
+      this.maskPreviewMesh = null;
+    }
+  }
+
+  updateMaskPreview() {
+    // Line from the last point to the mouse (or the first point when it closes)
+    this.clearMaskPreview();
+    const current = this.maskCurrent;
+    if (!this.maskActive || current === null) { return; }
+    const hit = this.maskPanelHit();
+    if (hit === null || hit.panelIdx !== current.panel) { return; }
+    const last = this.maskPointToGlobal(current.panel, current.points[current.points.length - 1]);
+    const end = this.maskClosesPolygon(hit.point)
+      ? this.maskPointToGlobal(current.panel, current.points[0])
+      : hit.point;
+    this.maskPreviewMesh = this.maskLineMesh([last, end]);
+    this.maskPreviewMesh.material.opacity = 0.6;
+    this.maskPreviewMesh.material.transparent = true;
+    this.maskPreviewMesh.renderOrder = 1;
+    window.scene.add(this.maskPreviewMesh);
   }
 
   updateSettings(settings) {
@@ -3488,6 +3718,9 @@ highlightReflection(reflData, focusOnPanel = true) {
     if (this.drawingReflection) {
       this.updateNewReflection();
     }
+    if (this.maskActive) {
+      this.updateMaskPreview();
+    }
     window.viewer.resetPanelColors();
     window.viewer.updateOriginObjectsOpacity();
     window.viewer.updateGUIInfo();
@@ -3652,17 +3885,19 @@ export function setupScene() {
   });
 
   window.addEventListener('dblclick', function (event) {
-    if (window.viewer.view2D) { return; }
+    if (window.viewer.view2D || window.viewer.maskActive) { return; }
     var panel = window.viewer.getClickedPanelMesh();
     if (panel) {
       window.viewer.zoomInOnPanel(panel);
     }
   });
 
-  // In 2D, dragging pans, so a drag does not count as a click
+  // In 2D dragging pans (and in 3D rotates), so a drag does not count as a
+  // click there or when drawing a mask
   let mouseDownPos = null;
   window.addEventListener('click', function (event) {
-    if (window.viewer.view2D && !window.viewer.drawingReflection && mouseDownPos !== null) {
+    const viewer = window.viewer;
+    if ((viewer.view2D || viewer.maskActive) && !viewer.drawingReflection && mouseDownPos !== null) {
       const moved = Math.hypot(event.clientX - mouseDownPos.x, event.clientY - mouseDownPos.y);
       if (moved > 3) { return; }
     }
