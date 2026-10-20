@@ -65,6 +65,11 @@
 				window.viewer.updateResolutionRings();
 			}
 
+			function updateHklLabels(){
+				window.viewer.disableMouseClick();
+				window.viewer.updateHklLabels();
+			}
+
 			function updateAxes(){
 				window.viewer.disableMouseClick(); 
 				window.viewer.updateAxes()
@@ -157,6 +162,18 @@
 		<b>resolution rings:</b> <input type="checkbox"
 		id="resolutionRings"
 		onclick="updateResolutionRings()" disabled>
+		</div>
+
+		<div class="checkbox-row" id="hklLabelsRow" style="display: none">
+		<b>Miller indices:</b> <input type="checkbox"
+		id="hklLabels"
+		onclick="updateHklLabels()">
+		</div>
+
+		<div id="hklLabelSizeContainer" class="slider-container" style="display: none">
+		<b>label size:</b>  <input type="range" min="5" max="40" value="12"
+		class="slider" id="hklLabelSizeSlider"
+		oninput="updateHklLabels()">
 		</div>
 
 		<div id="reflectionSizeContainer" class="slider-container">

@@ -9,6 +9,7 @@ An open source tool to view [DIALS](https://github.com/dials/dials) [experiment 
 - Drag .refl files into the browser to view reflection centroids and bounding boxes in lab space
 - Realtime panel coordinates of mouse position, with the pixel's intensity (when image data is loaded) and resolution (a range for time-of-flight images or polychromatic beams)
 - Hover over indexed reflections to see Miller indices
+- Miller index labels for indexed, calculated and integrated reflections, with an adjustable size. Each hkl is labelled once, at its observed position if shown, else its calculated position. Labels are drawn on a 2D canvas over the scene and sized like the reflection points: fixed on screen in the 2D view, smaller with distance in 3D (labels under 4 px are skipped)
 - Resolution rings on each panel for monochromatic beams
 - Hover over sample to see unit cell
 - Hover over beam to see beam direction, and wavelength (if monochromatic)

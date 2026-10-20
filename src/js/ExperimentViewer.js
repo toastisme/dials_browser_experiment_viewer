@@ -142,6 +142,10 @@ export class ExperimentViewer {
     this.integratedBoundingBoxesRow = document.getElementById("integratedBoundingBoxesRow");
     this.resolutionRingsRow = document.getElementById("resolutionRingsRow");
     this.resolutionRingsCheckbox = document.getElementById("resolutionRings");
+    this.hklLabelsRow = document.getElementById("hklLabelsRow");
+    this.hklLabelsCheckbox = document.getElementById("hklLabels");
+    this.hklLabelSizeContainer = document.getElementById("hklLabelSizeContainer");
+    this.hklLabelSize = document.getElementById("hklLabelSizeSlider");
     this.reflectionSizeContainer = document.getElementById("reflectionSizeContainer");
     this.reflectionSize = document.getElementById("reflectionSizeSlider");
     this.userContrast = document.getElementById("userContrast");
@@ -194,6 +198,9 @@ export class ExperimentViewer {
     this.bboxMeshesIntegrated = [];
     this.resolutionRingMeshes = [];
     this.resolutionRingLabels = [];
+    // Miller index labels ({indexed, calculated, integrated}: per exptID, [{pos, text}])
+    this.hklLabels = ExperimentViewer.emptyHklLabels();
+    this.hklLabelsDrawn = false;
     this.beamMeshes = [];
     this.axesMeshes = [];
     this.sampleMesh = null;
@@ -316,6 +323,88 @@ export class ExperimentViewer {
       "highlightBboxSize": 2,
       "bboxLineWidth" : .3,
     };
+  }
+
+  static emptyHklLabels() {
+    return { indexed: [], calculated: [], integrated: [] };
+  }
+
+  static hklLabelText(hkl) {
+    return hkl[0] + " " + hkl[1] + " " + hkl[2];
+  }
+
+  updateHklLabelControls() {
+    if (!this.hklLabelsRow) { return; }
+    const hasHkl = (this.refl.hasReflTable() && this.refl.containsMillerIndices()) ||
+      (this.calculatedIntegratedRefl.hasReflTable() && this.calculatedIntegratedRefl.containsMillerIndices());
+    this.hklLabelsRow.style.display = hasHkl ? "" : "none";
+    this.hklLabelSizeContainer.style.display = hasHkl ? "" : "none";
+  }
+
+  updateHklLabels() {
+    this.requestRender();
+  }
+
+  drawHklLabels() {
+    // Drawn on a 2D canvas over the scene each render. Each hkl once, at its
+    // observed position if shown, else calculated. Sized like the reflection
+    // points: fixed on screen in 2D, scaled with distance in 3D
+    const canvas = window.hklLabelCanvas;
+    if (!canvas || !this.hklLabelsCheckbox) { return; }
+    const ctx = canvas.getContext("2d");
+    if (this.hklLabelsDrawn) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      this.hklLabelsDrawn = false;
+    }
+    if (!this.hklLabelsCheckbox.checked || this.hklLabelsRow.style.display === "none") { return; }
+
+    const sources = [
+      [this.hklLabels.indexed, this.observedIndexedReflsCheckbox.checked],
+      [this.hklLabels.integrated, this.integratedReflsCheckbox.checked],
+      [this.hklLabels.calculated, this.calculatedReflsCheckbox.checked],
+    ];
+    const camera = window.camera;
+    const width = canvas.width;
+    const height = canvas.height;
+    const size = parseFloat(this.hklLabelSize.value);
+    const reflSize = parseFloat(this.reflectionSize.value);
+    const viewPos = new THREE.Vector3();
+    const ndc = new THREE.Vector3();
+    const seen = new Set();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.lineJoin = "round";
+    ctx.fillStyle = "white";
+    ctx.strokeStyle = "rgba(2, 8, 23, 0.8)";
+    let fontSize = null;
+    for (const [perExpt, shown] of sources) {
+      if (!shown) { continue; }
+      const labels = perExpt[this.visibleExptID] ?? [];
+      for (const label of labels) {
+        if (seen.has(label.text)) { continue; }
+        seen.add(label.text);
+        viewPos.copy(label.pos).applyMatrix4(camera.matrixWorldInverse);
+        if (viewPos.z >= 0) { continue; }
+        ndc.copy(viewPos).applyMatrix4(camera.projectionMatrix);
+        if (Math.abs(ndc.x) > 1 || Math.abs(ndc.y) > 1) { continue; }
+        const scale = camera.isPerspectiveCamera ? (height / 2) / -viewPos.z : 1;
+        const px = size * scale;
+        if (px < 4) { continue; }
+        const roundedPx = Math.round(px);
+        if (roundedPx !== fontSize) {
+          fontSize = roundedPx;
+          ctx.font = "bold " + fontSize + "px Arial, sans-serif";
+          ctx.lineWidth = Math.max(2, fontSize / 5);
+        }
+        const x = (ndc.x + 1) * width / 2;
+        // Just above the reflection point
+        const y = (1 - ndc.y) * height / 2 - reflSize * scale / 2;
+        ctx.strokeText(label.text, x, y);
+        ctx.fillText(label.text, x, y);
+        this.hklLabelsDrawn = true;
+      }
+    }
   }
 
   toggleSidebar() {
@@ -1251,6 +1340,7 @@ export class ExperimentViewer {
     this.clearReflPointsIntegrated();
     this.clearBoundingBoxes();
     this.clearBboxMeshesIntegrated();
+    this.hklLabels = ExperimentViewer.emptyHklLabels();
     this.refl.clearReflectionTable();
     this.calculatedIntegratedRefl.clearReflectionTable();
     this.updateReflectionCheckboxEnabledStatus();
@@ -1262,7 +1352,9 @@ export class ExperimentViewer {
   clearCalculatedIntegratedReflectionTable(){
     this.clearReflPointsIntegrated();
     this.clearBboxMeshesIntegrated();
+    this.hklLabels.integrated = [];
     this.calculatedIntegratedRefl.clearReflectionTable();
+    this.updateHklLabelControls();
     this.requestRender();
   }
 
@@ -1431,9 +1523,11 @@ export class ExperimentViewer {
     const bboxesUnindexed = [];
     const bboxesIndexed = [];
     const bboxesIntegrated = [];
+    const hklLabels = ExperimentViewer.emptyHklLabels();
 
 
     for (let i = 0; i < this.expt.numExperiments(); i++) {
+      for (const labels of Object.values(hklLabels)) { labels.push([]); }
       pointsObsUnindexed.push([]);
       positionsObsUnindexed.push([]);
       positionsObsIndexed.push([]);
@@ -1495,6 +1589,9 @@ export class ExperimentViewer {
             indexedMap[numIndexed] = millerIndices[reflIdx];
             bboxesIndexed[exptID][reflPanel].push(bboxes[reflIdx]); 
             numIndexed++;
+            hklLabels.indexed[exptID].push({
+              pos: globalPosObs, text: ExperimentViewer.hklLabelText(millerIndices[reflIdx])
+            });
 
         }
 
@@ -1521,11 +1618,18 @@ export class ExperimentViewer {
         positionsCal[exptID].push(globalPosCal.y);
         positionsCal[exptID].push(globalPosCal.z);
 
+        const hasHkl = millerIndices !== null && this.refl.isValidMillerIndex(millerIndices[reflIdx]);
+        const hklLabel = hasHkl ? {
+          pos: globalPosCal, text: ExperimentViewer.hklLabelText(millerIndices[reflIdx])
+        } : null;
+        if (hasHkl) { hklLabels.calculated[exptID].push(hklLabel); }
+
         if (this.refl.isSummationIntegrated(flags[reflIdx])) {
           positionsIntegrated[exptID].push(globalPosCal.x);
           positionsIntegrated[exptID].push(globalPosCal.y);
           positionsIntegrated[exptID].push(globalPosCal.z);
           bboxesIntegrated[exptID][reflPanel].push(bboxes[reflIdx]);
+          if (hasHkl) { hklLabels.integrated[exptID].push(hklLabel); }
         }
       } // xyzCal
 
@@ -1665,6 +1769,7 @@ export class ExperimentViewer {
     this.bboxMeshesIndexed = bboxesIndexed;
     this.bboxMeshesIntegrated = bboxesIntegrated;
     this.refl.indexedMap = indexedMap;
+    this.hklLabels = hklLabels;
   }
 
   async addCalculatedIntegratedReflectionsFromJSONMsgpack(reflMsgpack){
@@ -1706,12 +1811,14 @@ export class ExperimentViewer {
     const pointsIntegrated = [];
     const positionsIntegrated = [];
     const bboxesIntegrated = [];
+    const hklLabelsIntegrated = [];
 
 
     for (var i = 0; i < this.expt.numExperiments(); i++) {
       pointsIntegrated.push([]);
       positionsIntegrated.push([]);
       bboxesIntegrated.push({});
+      hklLabelsIntegrated.push([]);
     }
 
     const xyzCal = this.calculatedIntegratedRefl.getXYZCal();
@@ -1761,6 +1868,11 @@ export class ExperimentViewer {
           positionsIntegrated[exptID].push(globalPosCal.y);
           positionsIntegrated[exptID].push(globalPosCal.z);
 
+          if (millerIndices !== null && this.calculatedIntegratedRefl.isValidMillerIndex(millerIndices[reflIdx])) {
+            hklLabelsIntegrated[exptID].push({
+              pos: globalPosCal, text: ExperimentViewer.hklLabelText(millerIndices[reflIdx])
+            });
+          }
       }
 
       if (bboxes !== null) {
@@ -1790,6 +1902,7 @@ export class ExperimentViewer {
       this.reflPointsIntegrated = pointsIntegrated;
       this.reflPositionsIntegrated = positionsIntegrated;
     }
+    this.hklLabels.integrated = hklLabelsIntegrated;
 
     if (bboxes !== null) {
       const bboxLineWidth = ExperimentViewer.sizes()["bboxLineWidth"];
@@ -2198,6 +2311,7 @@ highlightReflection(reflData, focusOnPanel = true) {
       this.boundingBoxesRow.style.display = "none";
       this.integratedBoundingBoxesRow.style.display = "none";
       this.reflectionSizeContainer.style.display = "none";
+      this.updateHklLabelControls();
       return;
     }
 
@@ -2222,6 +2336,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     this.boundingBoxesRow.style.display = hasBoundingBoxes ? "" : "none";
     this.integratedBoundingBoxesRow.style.display = hasIntegratedBoundingBoxes ? "" : "none";
     this.reflectionSizeContainer.style.display = "";
+    this.updateHklLabelControls();
   }
 
   integrationDataEmpty(){
@@ -3378,6 +3493,7 @@ highlightReflection(reflData, focusOnPanel = true) {
     window.viewer.updateGUIInfo();
     window.renderer.render(window.scene, window.camera);
     window.labelRenderer?.render(window.scene, window.camera);
+    this.drawHklLabels();
     this.renderRequested = false;
     window.viewer.enableMouseClick();
   }
@@ -3413,6 +3529,15 @@ export function setupScene() {
     position: "absolute", top: "0", left: "0", pointerEvents: "none"
   });
   document.body.appendChild(window.labelRenderer.domElement);
+
+  // Miller index labels (ExperimentViewer.drawHklLabels)
+  window.hklLabelCanvas = document.createElement("canvas");
+  window.hklLabelCanvas.width = window.innerWidth;
+  window.hklLabelCanvas.height = window.innerHeight;
+  Object.assign(window.hklLabelCanvas.style, {
+    position: "absolute", top: "0", left: "0", pointerEvents: "none"
+  });
+  document.body.appendChild(window.hklLabelCanvas);
 
   window.scene = new THREE.Scene()
   window.scene.fog = new THREE.Fog(window.viewer.colors["background"], 500, 3000);
@@ -3498,6 +3623,9 @@ export function setupScene() {
     window.viewer.updateLineWidths();
     window.renderer.setSize(window.innerWidth, window.innerHeight);
     window.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    window.hklLabelCanvas.width = window.innerWidth;
+    window.hklLabelCanvas.height = window.innerHeight;
+    window.viewer.hklLabelsDrawn = false;
     window.viewer.requestRender();
   });
 
