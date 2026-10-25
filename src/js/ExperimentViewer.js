@@ -1207,6 +1207,9 @@ export class ExperimentViewer {
     this.updateReflectionCheckboxEnabledStatus();
     this.updateBoundingBoxes(false);
     this.setDefaultReflectionsDisplay();
+    // Also ends loading that never finished, e.g. a folder that failed to open
+    this.loading = false;
+    this.displayDefaultHeaderText();
 
   }
 

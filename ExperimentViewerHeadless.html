@@ -23,7 +23,7 @@
 		<button id="view3DButton" class="view-toggle-button active" aria-pressed="true">3D</button>
 		<button id="view2DButton" class="view-toggle-button" aria-pressed="false">2D</button>
 	</div>
-	<sidebar id="sidebar" class="hidden" style="width: 230px; padding: 10px;"> 
+	<sidebar id="sidebar" class="hidden"> 
 		<button id="sidebarToggle" onclick="window.viewer.toggleSidebar()" aria-label="Toggle sidebar">
 			❮
 		</button>
@@ -219,9 +219,13 @@
 			flex-shrink: 0;  
 		}
 		.slider-container input[type="range"] {
-			flex-grow: 1;    
-			min-width: 50px; 
-			max-width: 50%; 
+			flex: 1 1 auto;
+			min-width: 40px;
+			max-width: 50%;
+			margin: 0 6px;
+		}
+		.slider-container span {
+			flex-shrink: 0;
 		}
 
 		/* WebKit browsers (Chrome, Safari) */
@@ -366,17 +370,20 @@
 			top: 50%;
 			transform: translateY(-50%);
 			cursor: default;
-			padding: 16px 8px 28px;
+			box-sizing: border-box;
+			width: 270px;
+			/* Wider on the right, for the toggle */
+			padding: 16px 34px 24px 16px;
 			border-radius: 10px;
 			z-index: 9;
 			line-height: 1.2;
 		}
 		#sidebar.hidden {
-		transform: translate(-260px, -50%);
+		transform: translate(-270px, -50%);
 		}
 		#sidebarToggle {
 			position: absolute;
-			right: -0px;
+			right: 10px;
 			top: 50%;
 			transform: translateY(-50%);
 			background: none;
@@ -389,6 +396,7 @@
 		}
 		#sidebar.hidden #sidebarToggle {
 			transform: translateY(-50%) rotate(180deg);
+			right: 3px;
 		}
 
 		#sidebarToggle:hover {
